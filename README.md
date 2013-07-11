@@ -25,10 +25,11 @@ Contributors:
 
 
 Dependencies:
-* g++ 4.7 or higher
-* Boost library headers (Tested with version 1.53)
+* [g++ 4.7](http://gcc.gnu.org/) or higher.
+* [Boost library](http://www.boost.org/) headers. (Tested with version 1.53)
+
 Optional:
-* CUDA 5.0 and Thrust
+* [CUDA 5.0 and Thrust](https://developer.nvidia.com/cuda-downloads) for GPU acceleration.
 
 
 Building:
