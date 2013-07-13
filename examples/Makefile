@@ -68,8 +68,7 @@ all: $(EXEC)
 # TODO: Automatically detect a .kern file in the dependencies?
 KERNEL_DIR := $(FMMW_DIR)/kernel
 # List the Kernel dependency (.kern) for each executable
-gpup2p:    $(KERNEL_DIR)/UnitKernel.o
-serialrun: $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/Yukawa.o
+scaling:  $(KERNEL_DIR)/Laplace.o
 
 # Suffix replacement rules
 #   $^: the name of the prereqs of the rule
