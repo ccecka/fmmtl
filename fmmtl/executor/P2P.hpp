@@ -4,32 +4,25 @@
  *
  */
 
-#include "KernelTraits.hpp"
+#include "fmmtl/KernelTraits.hpp"
+#include <iterator>
 #include <type_traits>
 
 struct P2P
 {
-  /** If no other P2P dispatcher matches */
-  template <typename Kernel, typename... Args>
-  inline static void eval(const Kernel&, Args...) {
-    std::cerr << "Kernel does not have a correct op() or P2P!\n";
-    std::cerr << KernelTraits<Kernel>() << std::endl;
-    exit(1);
-  }
-
   /** Dual-Evaluation dispatch
    */
   template <typename Kernel>
   inline static
   typename std::enable_if<KernelTraits<Kernel>::has_eval_op &
                           !KernelTraits<Kernel>::has_transpose>::type
-  eval(const Kernel& K,
-       const typename Kernel::source_type& p1,
-       const typename Kernel::charge_type& c1,
-       typename Kernel::result_type& r1,
-       const typename Kernel::source_type& p2,
-       const typename Kernel::charge_type& c2,
-       typename Kernel::result_type& r2)
+  symm_eval(const Kernel& K,
+            const typename Kernel::source_type& p1,
+            const typename Kernel::charge_type& c1,
+            typename Kernel::result_type& r1,
+            const typename Kernel::source_type& p2,
+            const typename Kernel::charge_type& c2,
+            typename Kernel::result_type& r2)
   {
     r1 += K(p1,p2) * c2;
     r2 += K(p2,p1) * c1;
@@ -41,13 +34,13 @@ struct P2P
   inline static
   typename std::enable_if<KernelTraits<Kernel>::has_eval_op &
                           KernelTraits<Kernel>::has_transpose>::type
-  eval(const Kernel& K,
-       const typename Kernel::source_type& p1,
-       const typename Kernel::charge_type& c1,
-       typename Kernel::result_type& r1,
-       const typename Kernel::source_type& p2,
-       const typename Kernel::charge_type& c2,
-       typename Kernel::result_type& r2)
+  symm_eval(const Kernel& K,
+            const typename Kernel::source_type& p1,
+            const typename Kernel::charge_type& c1,
+            typename Kernel::result_type& r1,
+            const typename Kernel::source_type& p2,
+            const typename Kernel::charge_type& c2,
+            typename Kernel::result_type& r2)
   {
     typedef typename Kernel::kernel_value_type kernel_value_type;
 
@@ -57,40 +50,22 @@ struct P2P
     r2 += k21 * c1;
   }
 
-	/** Asymmetric vectorized P2P dispatch
+	/** Asymmetric block P2P dispatch
 	 */
 	template <typename Kernel,
 	          typename SourceIter, typename ChargeIter,
 	          typename TargetIter, typename ResultIter>
 	inline static
 	typename std::enable_if<KernelTraits<Kernel>::has_vector_P2P_asymm>::type
-	eval(const Kernel& K,
-       SourceIter s_first, SourceIter s_last, ChargeIter c_first,
-       TargetIter t_first, TargetIter t_last, ResultIter r_first)
+	block_eval(const Kernel& K,
+             SourceIter s_first, SourceIter s_last, ChargeIter c_first,
+             TargetIter t_first, TargetIter t_last, ResultIter r_first)
 	{
 		K.P2P(s_first, s_last, c_first,
 		      t_first, t_last, r_first);
 	}
 
-  /** Symmetric vectorized P2P dispatch
-   * @pre source_type == target_type
-   */
-  template <typename Kernel,
-            typename SourceIter, typename ChargeIter, typename ResultIter>
-  inline static
-  typename std::enable_if<KernelTraits<Kernel>::has_vector_P2P_symm>::type
-  eval(const Kernel& K,
-       SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
-       ResultIter r1_first,
-       SourceIter p2_first, SourceIter p2_last, ChargeIter c2_first,
-       ResultIter r2_first)
-  {
-    K.P2P(p1_first, p1_last, c1_first,
-          p2_first, p2_last, c2_first,
-          r1_first, r2_first);
-  }
-
-	/** Asymmetric P2P using the evaluation operator
+	/** Asymmetric block P2P using the evaluation operator
 	 * r_i += sum_j K(t_i, s_j) * c_j
 	 *
 	 * @param[in] ...
@@ -101,9 +76,9 @@ struct P2P
 	inline static
   typename std::enable_if<KernelTraits<Kernel>::has_eval_op &
                           !KernelTraits<Kernel>::has_vector_P2P_asymm>::type
-  eval(const Kernel& K,
-       SourceIter s_first, SourceIter s_last, ChargeIter c_first,
-       TargetIter t_first, TargetIter t_last, ResultIter r_first)
+  block_eval(const Kernel& K,
+             SourceIter s_first, SourceIter s_last, ChargeIter c_first,
+             TargetIter t_first, TargetIter t_last, ResultIter r_first)
   {
     typedef typename Kernel::source_type source_type;
     typedef typename Kernel::charge_type charge_type;
@@ -114,18 +89,18 @@ struct P2P
     // Optimize on if(std::iterator_traits<All Iters>::iterator_category == random_access_iterator)
     // to eliminate multiple increments
 
-    static_assert(std::is_same<target_type,
-                               typename TargetIter::value_type>::value,
-                  "TargetIter::value_type != Kernel::target_type");
     static_assert(std::is_same<source_type,
-                               typename SourceIter::value_type>::value,
-                  "SourceIter::value_type != Kernel::source_type");
+                  typename std::iterator_traits<SourceIter>::value_type
+                  >::value, "SourceIter::value_type != Kernel::source_type");
     static_assert(std::is_same<charge_type,
-                               typename ChargeIter::value_type>::value,
-                  "ChargeIter::value_type != Kernel::charge_type");
+                  typename std::iterator_traits<ChargeIter>::value_type
+                  >::value, "ChargeIter::value_type != Kernel::charge_type");
+    static_assert(std::is_same<target_type,
+                  typename std::iterator_traits<TargetIter>::value_type
+                  >::value, "TargetIter::value_type != Kernel::target_type");
     static_assert(std::is_same<result_type,
-                               typename ResultIter::value_type>::value,
-                  "ResultIter::value_type != Kernel::result_type");
+                  typename std::iterator_traits<ResultIter>::value_type
+                  >::value, "ResultIter::value_type != Kernel::result_type");
 
     for ( ; t_first != t_last; ++t_first, ++r_first) {
       const target_type& t = *t_first;
@@ -138,7 +113,25 @@ struct P2P
     }
   }
 
-  /** Symmetric P2P, off-diagonal block using the evaluation operator
+  /** Symmetric off-diagonal block P2P dispatch
+   * @pre source_type == target_type
+   */
+  template <typename Kernel,
+            typename SourceIter, typename ChargeIter, typename ResultIter>
+  inline static
+  typename std::enable_if<KernelTraits<Kernel>::has_vector_P2P_symm>::type
+  block_eval(const Kernel& K,
+             SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
+             ResultIter r1_first,
+             SourceIter p2_first, SourceIter p2_last, ChargeIter c2_first,
+             ResultIter r2_first)
+  {
+    K.P2P(p1_first, p1_last, c1_first,
+          p2_first, p2_last, c2_first,
+          r1_first, r2_first);
+  }
+
+  /** Symmetric off-diagonal block P2P using the evaluation operator
    * r2_i += sum_j K(p2_i, p1_j) * c1_j
    * r1_j += sum_i K(p1_j, p2_i) * c2_i
    *
@@ -150,28 +143,29 @@ struct P2P
             typename SourceIter, typename ChargeIter, typename ResultIter>
   inline static
   typename std::enable_if<!KernelTraits<Kernel>::has_vector_P2P_symm>::type
-  eval(const Kernel& K,
-       SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
-       ResultIter r1_first,
-       SourceIter p2_first, SourceIter p2_last, ChargeIter c2_first,
-       ResultIter r2_first)
+  block_eval(const Kernel& K,
+             SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
+             ResultIter r1_first,
+             SourceIter p2_first, SourceIter p2_last, ChargeIter c2_first,
+             ResultIter r2_first)
   {
     typedef typename Kernel::source_type source_type;
     typedef typename Kernel::charge_type charge_type;
     typedef typename Kernel::target_type target_type;
     typedef typename Kernel::result_type result_type;
 
-    static_assert(std::is_same<source_type,target_type>::value,
-                  "source_type != target_type in symmetric P2P");
     static_assert(std::is_same<source_type,
-                               typename SourceIter::value_type>::value,
-                  "SourceIter::value_type != Kernel::source_type");
+                  typename std::iterator_traits<SourceIter>::value_type
+                  >::value, "SourceIter::value_type != Kernel::source_type");
     static_assert(std::is_same<charge_type,
-                               typename ChargeIter::value_type>::value,
-                  "ChargeIter::value_type != Kernel::charge_type");
+                  typename std::iterator_traits<ChargeIter>::value_type
+                  >::value, "ChargeIter::value_type != Kernel::charge_type");
+    static_assert(std::is_same<target_type,
+                  typename std::iterator_traits<SourceIter>::value_type
+                  >::value, "SourceIter::value_type != Kernel::target_type");
     static_assert(std::is_same<result_type,
-                               typename ResultIter::value_type>::value,
-                  "ResultIter::value_type != Kernel::result_type");
+                  typename std::iterator_traits<ResultIter>::value_type
+                  >::value, "ResultIter::value_type != Kernel::result_type");
 
     // TODO
     // Optimize on random_access_iterator?
@@ -185,11 +179,11 @@ struct P2P
       ChargeIter c2i = c2_first;
       ResultIter r2i = r2_first;
       for ( ; p2i != p2_last; ++p2i, ++c2i, ++r2i)
-        P2P::eval(K, p1, c1, r1, *p2i, *c2i, *r2i);
+        P2P::symm_eval(K, p1, c1, r1, *p2i, *c2i, *r2i);
     }
   }
 
-  /** Symmetric P2P, diagonal block using the evaluation operator
+  /** Symmetric diagonal block P2P using the evaluation operator
    * r_i += sum_j K(p_i, p_j) * c_j
    *
    * @pre source_type == target_type
@@ -198,9 +192,9 @@ struct P2P
             typename SourceIter, typename ChargeIter, typename ResultIter>
   inline static
   typename std::enable_if<!KernelTraits<Kernel>::has_vector_P2P_symm>::type
-  eval(const Kernel& K,
-       SourceIter p_first, SourceIter p_last,
-       ChargeIter c_first, ResultIter r_first)
+  block_eval(const Kernel& K,
+             SourceIter p_first, SourceIter p_last,
+             ChargeIter c_first, ResultIter r_first)
   {
     typedef typename Kernel::source_type source_type;
     typedef typename Kernel::charge_type charge_type;
@@ -235,7 +229,7 @@ struct P2P
       ChargeIter cj = c_first;
       ResultIter rj = r_first;
       for ( ; pj != pi; ++pj, ++cj, ++rj)
-        P2P::eval(K, p, c, r, *pj, *cj, *rj);
+        P2P::symm_eval(K, p, c, r, *pj, *cj, *rj);
 
       // The diagonal element
       r += K(p,p) * c;
@@ -262,11 +256,11 @@ struct P2P
     std::cout << "P2P:\n  " << source << "\n  " << target << std::endl;
 #endif
 
-    P2P::eval(c.kernel(),
-              c.source_begin(source), c.source_end(source),
-              c.charge_begin(source),
-              c.target_begin(target), c.target_end(target),
-              c.result_begin(target));
+    P2P::block_eval(c.kernel(),
+                    c.source_begin(source), c.source_end(source),
+                    c.charge_begin(source),
+                    c.target_begin(target), c.target_end(target),
+                    c.result_begin(target));
   }
 
   /** Symmetric P2P
@@ -282,11 +276,11 @@ struct P2P
     std::cout << "P2P:\n  " << box2 << "\n  " << box1 << std::endl;
 #endif
 
-    P2P::eval(c.kernel(),
-              c.source_begin(box1), c.source_end(box1),
-              c.charge_begin(box1), c.result_begin(box1),
-              c.target_begin(box2), c.target_end(box2),
-              c.charge_begin(box2), c.result_begin(box2));
+    P2P::block_eval(c.kernel(),
+                    c.source_begin(box1), c.source_end(box1),
+                    c.charge_begin(box1), c.result_begin(box1),
+                    c.target_begin(box2), c.target_end(box2),
+                    c.charge_begin(box2), c.result_begin(box2));
   }
 
   /** Symmetric P2P
@@ -299,11 +293,11 @@ struct P2P
     std::cout << "P2P:\n  " << box << std::endl;
 #endif
 
-    P2P::eval(c.kernel(),
-              c.source_begin(box), c.source_end(box),
-              c.charge_begin(box), c.result_begin(box),
-              c.target_begin(box), c.target_end(box),
-              c.charge_begin(box), c.result_begin(box));
+    P2P::block_eval(c.kernel(),
+                    c.source_begin(box), c.source_end(box),
+                    c.charge_begin(box), c.result_begin(box),
+                    c.target_begin(box), c.target_end(box),
+                    c.charge_begin(box), c.result_begin(box));
   }
 };
 

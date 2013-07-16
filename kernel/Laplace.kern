@@ -1,6 +1,6 @@
-#include "FMM_Kernel.hpp"
+#include "fmmtl/Kernel.hpp"
 
-#include "Vec.hpp"
+#include "fmmtl/Vec.hpp"
 
 struct LaplacePotential
     : public FMM_Kernel<LaplacePotential> {

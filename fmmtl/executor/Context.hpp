@@ -6,10 +6,9 @@
 
 /** TODO: Write Context and Tree concepts */
 
-#include "KernelTraits.hpp"
-#include "TreeTraits.hpp"
-
-#include "FMMOptions.hpp"
+#include "fmmtl/KernelTraits.hpp"
+#include "fmmtl/TreeTraits.hpp"
+#include "fmmtl/FMMOptions.hpp"
 
 #include <boost/iterator/transform_iterator.hpp>
 

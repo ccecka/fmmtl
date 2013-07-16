@@ -1,4 +1,4 @@
-#include "config.hpp"
+#include "fmmtl/config.hpp"
 
 #if defined(FMMTL_USE_THRUST)
 #include <thrust/version.h>

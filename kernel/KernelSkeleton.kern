@@ -25,10 +25,10 @@
  * MORE on Tree Operations.
  */
 
-#include "FMM_Kernel.hpp"
+#include "fmmtl/Kernel.hpp"
 
 // Use a library-defined Vector class that supports multiple architectures
-#include "Vec.hpp"
+#include "fmmtl/Vec.hpp"
 
 
 /** @struct Kernel

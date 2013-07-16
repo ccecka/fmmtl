@@ -1,5 +1,5 @@
 
-#include "KernelTraits.hpp"
+#include "fmmtl/KernelTraits.hpp"
 
 #include "UnitKernel.kern"
 

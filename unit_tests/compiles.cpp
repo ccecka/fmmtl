@@ -1,4 +1,4 @@
-#include "FMM_Matrix.hpp"
+#include "fmmtl/KernelMatrix.hpp"
 
 #include "KernelSkeleton.kern"
 

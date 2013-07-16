@@ -1,6 +1,6 @@
-#include "FMM_Kernel.hpp"
+#include "fmmtl/Kernel.hpp"
 
-#include "Vec.hpp"
+#include "fmmtl/Vec.hpp"
 
 struct YukawaPotential
     : public FMM_Kernel<YukawaPotential> {

@@ -6,14 +6,14 @@
  * K(t,s) = (s-t) / |s-t|^3  // Laplace force
  */
 
-#include "FMM_Kernel.hpp"
-#include "Laplace.kern"
-
-// Use a library-defined Vector class that supports multiple architectures
-#include "Vec.hpp"
-
 #include <complex>
 #include <cmath>
+
+#include "fmmtl/Kernel.hpp"
+// Use a library-defined Vector class that supports multiple architectures
+#include "fmmtl/Vec.hpp"
+
+#include "Laplace.kern"
 
 class LaplaceSpherical
     : public LaplaceKernel,

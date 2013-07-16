@@ -1,6 +1,6 @@
 # This FMM library
 
-FMMW_DIR = ..
+FMMTL_DIR = ..
 
 # External libraries
 

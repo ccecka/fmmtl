@@ -1,5 +1,5 @@
-#include "tree/Octree.hpp"
-#include "Vec.hpp"
+#include "fmmtl/tree/Octree.hpp"
+#include "fmmtl/Vec.hpp"
 
 #include <iostream>
 #include <string>

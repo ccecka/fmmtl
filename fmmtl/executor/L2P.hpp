@@ -4,7 +4,7 @@
  *
  */
 
-#include "KernelTraits.hpp"
+#include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
 struct L2P

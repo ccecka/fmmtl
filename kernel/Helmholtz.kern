@@ -1,6 +1,6 @@
-#include "FMM_Kernel.hpp"
+#include "fmmtl/Kernel.hpp"
 
-#include "Complex.hpp"
+#include "fmmtl/Complex.hpp"
 
 struct HelmholtzPotential
     : public FMM_Kernel<HelmholtzPotential> {

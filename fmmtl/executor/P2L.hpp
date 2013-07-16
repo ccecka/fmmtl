@@ -4,7 +4,8 @@
  *
  */
 
-#include "KernelTraits.hpp"
+#include "fmmtl/KernelTraits.hpp"
+#include <type_traits>
 
 class P2L
 {

@@ -1,16 +1,15 @@
-#include "Direct.hpp"
-#include "Vec.hpp"
+#include "fmmtl/Direct.hpp"
 
 #include <vector>
 #include <iostream>
 
 struct TempKernel {
   //! Source type
-  typedef Vec<3,double> source_type;
+  typedef double source_type;
   //! Charge type
   typedef double charge_type;
   //! Target type
-  typedef Vec<3,double> target_type;
+  typedef double target_type;
   //! Result type
   typedef double result_type;
 
@@ -80,8 +79,8 @@ int main() {
   std::vector<result_type> exact(targets.size());
 
   // test direct
-  //Direct::matvec(K, sources, charges, targets, exact);
+  Direct::matvec(K, sources, charges, targets, exact);
+  std::cout << exact[0] << "\n";
   Direct::matvec(K, sources, charges, exact);
-
   std::cout << exact[0] << "\n";
 }

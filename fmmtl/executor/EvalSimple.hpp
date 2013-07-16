@@ -1,7 +1,5 @@
 #pragma once
 
-#include "FMMOptions.hpp"
-
 #include "Evaluator.hpp"
 
 #include "Upward.hpp"

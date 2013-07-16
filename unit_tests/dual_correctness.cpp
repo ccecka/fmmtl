@@ -3,8 +3,8 @@
  * of the UnitKernel with random points and charges
  */
 
-#include "FMM_Matrix.hpp"
-#include "Direct.hpp"
+#include "fmmtl/KernelMatrix.hpp"
+#include "fmmtl/Direct.hpp"
 
 #include "UnitKernel.kern"
 #include "ExpKernel.kern"

@@ -10,10 +10,10 @@
 #include <vector>
 #include <cassert>
 
-#include "FMM_Kernel.hpp"
-#include "Yukawa.kern"
+#include "fmmtl/Kernel.hpp"
+#include "fmmtl/Vec.hpp"
 
-#include "Vec.hpp"
+#include "Yukawa.kern"
 
 class YukawaCartesian
     : public YukawaKernel,

@@ -1,8 +1,8 @@
 /** A useful suite for testing Kernel Expansions */
 
-#include "executor/INITM.hpp"
-#include "executor/INITL.hpp"
-#include "Direct.hpp"
+#include "fmmtl/executor/INITM.hpp"
+#include "fmmtl/executor/INITL.hpp"
+#include "fmmtl/Direct.hpp"
 
 #include "LaplaceSpherical.hpp"
 #include "YukawaCartesian.hpp"

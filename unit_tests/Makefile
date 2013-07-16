@@ -39,7 +39,7 @@ DEPCFLAGS = -MD -MF $(DEPSDIR)/$(notdir $*.d) -MP
 
 # Define any directories containing header files other than /usr/include
 #   To include directories use -Ipath/to/files
-INCLUDES := -I. -I$(FMMW_DIR)/include -I$(FMMW_DIR)/kernel
+INCLUDES := -I. -I$(FMMTL_DIR) -I$(FMMTL_DIR)/kernel
 INCLUDES += -I$(BOOST_DIR)
 
 # Define any libraries to link into executable
@@ -84,7 +84,7 @@ all: $(EXEC)
 
 # Extra dependencies for executables
 # TODO: Automatically detect a .kern file in the dependencies?
-KERNEL_DIR := $(FMMW_DIR)/kernel
+KERNEL_DIR := $(FMMTL_DIR)/kernel
 # List the Kernel dependency (.kern) for each executable
 compiles:         $(KERNEL_DIR)/KernelSkeleton.o
 
@@ -127,7 +127,7 @@ endif
 
 # 'make clean' - deletes all .o and temp files, exec, and dependency file
 clean:
-	-$(RM) *.o *~ */*~ $(OBJS) $(FMMW_DIR)/kernel/*.o
+	-$(RM) *.o *~ */*~ $(OBJS) $(FMMTL_DIR)/kernel/*.o
 	-$(RM) $(EXEC)
 	$(RM) -r $(DEPSDIR)
 
