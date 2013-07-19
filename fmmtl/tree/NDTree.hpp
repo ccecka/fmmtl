@@ -94,11 +94,11 @@ class NDTree {
     unsigned parent() const {
       return parent_;
     }
-    void set_leaf(bool b) {
-      if (b)
-        level_ |= leaf_bit;
-      else
-        level_ &= ~leaf_bit;
+    void set_leaf() {
+      level_ |= leaf_bit;
+    }
+    void set_non_leaf() {
+      level_ &= ~leaf_bit;
     }
     bool is_leaf() const {
       return level_ & leaf_bit;
@@ -200,12 +200,6 @@ class NDTree {
       // Mask this to get the min and max Morton code
       code_type mask = code_type(-1) >> (DIM * data().level());
       return tree_->coder_.center(c & ~mask /*cmin*/, c | mask /*cmax*/);
-      /*
-      BoundingBox<DIM> bb = tree_->coder_.cell(data().get_mc_lower_bound());
-      point_type p = bb.min();
-      p += bb.dimensions() * (1 << (10-data().level()-1));
-      return p;
-      */
     }
 
     /** The parent box of this box */
@@ -385,81 +379,6 @@ class NDTree {
     return this == body.tree_;
   }
 
-  //! Uses incremental bucket sorting
-  template <typename PointIter>
-  void insert(PointIter p_first, PointIter p_last, unsigned NCRIT = 126) {
-    // Create a code-idx pair vector
-    typedef std::pair<code_type, unsigned> code_pair;
-    std::vector<code_pair> codes;
-    std::vector<point_type> points;
-
-    unsigned idx = 0;
-    for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
-      point_type p = static_cast<point_type>(*pi);
-      assert(coder_.bounding_box().contains(p));
-
-      points.push_back(p);
-      codes.push_back(std::make_pair(coder_.code(p), idx));
-    }
-
-    // Push the root box which contains all points
-    box_data_.push_back(box_data(0, 0, 0, codes.size()));
-    level_offset_.push_back(0);
-
-    // For every box that is created
-    for (unsigned k = 0; k != box_data_.size(); ++k) {
-      // If this box has few enough points, mark as leaf and go to next box
-      if (box_data_[k].num_children() <= NCRIT) {
-        box_data_[k].set_leaf(true);
-        continue;
-      }
-
-      // Get the box data
-      auto code_begin = codes.begin() + box_data_[k].child_begin_;
-      auto code_end   = codes.begin() + box_data_[k].child_end_;
-      unsigned shift = DIM*(MortonCoder<DIM>::levels - box_data_[k].level() - 1);
-
-      // Sort the points in this box into the "bucket" children
-      auto off = bucket_sort(code_begin, code_end, max_children,
-                             [shift] (const code_pair& v)
-                             { return (v.first >> shift) & (max_children-1); });
-
-      // Split this box - point offsets become box offsets
-      box_data_[k].child_begin_ = box_data_.size();
-      box_data_[k].child_end_   = box_data_.size();
-
-      // For each bucket
-      for (unsigned c = 0; c < max_children; ++c) {
-        unsigned begin_c = off[c]   - codes.begin();
-        unsigned end_c   = off[c+1] - codes.begin();
-
-        // If this child contains points, add this child box
-        if (end_c - begin_c > 0) {
-          // Construct the new box
-          box_data box_c(box_data_[k].level() + 1, k, begin_c, end_c);
-
-          // If this is starting a new level, record it
-          if (box_c.level() > levels())
-            level_offset_.push_back(box_data_.size());
-
-          // Increment parent child offset
-          ++box_data_[k].child_end_;
-          // Add the child
-          box_data_.push_back(box_c);
-        }
-      }
-    }
-
-    level_offset_.push_back(box_data_.size());
-
-    // Extract the code, permutation vector, and sorted point
-    for (auto it = codes.begin(); it != codes.end(); ++it) {
-      mc_.push_back(it->first);
-      permute_.push_back(it->second);
-      point_.push_back(points[permute_.back()]);
-    }
-  }
-
   /** Return the root box of this tree */
   box_type root() const {
     return Box(0, this);
@@ -536,6 +455,82 @@ class NDTree {
   }
 
  private:
+  //! TODO: Make dynamic and public?
+  //! Uses incremental bucket sorting
+  template <typename PointIter>
+  void insert(PointIter p_first, PointIter p_last, unsigned NCRIT = 126) {
+    // Create a code-idx pair vector
+    typedef std::pair<code_type, unsigned> code_pair;
+    std::vector<code_pair> codes;
+    std::vector<point_type> points;
+
+    unsigned idx = 0;
+    for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
+      point_type p = static_cast<point_type>(*pi);
+      assert(coder_.bounding_box().contains(p));
+
+      points.push_back(p);
+      codes.push_back(std::make_pair(coder_.code(p), idx));
+    }
+
+    // Push the root box which contains all points
+    box_data_.push_back(box_data(0, 0, 0, codes.size()));
+    level_offset_.push_back(0);
+
+    // For every box that is created
+    for (unsigned k = 0; k != box_data_.size(); ++k) {
+      // If this box has few enough points, mark as leaf and go to next box
+      if (box_data_[k].num_children() <= NCRIT) {
+        box_data_[k].set_leaf();
+        continue;
+      }
+
+      // Get the box data
+      auto code_begin = codes.begin() + box_data_[k].child_begin_;
+      auto code_end   = codes.begin() + box_data_[k].child_end_;
+      unsigned shift = DIM*(MortonCoder<DIM>::levels - box_data_[k].level() - 1);
+
+      // Sort the points in this box into the "bucket" children
+      auto off = bucket_sort(code_begin, code_end, max_children,
+                             [shift] (const code_pair& v)
+                             { return (v.first >> shift) & (max_children-1); });
+
+      // Split this box - point offsets become box offsets
+      box_data_[k].child_begin_ = box_data_.size();
+      box_data_[k].child_end_   = box_data_.size();
+
+      // For each bucket
+      for (unsigned c = 0; c < max_children; ++c) {
+        unsigned begin_c = off[c]   - codes.begin();
+        unsigned end_c   = off[c+1] - codes.begin();
+
+        // If this child contains points, add this child box
+        if (end_c - begin_c > 0) {
+          // Construct the new box
+          box_data box_c(box_data_[k].level() + 1, k, begin_c, end_c);
+
+          // If this is starting a new level, record it
+          if (box_c.level() > levels())
+            level_offset_.push_back(box_data_.size());
+
+          // Increment parent child offset
+          ++box_data_[k].child_end_;
+          // Add the child
+          box_data_.push_back(box_c);
+        }
+      }
+    }
+
+    level_offset_.push_back(box_data_.size());
+
+    // Extract the code, permutation vector, and sorted point
+    for (auto it = codes.begin(); it != codes.end(); ++it) {
+      mc_.push_back(it->first);
+      permute_.push_back(it->second);
+      point_.push_back(points[permute_.back()]);
+    }
+  }
+
   // Just making sure for now
   NDTree(const NDTree& other_tree) {};
   void operator=(const NDTree& other_tree) {};
