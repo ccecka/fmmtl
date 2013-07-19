@@ -1,4 +1,4 @@
-#include "fmmtl/tree/Octree.hpp"
+#include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/Vec.hpp"
 
 #include <iostream>

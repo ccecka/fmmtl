@@ -181,7 +181,7 @@ class fmm_matrix {  // Inherit ExpasionTraits?
 
 
 
-#include "tree/Octree.hpp"
+#include "tree/NDTree.hpp"
 #include "executor/Context.hpp"
 
 template <class Expansion,
