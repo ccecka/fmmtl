@@ -101,7 +101,7 @@ struct ExpansionTraits
   typedef typename super_type::target_iterator    target_iterator;
   typedef typename super_type::result_iterator    result_iterator;
 
-  //static constexpr unsigned dimension = expansion_type::dimension;
+  static constexpr unsigned dimension = expansion_type::dimension;
   typedef typename expansion_type::point_type        point_type;
 
   // TODO: Check that dimension and point_type make sense

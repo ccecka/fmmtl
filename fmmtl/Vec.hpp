@@ -15,7 +15,7 @@
 /** @class Vec
  * @brief Class representing ND points and vectors.
  */
-template <unsigned N, typename T>
+template <unsigned N, typename T = double>
 class Vec {
   T a[N];
 
@@ -34,7 +34,7 @@ class Vec {
   FMMTL_INLINE Vec() {
     for_i a[i] = value_type();
   }
-  FMMTL_INLINE explicit Vec(T b) {
+  FMMTL_INLINE explicit Vec(value_type b) {
     for_i a[i] = b;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1) {
@@ -122,12 +122,12 @@ class Vec {
   // ACCESSORS
 
   /** Access the @a i th (lvalue) element of this Vec
-   * @pre i < dimension */
+   * @pre i < size() */
   FMMTL_INLINE value_type& operator[](unsigned i) {
     return a[i];
   }
   /** Access the @a i th (rvalue) element of this Vec
-   * @pre i < dimension */
+   * @pre i < size() */
   FMMTL_INLINE const value_type& operator[](unsigned i) const {
     return a[i];
   }
@@ -167,7 +167,7 @@ FMMTL_INLINE std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
 /** Compute the dot product of two Vecs */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type dot(const Vec<N,P>& a,
-                                                  const Vec<N,P>& b) {
+                                               const Vec<N,P>& b) {
   return a.dot(b);
 }
 /** Compute cross product of two 3D Vecs */
@@ -177,20 +177,23 @@ FMMTL_INLINE Vec<3,P> cross(const Vec<3,P>& a, const Vec<3,P>& b) {
                   a[2]*b[0] - a[0]*b[2],
                   a[0]*b[1] - a[1]*b[0]);
 }
-/** Compute the squared L2 norm of this Vec */
+/** Compute the squared L2 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type normSq(const Vec<N,P>& a) {
   return a.dot(a);
 }
-/** Compute the L2 norm of this Vec */
+/** Compute the L2 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm(const Vec<N,P>& a) {
+  using std::sqrt;
   return sqrt(normSq(a));
 }
+/** Compute the L2 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm_2(const Vec<N,P>& a) {
   return norm(a);
 }
+/** Compute the L1 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm_1(const Vec<N,P>& a) {
   using std::abs;
@@ -198,6 +201,7 @@ FMMTL_INLINE typename Vec<N,P>::value_type norm_1(const Vec<N,P>& a) {
   for_i r += abs(a[i]);
   return r;
 }
+/** Compute the L-infinity norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm_inf(const Vec<N,P>& a) {
   using std::abs;
@@ -272,6 +276,5 @@ FMMTL_INLINE Vec<N,P> sqrt(Vec<N,P> a) {
   for_i a[i] = sqrt(a[i]);
   return a;
 }
-
 
 #undef for_i

@@ -68,6 +68,8 @@ class LaplaceSpherical
   };
 
  public:
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
   //! Point type
   typedef Vec<3,real> point_type;
 

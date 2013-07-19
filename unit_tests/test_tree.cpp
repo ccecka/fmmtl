@@ -19,15 +19,17 @@ int main(int argc, char** argv)
 
   int N = atoi(argv[1]);
 
-  typedef Vec<3,double> point_type;
+  constexpr unsigned dimension = 2;
+  typedef Vec<dimension,double> point_type;
 
   std::vector<point_type> points(N);
   for (int k = 0; k < N; ++k)
-    points[k] = point_type(drand(), drand(), drand());
+    for (unsigned d = 0; d < dimension; ++d)
+      points[k][d] = drand();
 
-  Octree<point_type> otree(points.begin(), points.end());
+  NDTree<dimension> tree(points.begin(), points.end());
 
-  std::cout << otree << "\n";
+  std::cout << tree << "\n";
 
   return 0;
 }

@@ -1,11 +1,12 @@
 #pragma once
+/** @file BoundingBox.hpp
+ * @brief Define the BoundingBox class for ND bounding boxes. */
+
+#include "fmmtl/Vec.hpp"
 
 #include <iostream>
 #include <algorithm>
 #include <cmath>
-
-/** @file BoundingBox.hpp
- * @brief Define the BoundingBox class for ND bounding boxes. */
 
 /** @class BoundingBox
  * @brief Class representing ND bounding boxes.
@@ -18,11 +19,10 @@
  * sides are aligned with the principal axes.
  */
 
-// TODO: Optimize for cubes?
-template <typename Point>
+template <unsigned DIM>
 class BoundingBox {
  public:
-  typedef Point point_type;
+  typedef Vec<DIM,double> point_type;
 
   /** Construct an empty bounding box. */
   BoundingBox()
@@ -37,10 +37,9 @@ class BoundingBox {
    * @param[in] center center of the sphere
    * @param[in] radius radius of the sphere */
   BoundingBox(const point_type& center, double radius)
-      : empty_(false) {
-    radius = fabs(radius);
-    min_ = center - radius;
-    max_ = center + radius;
+      : empty_(false), min_(center), max_(center) {
+    min_ -= radius;
+    max_ += radius;
   }
   /** Construct the minimal bounding box containing @a p1 and @a p2.
    * @post contains(@a p1) && contains(@a p2) */
@@ -95,7 +94,7 @@ class BoundingBox {
   bool contains(const point_type& p) const {
     if (empty())
       return false;
-    for (unsigned i = 0; i != p.size(); ++i)
+    for (unsigned i = 0; i != DIM; ++i)
       if (p[i] < min_[i] || p[i] > max_[i])
         return false;
     return true;
@@ -110,7 +109,7 @@ class BoundingBox {
   bool intersects(const BoundingBox& box) const {
     if (empty() || box.empty())
       return false;
-    for (unsigned i = 0; i != min_.size(); ++i)
+    for (unsigned i = 0; i != DIM; ++i)
       if (box.min_[i] > max_[i] || box.max_[i] < min_[i])
         return false;
     return true;
@@ -124,7 +123,7 @@ class BoundingBox {
       empty_ = false;
       min_ = max_ = p;
     } else {
-      for (unsigned i = 0; i != p.size(); ++i) {
+      for (unsigned i = 0; i != DIM; ++i) {
         min_[i] = std::min(min_[i], p[i]);
         max_[i] = std::max(max_[i], p[i]);
       }
@@ -143,7 +142,7 @@ class BoundingBox {
   template <typename IT>
   BoundingBox& insert(IT first, IT last) {
     while (first != last) {
-      *this |= *first;
+      *this |= static_cast<point_type>(*first);
       ++first;
     }
     return *this;
@@ -153,7 +152,7 @@ class BoundingBox {
   BoundingBox& operator&=(const BoundingBox& box) {
     if (empty() || box.empty())
       return clear();
-    for (unsigned i = 0; i != min_.size(); ++i) {
+    for (unsigned i = 0; i != DIM; ++i) {
       if (min_[i] > box.max_[i] || max_[i] < box.min_[i])
         return clear();
       if (min_[i] < box.min_[i])
@@ -178,7 +177,7 @@ class BoundingBox {
    * written as "[min:max] (dim)".
    */
   inline friend std::ostream& operator<<(std::ostream& s,
-                                         const BoundingBox<point_type>& box) {
+                                         const BoundingBox<DIM>& box) {
     if (box.empty())
       return (s << '[' << ']');
     else
@@ -195,22 +194,26 @@ class BoundingBox {
 
 
 /** Return a bounding box that contains @a box and @a p. */
-template <typename P>
-BoundingBox<P> operator|(BoundingBox<P> box, const P& p) {
+template <unsigned DIM>
+BoundingBox<DIM> operator|(BoundingBox<DIM> box,
+                           const Vec<DIM,double>& p) {
   return box |= p;
 }
 /** Return the union of @a box1 and @a box2. */
-template <typename P>
-BoundingBox<P> operator|(BoundingBox<P> box1, const BoundingBox<P>& box2) {
+template <unsigned DIM>
+BoundingBox<DIM> operator|(BoundingBox<DIM> box1,
+                           const BoundingBox<DIM>& box2) {
   return box1 |= box2;
 }
 /** Return a bounding box that contains @a p1 and @a p2. */
-template <typename P>
-BoundingBox<P> operator|(const P& p1, const P& p2) {
-  return BoundingBox<P>(p1, p2);
+template <unsigned DIM>
+BoundingBox<DIM> operator|(const Vec<DIM,double>& p1,
+                           const Vec<DIM,double>& p2) {
+  return BoundingBox<DIM>(p1, p2);
 }
 /** Return the intersection of @a box1 and @a box2. */
-template <typename P>
-BoundingBox<P> operator&(BoundingBox<P> box1, const BoundingBox<P>& box2) {
+template <unsigned DIM>
+BoundingBox<DIM> operator&(BoundingBox<DIM> box1,
+                           const BoundingBox<DIM>& box2) {
   return box1 &= box2;
 }

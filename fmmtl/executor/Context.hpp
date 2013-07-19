@@ -55,14 +55,15 @@ class SingleTreeContext;
  */
 template <typename Expansion>
 class DualTreeContext<Expansion,
-                      Octree<typename ExpansionTraits<Expansion>::point_type> >
+                      NDTree<ExpansionTraits<Expansion>::dimension> >
     : public ExpansionContext<Expansion>
 {
  public:
   typedef ExpansionTraits<Expansion> expansion_traits;
   FMMTL_IMPORT_EXPANSION_TRAITS(expansion_traits);
 
-  typedef TreePairTraits<Octree<point_type>, Octree<point_type>> tree_traits;
+  typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
+  typedef TreePairTraits<tree_type, tree_type> tree_traits;
   FMMTL_IMPORT_TREEPAIR_TRAITS(tree_traits);
 
  protected:
@@ -247,14 +248,15 @@ class DualTreeContext<Expansion,
 
 template <typename Expansion>
 class SingleTreeContext<Expansion,
-                        Octree<typename ExpansionTraits<Expansion>::point_type> >
+                        NDTree<ExpansionTraits<Expansion>::dimension> >
     : public ExpansionContext<Expansion>
 {
  public:
   typedef ExpansionTraits<Expansion> expansion_traits;
   FMMTL_IMPORT_EXPANSION_TRAITS(expansion_traits);
 
-  typedef TreePairTraits<Octree<point_type>, Octree<point_type>> tree_traits;
+  typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
+  typedef TreePairTraits<tree_type, tree_type> tree_traits;
   FMMTL_IMPORT_TREEPAIR_TRAITS(tree_traits);
 
  protected:

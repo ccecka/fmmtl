@@ -165,12 +165,14 @@ struct KernelExpansion
     : public Kernel,
       public FMM_Expansion<KernelExpansion>
 {
-  //! Point type to use for the tree -- Recommend include/Vec.hpp.
-  // TODO: Ability to use anything with op[]/size() or begin()/end()?
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
+  //! Point type to use for the tree -- Restricted to include/Vec.hpp.
   //! source_type and target_type must be convertible to point_type:
   //!    static_cast<point_type>(source_type)
   //!    static_cast<point_type>(target_type)
-  typedef Vec<3,double> point_type;
+  //! TODO: Generalize? Use any type with op[]/size() or begin()/end()?
+  typedef Vec<dimension,double> point_type;
 
   //! Multipole expansion type
   typedef std::vector<double> multipole_type;

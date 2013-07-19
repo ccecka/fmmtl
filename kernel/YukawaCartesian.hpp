@@ -37,8 +37,8 @@ class YukawaCartesian
   std::vector<double> fact;
 
  protected:
-  //! store all possible index combinations returned from setIndex
-  // TODO: Analytic computation
+  //! Store all possible index combinations returned from setIndex
+  // TODO: Static/Analytic computation
   struct IndexCache {
    private:
     unsigned setIndex(unsigned i, unsigned j, unsigned k) const {
@@ -73,22 +73,25 @@ class YukawaCartesian
     }
   };
 
- public:
   IndexCache index_cache;
+
+ public:
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
+  //! Point type
+  typedef Vec<3,real> point_type;
+
   //! Multipole expansion type
   typedef std::vector<real> multipole_type;
   //! Local expansion type
   typedef std::vector<real> local_type;
-
-  //! Point type
-  typedef Vec<3,real> point_type;
 
   //! default constructor - use delegating constructor
   YukawaCartesian()
       : YukawaCartesian(4,0.125) {
   }
   //! Constructor
-  YukawaCartesian(int p, double kappa = 0.125)
+  YukawaCartesian(int p, double kappa)
       : YukawaKernel(kappa),
         P(p), MTERMS((P+1)*(P+2)*(P+3)/6), fact(2*P), index_cache(P) {
     I = std::vector<unsigned>(MTERMS,0);

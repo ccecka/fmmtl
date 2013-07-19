@@ -40,6 +40,8 @@ struct ExpExpansion
     : public ExpPotential,
       public FMM_Expansion<ExpExpansion>
 {
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
   //! Point type to use for the tree
   typedef Vec<3,double> point_type;
 
