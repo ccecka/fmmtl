@@ -64,6 +64,22 @@ struct ExpExpansion
              - source[0] - source[1] - source[2]) * charge;
   }
 
+  /** Kernel P2L operation
+   * L += c * Op(s) where L is the local expansion,
+   *                      s is the source,
+   *                  and c is the charge.
+   *
+   * @param[in] source  The source to accumulate into the local expansion
+   * @param[in] charge  The source's corresponding charge
+   * @param[in] center  The center of the box containing the local expansion
+   * @param[in,out] L   The local expansion to accumulate into
+   */
+  void P2L(const source_type& source, const charge_type& charge,
+           const point_type& center, local_type& L) const {
+    L += exp(center[0] + center[1] + center[2]
+             - source[0] - source[1] - source[2]) * charge;
+  }
+
   /** Kernel M2M operator
    * M_t += Op(M_s) where M_t is the target and M_s is the source
    *
