@@ -39,8 +39,6 @@ struct FMM_Kernel {
 
 template <class Expansion>
 struct FMM_Expansion {
-  typedef Expansion expansion_type;
-
   // TODO: Add syntactic sugar for Expansions
   // eg fmm_matrix<expansion_type> operator()(std::vector<source_type>,
   //                                        std::vector<target_type>);
