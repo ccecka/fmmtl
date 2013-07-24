@@ -1,5 +1,6 @@
 #include "fmmtl/Kernel.hpp"
 
+#include "fmmtl/Vec.hpp"
 #include "fmmtl/Complex.hpp"
 
 struct HelmholtzPotential

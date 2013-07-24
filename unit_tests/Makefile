@@ -72,6 +72,7 @@ EXEC += multi_level
 EXEC += single_level
 EXEC += test_traits
 
+EXEC += test_kern
 EXEC += test_tree
 EXEC += test_direct
 EXEC += test_vec
@@ -93,6 +94,8 @@ dual_correctness: $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
 
 multi_level:      $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/Yukawa.o
 single_level:     $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/Yukawa.o
+
+test_kern:        $(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
 
 # Suffix replacement rules
 #   $^: the name of the prereqs of the rule

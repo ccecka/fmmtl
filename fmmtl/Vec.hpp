@@ -170,6 +170,12 @@ FMMTL_INLINE typename Vec<N,P>::value_type dot(const Vec<N,P>& a,
                                                const Vec<N,P>& b) {
   return a.dot(b);
 }
+/** Compute the dot product of two Vecs */
+template <unsigned N, typename P>
+FMMTL_INLINE typename Vec<N,P>::value_type inner_prod(const Vec<N,P>& a,
+                                                      const Vec<N,P>& b) {
+  return a.dot(b);
+}
 /** Compute cross product of two 3D Vecs */
 template <typename P>
 FMMTL_INLINE Vec<3,P> cross(const Vec<3,P>& a, const Vec<3,P>& b) {
