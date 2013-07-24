@@ -222,16 +222,18 @@ struct ExpansionTraits
 
 #undef SFINAE_TEMPLATE
 
+#define FMMTL_IMPORT_KERNEL_TRAITS(K)           \
+  typedef typename KernelTraits<K>::kernel_type        kernel_type;  \
+  typedef typename KernelTraits<K>::kernel_value_type  kernel_value_type; \
+  typedef typename KernelTraits<K>::source_type        source_type;  \
+  typedef typename KernelTraits<K>::target_type        target_type;  \
+  typedef typename KernelTraits<K>::charge_type        charge_type;  \
+  typedef typename KernelTraits<K>::result_type        result_type
 
+#define FMMTL_IMPORT_EXPANSION_TRAITS(E)                                \
+  FMMTL_IMPORT_KERNEL_TRAITS(E);                                        \
+  typedef typename ExpansionTraits<E>::expansion_type     expansion_type; \
+  typedef typename ExpansionTraits<E>::multipole_type     multipole_type; \
+  typedef typename ExpansionTraits<E>::local_type         local_type;   \
+  typedef typename ExpansionTraits<E>::point_type         point_type
 
-#define FMMTL_IMPORT_EXPANSION_TRAITS(EXPANSIONTRAITS)               \
-  typedef typename EXPANSIONTRAITS::expansion_type     expansion_type;  \
-  typedef typename EXPANSIONTRAITS::kernel_type        kernel_type;     \
-  typedef typename EXPANSIONTRAITS::kernel_value_type  kernel_value_type; \
-  typedef typename EXPANSIONTRAITS::multipole_type     multipole_type;  \
-  typedef typename EXPANSIONTRAITS::local_type         local_type;      \
-  typedef typename EXPANSIONTRAITS::point_type         point_type;      \
-  typedef typename EXPANSIONTRAITS::source_type        source_type;     \
-  typedef typename EXPANSIONTRAITS::target_type        target_type;     \
-  typedef typename EXPANSIONTRAITS::charge_type        charge_type;     \
-  typedef typename EXPANSIONTRAITS::result_type        result_type

@@ -59,12 +59,10 @@ class DualTreeContext<Expansion,
     : public ExpansionContext<Expansion>
 {
  public:
-  typedef ExpansionTraits<Expansion> expansion_traits;
-  FMMTL_IMPORT_EXPANSION_TRAITS(expansion_traits);
+  FMMTL_IMPORT_EXPANSION_TRAITS(Expansion);
 
   typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  typedef TreePairTraits<tree_type, tree_type> tree_traits;
-  FMMTL_IMPORT_TREEPAIR_TRAITS(tree_traits);
+  FMMTL_IMPORT_TREEPAIR_TRAITS(tree_type, tree_type);
 
  protected:
   // Transform a body to a value
@@ -252,12 +250,10 @@ class SingleTreeContext<Expansion,
     : public ExpansionContext<Expansion>
 {
  public:
-  typedef ExpansionTraits<Expansion> expansion_traits;
-  FMMTL_IMPORT_EXPANSION_TRAITS(expansion_traits);
+  FMMTL_IMPORT_EXPANSION_TRAITS(Expansion);
 
   typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  typedef TreePairTraits<tree_type, tree_type> tree_traits;
-  FMMTL_IMPORT_TREEPAIR_TRAITS(tree_traits);
+  FMMTL_IMPORT_TREEPAIR_TRAITS(tree_type, tree_type);
 
  protected:
   // Transform a body to a value
