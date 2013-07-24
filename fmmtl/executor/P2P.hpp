@@ -329,21 +329,26 @@ class P2P_Batch
   typedef typename Context::kernel_value_type kernel_value_type;
 
   //! Type of box
-  typedef typename Context::box_type box_type;
+  typedef typename Context::source_box_type source_box_type;
+  typedef typename Context::target_box_type target_box_type;
+
   //! Box list for P2P interactions    TODO: could further compress these...
-  typedef std::pair<box_type,box_type> box_pair;
+  typedef std::pair<source_box_type, target_box_type> box_pair;
+
   std::vector<box_pair> p2p_list;
 
  public:
   /** Insert a source-target box interaction to the interaction list */
-  void insert(const box_type& box1, const box_type& box2) {
-    p2p_list.push_back(std::make_pair(box1,box2));
+  void insert(const source_box_type& s, const target_box_type& t) {
+    p2p_list.push_back(std::make_pair(s,t));
   }
 
   /** Compute all interations in the interaction list */
-  virtual void execute(Context& bc) const {
-    for (const box_pair& b2b : p2p_list)
-      P2P::eval(bc.kernel(), bc, b2b.first, b2b.second, P2P::ONE_SIDED());
+  virtual void execute(Context& c) {
+    auto b_end = p2p_list.end();
+    //#pragma omp parallel for   TODO: Make thread safe!
+    for (auto bi = p2p_list.begin(); bi < b_end; ++bi)
+      P2P::eval(c, bi->first, bi->second, P2P::ONE_SIDED());
   }
 
   class P2P_Matrix
@@ -384,8 +389,8 @@ class P2P_Batch
     std::vector<std::vector<unsigned>> csr(rows);
 
     for (const box_pair& b2b : p2p_list) {
-      const box_type& box1 = b2b.first;
-      const box_type& box2 = b2b.second;
+      const source_box_type& box1 = b2b.first;
+      const target_box_type& box2 = b2b.second;
 
       auto source_end = bc.source_end(box1);
       auto target_end = bc.target_end(box2);
@@ -444,8 +449,8 @@ class P2P_Batch
     std::vector<upair> target_ranges;
 
     for (const box_pair& b2b : p2p_list) {
-      const box_type& source_box = b2b.first;
-      const box_type& target_box = b2b.second;
+      const source_box_type& source_box = b2b.first;
+      const target_box_type& target_box = b2b.second;
 
 			// Target range
 			unsigned i_begin = bc.target_begin(target_box) - first_target;

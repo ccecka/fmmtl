@@ -8,6 +8,7 @@
 
 #include "Dispatchers.hpp"
 
+
 template <class Context>
 class EvalSimple
     : public EvaluatorBase<Context>
@@ -15,50 +16,67 @@ class EvalSimple
   typedef typename Context::source_box_type source_box;
   typedef typename Context::target_box_type target_box;
 
-  Context& c_;  // TODO: Fix this design
-  std::function<bool(const source_box&, const target_box&)> mac_;
+  P2P_Batch<Context> p2p_batch;
+  M2L_Batch<Context> m2l_batch;
+
+  std::function<bool(source_box, target_box)> mac_;
+
+  struct Dispatch {
+    Context& c_;
+    Dispatch(Context& c) : c_(c) {}
+
+    void up_process(typename Context::source_box_type& box) {
+      if (box.is_leaf()) {
+        // If leaf, make P2M calls
+        P2M::eval(c_, box);
+      } else {
+        // If not leaf, then for all the children M2M
+        auto c_end = box.child_end();
+        for (auto cit = box.child_begin(); cit != c_end; ++cit)
+          M2M::eval(c_, *cit, box);
+      }
+    }
+    void down_process(typename Context::target_box_type& box) {
+      if (box.is_leaf()) {
+        // If leaf, make L2P calls
+        L2P::eval(c_, box);
+      } else {
+        // If not leaf, then for all children L2L
+        auto c_end = box.child_end();
+        for (auto cit = box.child_begin(); cit != c_end; ++cit)
+          L2L::eval(c_, box, *cit);
+      }
+    }
+  };
 
  public:
 
   template <class MAC>
   EvalSimple(Context& c, const MAC& mac)
-      : c_(c), mac_(mac) {
-    // Do precomputation (precompute interaction lists, etc)
+      : mac_(mac) {
+    // Perform the box interactions
+    Traverse::eval(c.source_tree().root(), c.target_tree().root(), *this);
   }
 
-  void execute(Context&) {
+  void execute(Context& c) {
     // Initialize all the multipoles and locals (not all may be needed)
-    auto s_end = c_.source_tree().box_end();
-    for (auto bi = c_.source_tree().box_begin(); bi != s_end; ++bi)
-      INITM::eval(c_, *bi);
-    auto t_end = c_.target_tree().box_end();
-    for (auto bi = c_.target_tree().box_begin(); bi != t_end; ++bi)
-      INITL::eval(c_, *bi);
+    auto s_end = c.source_tree().box_end();
+    for (auto bi = c.source_tree().box_begin(); bi != s_end; ++bi)
+      INITM::eval(c, *bi);
+    auto t_end = c.target_tree().box_end();
+    for (auto bi = c.target_tree().box_begin(); bi != t_end; ++bi)
+      INITL::eval(c, *bi);
 
     // Perform the upward pass (not all may be needed)
-    UpwardPass::eval(c_.source_tree(), *this);
+    Dispatch updown(c);
+    UpwardPass::eval(c.source_tree(), updown);
 
-    // Perform the box interactions
-    Traverse::eval(c_.source_tree().root(), c_.target_tree().root(), *this);
+    m2l_batch.execute(c);
 
     // Perform the box interactions (not all may be needed)
-    DownwardPass::eval(c_.target_tree(), *this);
-  }
+    DownwardPass::eval(c.target_tree(), updown);
 
-  /*******************/
-  /** Functions called by the UpwardPass algorithm */
-  /*******************/
-
-  void up_process(const source_box& box) {
-    if (box.is_leaf()) {
-      // If leaf, make P2M calls
-      P2M::eval(c_, box);
-    } else {
-      // If not leaf, then for all the children M2M
-      auto c_end = box.child_end();
-      for (auto cit = box.child_begin(); cit != c_end; ++cit)
-        M2M::eval(c_, *cit, box);
-    }
+    p2p_batch.execute(c);
   }
 
   /*******************/
@@ -66,31 +84,15 @@ class EvalSimple
   /*******************/
 
   void near_field(const source_box& s, const target_box& t) {
-    P2P::eval(c_, s, t, P2P::ONE_SIDED());
+    p2p_batch.insert(s,t);
   }
 
   bool far_field(const source_box& s, const target_box& t) {
     if (mac_(s,t)) {
-      M2L::eval(c_, s, t);
+      m2l_batch.insert(s,t);
       return true;
     }
     return false;
-  }
-
-  /*******************/
-  /** Functions called by the DownPass algorithm */
-  /*******************/
-
-  void down_process(const target_box& box) {
-    if (box.is_leaf()) {
-      // If leaf, make L2P calls
-      L2P::eval(c_, box);
-    } else {
-      // If not leaf, then for all children L2L
-      auto c_end = box.child_end();
-      for (auto cit = box.child_begin(); cit != c_end; ++cit)
-        L2L::eval(c_, box, *cit);
-    }
   }
 };
 
