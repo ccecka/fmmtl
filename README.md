@@ -1,7 +1,7 @@
 fmmtl: FMM Template Library
 =====
 
-fmmtl is a FMM/Treecode algorithms library which aids in the research, development, and use of advanced methods for systems of equations of the form:
+fmmtl is a structured dense matrix algorithms library which aids in the research, development, and use of advanced methods for systems of equations of the form:
 
 ![equation](http://latex.codecogs.com/gif.latex?r_i%3D%5Csum_jK%28t_i%2Cs_j%29%5C%2Cc_j)  
 where  
