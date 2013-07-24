@@ -16,8 +16,7 @@
 #include "Yukawa.kern"
 
 class YukawaCartesian
-    : public YukawaKernel,
-      public FMM_Expansion<YukawaCartesian> {
+    : public FMM_Expansion<YukawaKernel, YukawaCartesian> {
  protected:
   typedef double real;
   typedef std::complex<real> complex;
@@ -91,9 +90,10 @@ class YukawaCartesian
       : YukawaCartesian(4,0.125) {
   }
   //! Constructor
-  YukawaCartesian(int p, double kappa)
-      : YukawaKernel(kappa),
-        P(p), MTERMS((P+1)*(P+2)*(P+3)/6), fact(2*P), index_cache(P) {
+  YukawaCartesian(int p, double _kappa)
+      : P(p), MTERMS((P+1)*(P+2)*(P+3)/6), fact(2*P), index_cache(P) {
+    kappa = _kappa;
+
     I = std::vector<unsigned>(MTERMS,0);
     J = std::vector<unsigned>(MTERMS,0);
     K = std::vector<unsigned>(MTERMS,0);

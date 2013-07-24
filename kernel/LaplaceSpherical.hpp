@@ -16,8 +16,7 @@
 #include "Laplace.kern"
 
 class LaplaceSpherical
-    : public LaplaceKernel,
-      public FMM_Expansion<LaplaceSpherical> {
+    : public FMM_Expansion<LaplaceKernel, LaplaceSpherical> {
  protected:
   typedef double real;
   typedef std::complex<real> complex;

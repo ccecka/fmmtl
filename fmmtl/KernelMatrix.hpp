@@ -185,11 +185,11 @@ class fmm_matrix {  // Inherit ExpasionTraits?
 #include "executor/Context.hpp"
 
 template <class Expansion,
-          class Options>
+          class Options = FMMOptions>
 fmm_matrix<Expansion>
 make_fmm_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
-                Options& opts = FMMOptions()) {
+                Options opts = FMMOptions()) {
   // Statically compute the context type, potentially from Options
   typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
   typedef SingleTreeContext<Expansion, tree_type> context_type;
@@ -203,12 +203,12 @@ make_fmm_matrix(const Expansion& E,
 }
 
 template <class Expansion,
-          class Options>
+          class Options = FMMOptions>
 fmm_matrix<Expansion>
 make_fmm_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
                 const std::vector<typename ExpansionTraits<Expansion>::target_type>& targets,
-                Options& opts = FMMOptions()) {
+                Options opts = FMMOptions()) {
   // Statically compute the context type, potentially from Option types
   typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
   typedef DualTreeContext<Expansion, tree_type> context_type;

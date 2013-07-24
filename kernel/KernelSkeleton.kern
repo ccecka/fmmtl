@@ -162,8 +162,7 @@ FMMTL_KERNEL_EXTRAS(Kernel);
  * L2P operator (FMM)
  */
 struct KernelExpansion
-    : public Kernel,
-      public FMM_Expansion<KernelExpansion>
+    : public FMM_Expansion<Kernel, KernelExpansion>
 {
   //! The dimension of the spacial interpretation of the source/target_type.
   static const unsigned dimension = 3;

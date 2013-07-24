@@ -37,8 +37,7 @@ FMMTL_KERNEL_EXTRAS(UnitPotential);
 
 
 struct UnitExpansion
-    : public UnitPotential,
-      public FMM_Expansion<UnitExpansion>
+    : public FMM_Expansion<UnitPotential, UnitExpansion>
 {
   //! The dimension of the spacial interpretation of the source/target_type.
   static const unsigned dimension = 3;

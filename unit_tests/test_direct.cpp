@@ -1,9 +1,11 @@
+#include "fmmtl/Kernel.hpp"
 #include "fmmtl/Direct.hpp"
 
 #include <vector>
 #include <iostream>
 
-struct TempKernel {
+struct TempKernel
+    : public FMM_Kernel<TempKernel> {
   //! Source type
   typedef double source_type;
   //! Charge type

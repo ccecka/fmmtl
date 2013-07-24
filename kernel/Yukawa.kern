@@ -13,9 +13,9 @@ struct YukawaPotential
   double kappa;
 
   FMMTL_INLINE
-  YukawaPotential(double _kappa)
-      : kappa(_kappa) {
-  }
+  YukawaPotential() : kappa(1) {}
+  FMMTL_INLINE
+  YukawaPotential(double _kappa) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  exp(-kR)/R  if R >= 1e-10
@@ -48,9 +48,9 @@ struct YukawaKernel
   double kappa;
 
   FMMTL_INLINE
-  YukawaKernel(double _kappa)
-      : kappa(_kappa) {
-  }
+  YukawaKernel() : kappa(1) {}
+  FMMTL_INLINE
+  YukawaKernel(double _kappa) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  {exp(-kR)/R, (s-t)(kR+1)exp(-kR)/R^3}  if R >= 1e-10
