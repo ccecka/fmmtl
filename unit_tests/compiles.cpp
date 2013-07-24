@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  typedef KernelExpansion expansion_type;
+  typedef ExpansionSkeleton expansion_type;
   typedef expansion_type::point_type point_type;
   typedef expansion_type::source_type source_type;
   typedef expansion_type::target_type target_type;

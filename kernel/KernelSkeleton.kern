@@ -31,14 +31,14 @@
 #include "fmmtl/Vec.hpp"
 
 
-/** @struct Kernel
- * @brief A short description of the implemented Kernel. The Kernel class
+/** @struct KernelSkeleton
+ * @brief A short description of an implemented Kernel. The Kernel class
  * need only define the types required in the equation
  * result = K(target,source) * charge
  * and the operator() to compute the kernel.
  */
-struct Kernel
-    : public FMM_Kernel<Kernel>
+struct KernelSkeleton
+    : public FMM_Kernel<KernelSkeleton>
 {
   //! Return type of a kernel evaluation
   typedef double kernel_value_type;
@@ -145,11 +145,11 @@ struct Kernel
 };
 
 /** TODO: Remove this line using the FMM_Kernel<Kernel> inheritance? */
-FMMTL_KERNEL_EXTRAS(Kernel);
+FMMTL_KERNEL_EXTRAS(KernelSkeleton);
 
 
-/** @struct KernelExpansion
- * @brief A set of methods that can be used in the FMM/Treecode and extend
+/** @struct ExpansionSkeleton
+ * @brief A set of methods that can be used in the KernelMatrix and extend
  * the functionality of a Kernel with
  *
  * multipole_type and local_type with initialization methods
@@ -161,8 +161,8 @@ FMMTL_KERNEL_EXTRAS(Kernel);
  * L2L operator (FMM)
  * L2P operator (FMM)
  */
-struct KernelExpansion
-    : public FMM_Expansion<Kernel, KernelExpansion>
+struct ExpansionSkeleton
+    : public FMM_Expansion<KernelSkeleton, ExpansionSkeleton>
 {
   //! The dimension of the spacial interpretation of the source/target_type.
   static const unsigned dimension = 3;
@@ -219,7 +219,7 @@ struct KernelExpansion
    * M2M /  \      M2L     /  \ L2L
    *     \->M------>------>L<-/
    *        ^\__        __/|
-            |   \__  __/   |
+   *        |   \__  __/   |
    *        |      \/      v
    *    P2M ^   ___/\___   | L2P
    *        | _/P2L  M2P\_ |

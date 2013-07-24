@@ -70,12 +70,12 @@ EXEC += dual_correctness
 
 EXEC += multi_level
 EXEC += single_level
-EXEC += test_traits
 
 EXEC += test_kern
 EXEC += test_tree
 EXEC += test_direct
 EXEC += test_vec
+EXEC += test_traits
 
 EXEC += boost_version
 EXEC += thrust_version

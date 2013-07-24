@@ -32,9 +32,9 @@ void test_kernel(const Kernel& K) {
 
 
 int main() {
-  test_kernel(Kernel());        // KernelSkeleton
-  test_kernel(UnitPotential()); // UnitKernel
-  test_kernel(ExpPotential());  // ExpKernel
+  test_kernel(KernelSkeleton()); // KernelSkeleton
+  test_kernel(UnitPotential());  // UnitKernel
+  test_kernel(ExpPotential());   // ExpKernel
 
   test_kernel(LaplacePotential()); // Laplace
   test_kernel(LaplaceKernel());    // Laplace
