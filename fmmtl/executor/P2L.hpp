@@ -36,7 +36,7 @@ class P2L
    */
   template <typename Expansion, typename SourceIter, typename ChargeIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_P2L &
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_P2L &
                           !ExpansionTraits<Expansion>::has_vector_P2L>::type
   eval(const Expansion& K,
        SourceIter s_begin, SourceIter s_end,

@@ -36,7 +36,7 @@ class M2P
    */
   template <typename Expansion, typename TargetIter, typename ResultIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_M2P &
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_M2P &
                           !ExpansionTraits<Expansion>::has_vector_M2P>::type
   eval(const Expansion& K,
        const typename Expansion::multipole_type& M,

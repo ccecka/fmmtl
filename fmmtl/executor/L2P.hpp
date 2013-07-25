@@ -35,7 +35,7 @@ struct L2P
    */
   template <typename Expansion, typename TargetIter, typename ResultIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_L2P &
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_L2P &
                           !ExpansionTraits<Expansion>::has_vector_L2P>::type
   eval(const Expansion& K,
        const typename Expansion::local_type& L,
