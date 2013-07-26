@@ -1,10 +1,9 @@
 #pragma once
-/** @file Octree
- * General class representing a Octree.
- *
- * TODO: Improve and support 1D, 2D, 3D, and 4D.
+/** @file NDTree
+ * @brief General class representing a {1D,2D,3D,4D}-Tree.
  */
 
+#include "fmmtl/Vec.hpp"
 #include "BoundingBox.hpp"
 #include "MortonCoder.hpp"
 
