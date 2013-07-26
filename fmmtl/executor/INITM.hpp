@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -28,14 +29,21 @@ struct INITM
     K.init_multipole(M, extents, level);
   }
 
+  /** Unwrap data from Context and dispatch to the INITM evaluator
+   */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::source_box_type& sbox)
   {
 #ifdef DEBUG
-    std::cout << "INITM: " << sbox << std::endl;
+    std::cout << "INITM:"
+              << "\n  " << sbox << std::endl;
 #endif
+    FMMTL_LOG("INITM");
 
-    INITM::eval(c.expansion(), c.multipole(sbox), sbox.extents(), sbox.level());
+    INITM::eval(c.expansion(),
+                c.multipole(sbox),
+                sbox.extents(),
+                sbox.level());
   }
 };

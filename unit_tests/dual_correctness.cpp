@@ -71,6 +71,8 @@ int main(int argc, char **argv)
 
   // Check the result
   if (checkErrors) {
+    std::cout << "Computing direct matvec..." << std::endl;
+
     std::vector<result_type> exact(M);
 
     // Compute the result with a direct matrix-vector multiplication

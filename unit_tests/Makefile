@@ -21,7 +21,6 @@ ifeq ($(NO_CUDA),1)
 NVCC :=
 endif
 
-
 # Define any compile-time flags
 CXXFLAGS := $(ADDED_FLAGS) -fopenmp -funroll-loops -O3 -W -Wall -Wextra
 ifeq ($(DEBUG),1)
@@ -29,6 +28,9 @@ CXXFLAGS += -g -fno-inline -DDEBUG
 endif
 ifeq ($(PROFILE),1)
 CXXFLAGS += -g -pg
+endif
+ifeq ($(LOG),1)
+CXXFLAGS += -DFMMTL_LOGGING
 endif
 # Dependency directory and flags
 DEPSDIR := $(shell mkdir -p .deps; echo .deps)
@@ -74,8 +76,10 @@ EXEC += single_level
 EXEC += test_kern
 EXEC += test_tree
 EXEC += test_direct
-EXEC += test_vec
 EXEC += test_traits
+
+EXEC += test_vec
+EXEC += test_logger
 
 EXEC += boost_version
 EXEC += thrust_version

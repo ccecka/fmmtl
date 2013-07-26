@@ -135,6 +135,8 @@ class fmm_matrix {  // Inherit ExpasionTraits?
   }
   ~fmm_matrix() {
     delete plan;
+    FMMTL_PRINT_LOG(std::cout);
+    fmmtl_logger.clear();
   };
 
   inline unsigned rows() const {

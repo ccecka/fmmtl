@@ -7,159 +7,197 @@
 #include <map>
 #include <string>
 
-#include <sys/time.h>
+#include <chrono>
+#include <atomic>
 
-/** Clock class, useful when timing code.
+#include "common.hpp"
+#include "config.hpp"
+
+/** An RAII class
+ * Updates a listener with the amount of time the Ticker was alive.
  */
-struct Clock {
-  /** Construct a Clock and start timing. */
-  Clock() {
-    start();
+template <typename Listener>
+class TickerNotifier {
+ public:
+  typedef std::chrono::high_resolution_clock clock;
+  typedef typename clock::time_point         time_point;
+  typedef typename clock::duration           duration;
+  typedef typename duration::rep             tick_type;
+
+  TickerNotifier()
+      : owner_(nullptr), starttime_(clock::now()) {}
+  explicit TickerNotifier(Listener* owner)
+      : owner_(owner), starttime_(clock::now()) {}
+  // Allow moving
+  TickerNotifier(TickerNotifier&& t) :
+      owner_(t.owner_), starttime_(t.starttime_) {
+    t.owner_ = nullptr;
   }
-  /** Start the clock. */
-  inline void start() {
-    time_ = now();
+  // Disable copying
+  TickerNotifier(const TickerNotifier&) = delete;
+  TickerNotifier& operator=(const TickerNotifier&) = delete;
+  // Destructor
+  ~TickerNotifier() {
+    if (owner_) {
+      duration tick_time = clock::now() - starttime_;
+      owner_->operator+=(tick_time);
+    }
   }
-  /** Return the seconds elapsed since the last start. */
-  inline double elapsed() const {
-    return sec_diff(time_, now());
+  // Get the duration on this Ticker
+  duration elapsed() const {
+    return clock::now() - starttime_;
   }
-  /** Return the seconds difference between two Clocks */
-  inline double operator-(const Clock& clock) const {
-    return sec_diff(time_, clock.time_);
+  // Get the seconds on this Ticker
+  double seconds() const {
+    typedef std::chrono::duration<double> units;
+    return std::chrono::duration_cast<units>(elapsed()).count();
   }
  private:
-  timeval time_;
-  inline static timeval now() {
-    timeval tv;
-    gettimeofday(&tv, nullptr);
-    return tv;
-  }
-  // Return the time difference (t2 - t1) in seconds
-  inline static double sec_diff(const timeval& t1, const timeval& t2) {
-    timeval dt;
-    timersub(&t1, &t2, &dt);
-    return seconds(dt);
-  }
-  inline static double seconds(const timeval& tv) {
-    return tv.tv_sec + 1e-6 * tv.tv_usec;
-  }
+  Listener* owner_;
+  time_point starttime_;
 };
+/** A quick class for timing code:
+ * Usage:
+ *
+ * Ticker ticker;
+ * // code to time
+ * double time = ticker.seconds();
+ */
+typedef TickerNotifier<std::chrono::duration<double>> Ticker;
 
 
-/** Timer class using RAII to easily time sections of code
- * E.g.
- * { Timer("Critial code") t;
- *   // Code to time
+/** A quick class for timing segments of code:
+ * Usage:
+ *
+ * Timer timer;
+ * { auto time = timer.start();
+ *   // code to time
  * }
+ * std::cout << timer << std::endl;
  */
 class Timer {
-  Clock clock;
-  std::string msg;
  public:
-  Timer(const std::string& s) : msg(s) {
-    clock.start();
+  typedef TickerNotifier<Timer>       ticker_type;
+  typedef ticker_type::clock          clock;
+  typedef typename clock::time_point  time_point;
+  typedef typename clock::duration    duration;
+  typedef typename duration::rep      tick_type;
+
+  // Start by returning an RAII ticker
+  ticker_type start() {
+    return ticker_type(this);
   }
-  ~Timer() {
-    double secs = clock.elapsed();
-    std::cerr << "Timer [" << msg << "]: " << secs << "s" << std::endl;
+  // Add a duration
+  void operator+=(const duration& d) {
+    ticks_ += d.count();
   }
-  std::string& string() { return msg; }
+  // Reset this timer
+  void reset() {
+    ticks_ = tick_type(0);
+  }
+  // Get the duration on this Timer
+  duration total() const {
+    return duration(ticks_);
+  }
+  // Get the seconds on this Timer
+  double seconds() const {
+    typedef std::chrono::duration<double> units;
+    return std::chrono::duration_cast<units>(total()).count();
+  }
+  // Print this Timer
+  template <typename Stream>
+  friend Stream& operator<<(Stream& s, const Timer& t) {
+    return s << t.seconds() << "secs";
+  }
+ private:
+  std::atomic<tick_type> ticks_;
 };
 
 
-
-//! Timer and Trace logger
+/** @class Logger
+ * @brief Logging class to keep the hit count and total time of sections of code
+ *
+ * Usage:
+ * Logger logger;
+ *
+ * { Logger::timer timer = logger.log("identifier");
+ *  // code to track
+ * }
+ *
+ * // Print all string-identified events' hit counts and timings
+ * std::cout << log << std::endl;
+ */
 class Logger {
-
-  struct EventData {
-    Clock start_time;
-    double total_time;
-    int hit;
-    EventData()
-        : start_time(), total_time(0), hit(0) {
-    }
-    void start() {
-      start_time.start();
-    }
-    double log(const Clock& end_time) {
-      double elapsed = (end_time - start_time);
-      total_time += elapsed;
-      ++hit;
-      return elapsed;
-    }
-    friend std::ostream& operator<<(std::ostream& s, const EventData& e) {
-      return s << e.hit << " (calls) * "
-               << e.total_time/e.hit << " (sec/call) = "
-               << e.total_time << " (secs)";
-    }
-  };
-
-  typedef std::map<std::string, EventData> EventMap;
-  EventMap data_;
-
-  // Output the event name and EventData
-  friend std::ostream& operator<<(std::ostream& s,
-                                  const typename EventMap::value_type& event) {
-    return s << std::setw(20) << std::left << event.first
-             << " : " << event.second;
-  }
+  struct EventData;
 
  public:
-  //! Start a clock for an event
-  inline void start(const std::string& event) {
-    data_[event].start();
+  typedef TickerNotifier<EventData>   ticker_type;
+  typedef ticker_type::clock          clock;
+  typedef typename clock::time_point  time_point;
+  typedef typename clock::duration    duration;
+  typedef typename duration::rep      tick_type;
+
+  /** Start a ticker for an event. */
+  inline ticker_type log(const std::string& event) {
+    auto range = data_.equal_range(event);
+#pragma omp critical
+    if (range.first == range.second)
+      range.first = data_.insert(range.first,
+                                 std::make_pair(event, new EventData()));
+    return ticker_type((*range.first).second);
   }
 
-  //! Return the elasped time for given event
-  double stop(const std::string& event, bool print_event = false) {
-    Clock end_time;      // Stop the clock
-    typename EventMap::iterator it = data_.find(event);
-    assert(it != data_.end());
-    double elapsed = it->second.log(end_time);
-    if (print_event) std::cout << *it << std::endl;
-    return elapsed;
-  }
-
-  //! Erase entry in timer
-  inline void clear(const std::string& event) {
-    data_.erase(event);
-  }
-
-  //! Erase all events in timer
+  /** Erase all events in timer */
   inline void clear() {
-    data_.clear();
+#pragma omp critical
+    {
+      for (auto& event : data_)
+        delete event.second;
+      data_.clear();
+    }
   }
-
-  // Get an event's data? RAII with start(event)?
-  //PublicEventData operator[](const std::string& event) { ... }
 
   //! Print all events and timing to an ostream
   friend std::ostream& operator<<(std::ostream& s, const Logger& log) {
-    for (const typename EventMap::value_type& event : log.data_)
-      s << event << std::endl;
+    for (auto& event : log.data_)
+      s << std::setw(20) << std::left << event.first
+        << ": " << *(event.second) << std::endl;
     return s;
   }
+
+ private:
+  struct EventData {
+    void operator+=(const duration& time) {
+      total_ += time;
+      ++call_;
+    }
+    double seconds() const {
+      return total_.seconds();
+    }
+    unsigned calls() const {
+      return call_;
+    }
+    friend std::ostream& operator<<(std::ostream& s, const EventData& e) {
+      return s << e.calls() << " (calls) * "
+               << e.seconds() / e.calls() << " (sec/call) = "
+               << e.seconds() << " (sec)";
+    }
+   private:
+    Timer total_;
+    std::atomic<unsigned> call_;
+  };
+
+  // A map of pointers to (total_time, #calls) with string identifiers
+  std::map<std::string, EventData*> data_;
 };
 
 //! Global static logger rather than a singleton for efficiency/consistency
-static Logger fmm_logger;
+static Logger fmmtl_logger;
 
-
-#if 0
-int main() {
-  Logger log;
-  log.start("Outer");
-  log.start("Inner");
-  log.stop("Inner");
-  log.stop("Outer");
-  std::cout << log << std::endl;
-
-  global_logger.start("Outer");
-  global_logger.start("Inner");
-  global_logger.stop("Inner");
-  global_logger.stop("Outer");
-  std::cout << global_logger << std::endl;
-  return 0;
-}
+#if defined(FMMTL_LOGGING)
+#define FMMTL_LOG(STRING) auto t##__LINE__ = fmmtl_logger.log(std::to_string(omp_get_thread_num()) + std::string("--") + STRING)
+#define FMMTL_PRINT_LOG(OUT) OUT << fmmtl_logger << std::endl
+#else
+#define FMMTL_LOG(STRING)
+#define FMMTL_PRINT_LOG(OUT)
 #endif

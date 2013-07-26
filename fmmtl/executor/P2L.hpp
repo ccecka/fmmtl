@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -55,16 +56,19 @@ class P2L
   inline static void eval(Context& c,
                           const typename Context::source_body_iterator sfirst,
                           const typename Context::source_body_iterator slast,
-                          const typename Context::target_box_type& target) {
+                          const typename Context::target_box_type& tbox) {
 #ifdef DEBUG
-    //printf("P2L: [%d,%d) to %d\n", sfirst.index(), slast.index(), target.index());
+    std::cout << "P2L:"
+              << "\n  Bodies [" << sfirst << ", " << slast << ")"
+              << "\n  " << tbox << std::endl;
 #endif
+    FMMTL_LOG("P2L vec");
 
     P2L::eval(c.expansion(),
               c.source(sfirst), c.source(slast),
               c.charge(sfirst),
-              target.center(),
-              c.local(target));
+              tbox.center(),
+              c.local(tbox));
   }
 
   /** Unwrap the data from BoxContext and dispatch to the M2P evaluator
@@ -74,8 +78,11 @@ class P2L
                           const typename Context::source_box_type& source,
                           const typename Context::target_box_type& target) {
 #ifdef DEBUG
-    std::cout << "P2L:\n " << source << "\n " << target << std::endl;
+    std::cout << "P2L:"
+              << "\n  " << source
+              << "\n  " << target << std::endl;
 #endif
+    FMMTL_LOG("P2L box");
 
     P2L::eval(c.expansion(),
               c.source_begin(source), c.source_begin(source),

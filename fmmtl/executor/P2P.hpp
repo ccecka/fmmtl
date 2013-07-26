@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <iterator>
 #include <type_traits>
@@ -253,8 +254,11 @@ struct P2P
                           const ONE_SIDED&)
   {
 #ifdef DEBUG
-    std::cout << "P2P:\n  " << source << "\n  " << target << std::endl;
+    std::cout << "P2P:"
+              << "\n  " << source
+              << "\n  " << target << std::endl;
 #endif
+    FMMTL_LOG("P2P 2box asymm");
 
     P2P::block_eval(c.kernel(),
                     c.source_begin(source), c.source_end(source),
@@ -275,6 +279,7 @@ struct P2P
     std::cout << "P2P:\n  " << box1 << "\n  " << box2 << std::endl;
     std::cout << "P2P:\n  " << box2 << "\n  " << box1 << std::endl;
 #endif
+    FMMTL_LOG("P2P 2box symm");
 
     P2P::block_eval(c.kernel(),
                     c.source_begin(box1), c.source_end(box1),
@@ -290,8 +295,10 @@ struct P2P
                           const typename Context::source_box_type& box)
   {
 #ifdef DEBUG
-    std::cout << "P2P:\n  " << box << std::endl;
+    std::cout << "P2P:"
+              << "\n  " << box << std::endl;
 #endif
+    FMMTL_LOG("P2P 1box symm");
 
     P2P::block_eval(c.kernel(),
                     c.source_begin(box), c.source_end(box),
@@ -317,6 +324,8 @@ struct P2P
 #include <boost/numeric/ublas/vector.hpp>
 namespace ublas = boost::numeric::ublas;
 
+#include <unordered_map>
+
 /** A lazy P2P evaluator which saves a list of pairs of boxes
  * That are sent to the P2P dispatcher on demand.
  */
@@ -335,18 +344,20 @@ class P2P_Batch
   //! Box list for P2P interactions    TODO: could further compress these...
   typedef std::pair<source_box_type, target_box_type> box_pair;
 
-  std::vector<box_pair> p2p_list;
+  typedef std::vector<box_pair> p2p_container;
+  p2p_container p2p_list;
 
  public:
   /** Insert a source-target box interaction to the interaction list */
   void insert(const source_box_type& s, const target_box_type& t) {
+    assert(s.is_leaf() && t.is_leaf());
     p2p_list.push_back(std::make_pair(s,t));
   }
 
   /** Compute all interations in the interaction list */
-  virtual void execute(Context& c) {
+  void execute(Context& c) {
     auto b_end = p2p_list.end();
-    //#pragma omp parallel for   TODO: Make thread safe!
+    //#pragma omp parallel for//   TODO: Make thread safe!
     for (auto bi = p2p_list.begin(); bi < b_end; ++bi)
       P2P::eval(c, bi->first, bi->second, P2P::ONE_SIDED());
   }

@@ -17,6 +17,9 @@ endif
 LINK := $(CXX)
 # Check for CUDA compiler
 NVCC := $(shell which nvcc)
+ifeq ($(NO_CUDA),1)
+NVCC :=
+endif
 
 # Define any compile-time flags
 CXXFLAGS := $(ADDED_FLAGS) -fopenmp -funroll-loops -O3 -W -Wall -Wextra
@@ -25,6 +28,9 @@ CXXFLAGS += -g -fno-inline -DDEBUG
 endif
 ifeq ($(PROFILE),1)
 CXXFLAGS += -g -pg
+endif
+ifeq ($(LOG),1)
+CXXFLAGS += -DFMMTL_LOGGING
 endif
 # Dependency directory and flags
 DEPSDIR := $(shell mkdir -p .deps; echo .deps)

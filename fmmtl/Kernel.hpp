@@ -13,7 +13,7 @@
 
 #include "config.hpp"
 
-#if defined(FMMTL_KERNEL)   // If compiling the .kern, include kernel implementations
+#if defined(FMMTL_KERNEL)   // If compiling the .kern, include implementations
 #if defined(FMMTL_NO_CUDA)                          // If not using CUDA
 #include "executor/P2P_Compressed.cpp"
 #endif
@@ -22,7 +22,7 @@
 #endif
 #endif
 
-#if !defined(FMMTL_KERNEL)  // If not compiling the .kern, include headers and C++11
+#if !defined(FMMTL_KERNEL)  // If !compiling the .kern, include headers and C++11
 #include "executor/P2P_Compressed.hpp"
 
 #include "KernelMatrix.hpp"

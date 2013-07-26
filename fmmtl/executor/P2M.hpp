@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -56,8 +57,10 @@ class P2M
                           const typename Context::source_box_type& sbox)
   {
 #ifdef DEBUG
-    std::cout << "P2M: " << sbox << std::endl;
+    std::cout << "P2M:"
+              << "\n  " << sbox << std::endl;
 #endif
+    FMMTL_LOG("P2M");
 
     P2M::eval(c.expansion(),
               c.source_begin(sbox), c.source_end(sbox),
