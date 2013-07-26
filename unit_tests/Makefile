@@ -82,7 +82,6 @@ EXEC += test_direct
 EXEC += test_traits
 
 EXEC += test_vec
-EXEC += test_logger
 
 EXEC += boost_version
 EXEC += thrust_version

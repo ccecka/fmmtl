@@ -21,12 +21,13 @@ using boost::iterator_adaptor;
  *
  * @param[in] first,last Iterator pair to the sequence to be bucketed
  * @param[in] num_buckets The number of buckets to be used
- * @param[in] map Functor that maps elements in [first,last) to [0,num_buckets)
+ * @param[in] map Mapping of elements in [first,last) to [0,num_buckets)
  * @returns vector of iterators:
- *          bucket_off[i],bucket_off[i+1] are the [first,last) of the ith bucket.
- * @pre For all elements i in [first,last), 0 <= map(i) < num_buckets.
- * @post For all elements i and j such that first <= i < j < last,
- *       then 0 <= map(i) <= map(j) < num_buckets.
+ *          [result[i],result[i+1]) is the range of the ith bucket.
+ *
+ * @pre For all i in [first,last), 0 <= map(*i) < num_buckets.
+ * @post For all i and j such that first <= i < j < last,
+ *       then 0 <= map(*i) <= map(*j) < num_buckets.
  */
 template <typename Iterator, typename BucketMap>
 std::vector<Iterator> bucket_sort(Iterator first, Iterator last,
@@ -48,6 +49,8 @@ std::vector<Iterator> bucket_sort(Iterator first, Iterator last,
                   { return (*offset++) =
                         std::copy(bucket.begin(), bucket.end(), out); });
 
+  FMMTL_ASSERT(bucket_off.front() == first);
+  FMMTL_ASSERT(bucket_off.back()  == last);
   return bucket_off;
 }
 
@@ -70,23 +73,20 @@ class NDTree {
   typedef typename MortonCoder<DIM>::code_type code_type;
 
   struct box_data {
-    static constexpr unsigned leaf_bit = (1<<31);
-
     // The level of the box and the leaf_bit
-    unsigned level_;
+    char level_;
     // The index of the parent of this box
     unsigned parent_;
     // These can be either point offsets or box offsets depending on is_leaf
-    unsigned child_begin_;
-    unsigned child_end_;
+    unsigned begin_;
+    unsigned end_;
+
+    static constexpr unsigned leaf_bit = (1 << (8*sizeof(level_)-1));
 
     box_data(unsigned level, unsigned parent,
-             unsigned child_begin, unsigned child_end)
+             unsigned begin, unsigned end)
         : level_(level), parent_(parent),
-          child_begin_(child_begin), child_end_(child_end) {
-    }
-    unsigned num_children() const {
-      return child_end_ - child_begin_;
+          begin_(begin), end_(end) {
     }
     unsigned parent() const {
       return parent_;
@@ -185,7 +185,10 @@ class NDTree {
       return side_length() / 2.0;
     }
     unsigned num_children() const {
-      return data().num_children();
+      return std::distance(child_begin(), child_end());
+    }
+    unsigned num_bodies() const {
+      return std::distance(body_begin(), body_end());
     }
     bool is_leaf() const {
       return data().is_leaf();
@@ -207,14 +210,14 @@ class NDTree {
     /** The begin iterator to the bodies contained in this box */
     body_iterator body_begin() const {
       if (is_leaf())
-        return body_iterator(data().child_begin_, tree_);
+        return body_iterator(data().begin_, tree_);
       else
 	      return child_begin()->body_begin();
     }
     /** The end iterator to the bodies contained in this box */
     body_iterator body_end() const {
       if (is_leaf())
-        return body_iterator(data().child_end_, tree_);
+        return body_iterator(data().end_, tree_);
       else
 	      return (--child_end())->body_end();
     }
@@ -222,19 +225,21 @@ class NDTree {
     /** The begin iterator to the child boxes contained in this box */
     box_iterator child_begin() const {
       FMMTL_ASSERT(!is_leaf());
-      return box_iterator(data().child_begin_, tree_);
+      return box_iterator(data().begin_, tree_);
     }
     /** The end iterator to the child boxes contained in this box */
     box_iterator child_end() const {
       FMMTL_ASSERT(!is_leaf());
-      return box_iterator(data().child_end_, tree_);
+      return box_iterator(data().end_, tree_);
     }
 
     /** Comparison operators for std:: algorithms */
     bool operator==(const Box& b) const {
+      FMMTL_ASSERT(tree_ == b.tree_);
       return this->index() == b.index();
     }
     bool operator<(const Box& b) const {
+      FMMTL_ASSERT(tree_ == b.tree_);
       return this->index() < b.index();
     }
 
@@ -476,15 +481,17 @@ class NDTree {
 
     // For every box that is created
     for (unsigned k = 0; k != box_data_.size(); ++k) {
+      // @pre box_data_[k] has not been designated a leaf yet
+
       // If this box has few enough points, mark as leaf and go to next box
-      if (box_data_[k].num_children() <= NCRIT) {
+      if (box_data_[k].end_ - box_data_[k].begin_ <= NCRIT) {
         box_data_[k].set_leaf();
         continue;
       }
 
       // Get the box data
-      auto code_begin = codes.begin() + box_data_[k].child_begin_;
-      auto code_end   = codes.begin() + box_data_[k].child_end_;
+      auto code_begin = codes.begin() + box_data_[k].begin_;
+      auto code_end   = codes.begin() + box_data_[k].end_;
       unsigned shift = DIM*(MortonCoder<DIM>::levels - box_data_[k].level() - 1);
 
       // Sort the points in this box into the "bucket" children
@@ -493,8 +500,8 @@ class NDTree {
                              { return (v.first >> shift) & (max_children-1); });
 
       // Split this box - point offsets become box offsets
-      box_data_[k].child_begin_ = box_data_.size();
-      box_data_[k].child_end_   = box_data_.size();
+      box_data_[k].begin_ = box_data_.size();
+      box_data_[k].end_   = box_data_.size();
 
       // For each bucket
       for (unsigned c = 0; c < max_children; ++c) {
@@ -511,7 +518,7 @@ class NDTree {
             level_offset_.push_back(box_data_.size());
 
           // Increment parent child offset
-          ++box_data_[k].child_end_;
+          ++box_data_[k].end_;
           // Add the child
           box_data_.push_back(box_c);
         }
