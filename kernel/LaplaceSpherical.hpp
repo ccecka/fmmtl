@@ -8,6 +8,7 @@
 
 #include <complex>
 #include <cmath>
+#include <cassert>
 
 #include "fmmtl/Kernel.hpp"
 // Use a library-defined Vector class that supports multiple architectures

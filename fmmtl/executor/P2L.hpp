@@ -57,7 +57,7 @@ class P2L
                           const typename Context::source_body_iterator sfirst,
                           const typename Context::source_body_iterator slast,
                           const typename Context::target_box_type& tbox) {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "P2L:"
               << "\n  Bodies [" << sfirst << ", " << slast << ")"
               << "\n  " << tbox << std::endl;
@@ -77,7 +77,7 @@ class P2L
   inline static void eval(Context& c,
                           const typename Context::source_box_type& source,
                           const typename Context::target_box_type& target) {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "P2L:"
               << "\n  " << source
               << "\n  " << target << std::endl;

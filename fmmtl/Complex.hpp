@@ -62,7 +62,7 @@
 
 #include "config.hpp"
 
-#ifdef FMMTL_USE_THRUST
+#if defined(FMMTL_USE_THRUST)
 #include <thrust/detail/config.h>
 #endif
 

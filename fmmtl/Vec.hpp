@@ -6,7 +6,6 @@
 
 #include <iostream>
 #include <cmath>
-#include <cassert>
 
 #include "config.hpp"
 
@@ -38,15 +37,15 @@ class Vec {
     for_i a[i] = b;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1) {
-    assert(N == 2);
+    FMMTL_ASSERT(N == 2);
     a[0] = b0; a[1] = b1;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2) {
-    assert(N == 3);
+    FMMTL_ASSERT(N == 3);
     a[0] = b0; a[1] = b1; a[2] = b2;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2, value_type b3) {
-    assert(N == 4);
+    FMMTL_ASSERT(N == 4);
     a[0] = b0; a[1] = b1; a[2] = b2; a[3] = b3;
   }
 

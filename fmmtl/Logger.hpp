@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <iomanip>
-#include <cassert>
 
 #include <map>
 #include <string>

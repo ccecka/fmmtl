@@ -3,41 +3,44 @@
 // Disable CUDA/Thrust acceleration
 #if defined(FMMTL_NO_CUDA)
 
+# undef FMMTL_USE_THRUST
+# if defined(__CUDACC__)
+#  error Compiling with nvcc and NO_CUDA flag!
+# endif
+
 // Enable CUDA/Thrust acceleration
 #else
 
-#define FMMTL_USE_THRUST 1
-#define FMMTL_USE_CUDA 1
-#ifdef __CUDACC__        // Compiling with nvcc
-#define FMMTL_INLINE inline __host__ __device__
-#endif
+# define FMMTL_USE_THRUST
+# if defined(__CUDACC__)        // Compiling with nvcc
+#  define FMMTL_INLINE inline __host__ __device__
+# endif
 
 #endif
 
 
-#if defined(FMMTL_NO_CUDA) && defined(FMMTL_USE_CUDA)
-#error Undefined CUDA usage
+#if !defined(FMMTL_INLINE)
+# define FMMTL_INLINE inline
 #endif
 
 
-// Enable performance options in RELEASE mode
-#if defined(NDEBUG) || defined(FMMTL_NDEBUG)
+// Enable performance options in NDEBUG mode
+#if defined(FMMTL_NDEBUG)
+# define FMMTL_DISABLE_ASSERTS
+#endif
 
-#ifndef FMMTL_INLINE
-#define FMMTL_INLINE inline
-#endif
-#ifndef FMMTL_CHECK
-#define FMMTL_CHECK 0
-#endif
 
 // Disable performance options in DEBUG mode
-#else
-
-#ifndef FMMTL_INLINE
+#if defined(FMMTL_DEBUG)
 #define FMMTL_INLINE
 #endif
-#ifndef FMMTL_CHECK
-#define FMMTL_CHECK 1
-#endif
 
+
+#undef FMMTL_ASSERT
+
+#if defined(FMMTL_DISABLE_ASSERTS)
+# define FMMTL_ASSERT(expr) ((void)0)
+#else
+# include <cassert>
+# define FMMTL_ASSERT(expr) assert(expr)
 #endif

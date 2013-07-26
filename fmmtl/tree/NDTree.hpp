@@ -18,8 +18,6 @@
 #include <boost/iterator/permutation_iterator.hpp>
 using boost::iterator_adaptor;
 
-#include <cassert>
-
 /** Bucket sort using pigeonhole sorting
  *
  * @param[in] first,last Iterator pair to the sequence to be bucketed
@@ -155,7 +153,7 @@ class NDTree {
     tree_type* tree_;
     Body(unsigned idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
-      assert(idx_ < tree_->size());
+      FMMTL_ASSERT(idx_ < tree_->size());
     }
     friend class NDTree;
   };
@@ -224,12 +222,12 @@ class NDTree {
 
     /** The begin iterator to the child boxes contained in this box */
     box_iterator child_begin() const {
-      assert(!is_leaf());
+      FMMTL_ASSERT(!is_leaf());
       return box_iterator(data().child_begin_, tree_);
     }
     /** The end iterator to the child boxes contained in this box */
     box_iterator child_end() const {
-      assert(!is_leaf());
+      FMMTL_ASSERT(!is_leaf());
       return box_iterator(data().child_end_, tree_);
     }
 
@@ -385,7 +383,7 @@ class NDTree {
   }
   /** Return a box given it's index */
   box_type box(const unsigned idx) const {
-    assert(idx < box_data_.size());
+    FMMTL_ASSERT(idx < box_data_.size());
     return Box(idx, this);
   }
   /** Return an iterator to the first body in this tree */
@@ -408,14 +406,14 @@ class NDTree {
    * @pre L < levels()
    */
   box_iterator box_begin(unsigned L) const {
-    assert(L < levels());
+    FMMTL_ASSERT(L < levels());
     return box_iterator(level_offset_[L], this);
   }
   /** Return an iterator one past the last box at level L in this tree
    * @pre L < levels()
    */
   box_iterator box_end(unsigned L) const {
-    assert(L < levels());
+    FMMTL_ASSERT(L < levels());
     return box_iterator(level_offset_[L+1], this);
   }
 
@@ -467,7 +465,7 @@ class NDTree {
     unsigned idx = 0;
     for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
       point_type p = static_cast<point_type>(*pi);
-      assert(coder_.bounding_box().contains(p));
+      FMMTL_ASSERT(coder_.bounding_box().contains(p));
 
       points.push_back(p);
       codes.push_back(std::make_pair(coder_.code(p), idx));

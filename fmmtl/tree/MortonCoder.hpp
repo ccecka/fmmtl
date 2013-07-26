@@ -7,8 +7,6 @@
 #include "fmmtl/Vec.hpp"
 #include "BoundingBox.hpp"
 
-#include <cassert>
-
 /** @class MortonCoder
  * @brief Class representing Z-order-curve values, aka Morton codes.
  *
@@ -58,7 +56,7 @@ struct MortonCoder {
       : pmin_(bb.min()),
         cell_size_((bb.max() - bb.min()) / cells_per_side) {
     cell_size_ *= (1.0 + 1e-12);  // Inclusive bounding box by small extension
-    assert(!bb.empty());
+    FMMTL_ASSERT(!bb.empty());
   }
 
   /** Return the MortonCoder's bounding box. */
@@ -94,7 +92,7 @@ struct MortonCoder {
   code_type code(point_type s) const {
     s -= pmin_;
     s /= cell_size_;
-    //for (unsigned i = 0; i < DIM; ++i) assert(s[i] < cells_per_side);
+    //for (unsigned i = 0; i < DIM; ++i) FMMTL_ASSERT(s[i] < cells_per_side);
     // Interleave the bits of the s[0], s[1], ...
     return interleave(s);
   }
@@ -112,7 +110,7 @@ struct MortonCoder {
   inline code_type interleave(const point_type& s) const {
     code_type code = code_type(0);
     for (unsigned i = 0; i < DIM; ++i) {
-      //assert(unsigned(s[i]) < cells_per_side);
+      FMMTL_ASSERT(unsigned(s[i]) < cells_per_side);
       code |= spread_bits(unsigned(s[i])) << i;
     }
     return code;

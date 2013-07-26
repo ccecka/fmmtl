@@ -57,7 +57,7 @@ class M2P
                           const typename Context::source_box_type& sbox,
                           const typename Context::target_body_iterator tfirst,
                           const typename Context::target_body_iterator tlast) {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "M2P:"
               << "\n  " << sbox
               << "\n  Bodies [" << tfirst << ", " << tlast << ")" << std::endl;
@@ -77,7 +77,7 @@ class M2P
   inline static void eval(Context& c,
                           const typename Context::source_box_type& source,
                           const typename Context::target_box_type& target) {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "M2P:"
               << "\n  " << source
               << "\n  " << target << std::endl;

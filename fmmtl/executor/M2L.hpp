@@ -37,7 +37,7 @@ class M2L
                           const typename Context::source_box_type& sbox,
                           const typename Context::target_box_type& tbox)
   {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "M2L:"
               << "\n  " << sbox
               << "\n  " << tbox << std::endl;

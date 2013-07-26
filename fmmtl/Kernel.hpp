@@ -14,18 +14,15 @@
 #include "config.hpp"
 
 #if defined(FMMTL_KERNEL)   // If compiling the .kern, include implementations
-#if defined(FMMTL_NO_CUDA)                          // If not using CUDA
-#include "executor/P2P_Compressed.cpp"
-#endif
-#if defined(FMMTL_USE_CUDA) && defined(__CUDACC__)  // If compiling with nvcc
-#include "executor/P2P_Compressed.cu"
-#endif
-#endif
-
-#if !defined(FMMTL_KERNEL)  // If !compiling the .kern, include headers and C++11
-#include "executor/P2P_Compressed.hpp"
-
-#include "KernelMatrix.hpp"
+# if defined(__CUDACC__)    // If compiling the .kern with nvcc
+#  include "executor/P2P_Compressed.cu"
+# else                      // If not compiling the .kern with nvcc
+#  include "executor/P2P_Compressed.cpp"
+# endif
+#else                       // If !compiling the .kern, include headers and C++11
+# include "executor/P2P_Compressed.hpp"
+// TODO: Refactor
+# include "KernelMatrix.hpp"
 #endif
 
 

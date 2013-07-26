@@ -35,7 +35,7 @@ struct INITM
   inline static void eval(Context& c,
                           const typename Context::source_box_type& sbox)
   {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "INITM:"
               << "\n  " << sbox << std::endl;
 #endif

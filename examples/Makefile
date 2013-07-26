@@ -23,8 +23,11 @@ endif
 
 # Define any compile-time flags
 CXXFLAGS := $(ADDED_FLAGS) -fopenmp -funroll-loops -O3 -W -Wall -Wextra
+ifeq ($(NDEBUG),1)
+CXXFLAGS += -DFMMTL_NDEBUG
+endif
 ifeq ($(DEBUG),1)
-CXXFLAGS += -g -fno-inline -DDEBUG
+CXXFLAGS += -g -fno-inline -DFMMTL_DEBUG
 endif
 ifeq ($(PROFILE),1)
 CXXFLAGS += -g -pg

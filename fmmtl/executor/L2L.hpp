@@ -37,7 +37,7 @@ struct L2L
                           const typename Context::target_box_type& sbox,
                           const typename Context::target_box_type& tbox)
   {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "L2L:"
               << "\n  " << sbox
               << "\n  " << tbox << std::endl;

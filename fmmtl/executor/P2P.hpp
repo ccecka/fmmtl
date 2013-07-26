@@ -253,7 +253,7 @@ struct P2P
                           const typename Context::target_box_type& target,
                           const ONE_SIDED&)
   {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "P2P:"
               << "\n  " << source
               << "\n  " << target << std::endl;
@@ -275,7 +275,7 @@ struct P2P
                           const typename Context::target_box_type& box2,
                           const TWO_SIDED&)
   {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "P2P:\n  " << box1 << "\n  " << box2 << std::endl;
     std::cout << "P2P:\n  " << box2 << "\n  " << box1 << std::endl;
 #endif
@@ -294,7 +294,7 @@ struct P2P
   inline static void eval(Context& c,
                           const typename Context::source_box_type& box)
   {
-#ifdef DEBUG
+#if defined(FMMTL_DEBUG)
     std::cout << "P2P:"
               << "\n  " << box << std::endl;
 #endif
@@ -350,7 +350,7 @@ class P2P_Batch
  public:
   /** Insert a source-target box interaction to the interaction list */
   void insert(const source_box_type& s, const target_box_type& t) {
-    assert(s.is_leaf() && t.is_leaf());
+    FMMTL_ASSERT(s.is_leaf() && t.is_leaf());
     p2p_list.push_back(std::make_pair(s,t));
   }
 
@@ -414,7 +414,7 @@ class P2P_Batch
           // Column
           unsigned j = s - first_source;
 
-          //assert(std::find(csri.begin(), csri.end(), j) == csri.end());
+          //FMMTL_ASSERT(std::find(csri.begin(), csri.end(), j) == csri.end());
           csri.push_back(j);
           ++nnz;
           cols = std::max(cols, j);
@@ -472,7 +472,7 @@ class P2P_Batch
         unsigned i_end = bc.target_end(target_box) - first_target;
         target_ranges.push_back(upair(i_begin, i_end));
       }
-      //assert(targets.find(upair(i_begin, bc.target_end(target_box)-first_target)) != targets.end());
+      //FMMTL_ASSERT(targets.find(upair(i_begin, bc.target_end(target_box)-first_target)) != targets.end());
 
 			// Source range
 			unsigned j_begin = bc.source_begin(source_box) - first_source;
@@ -502,8 +502,8 @@ class P2P_Batch
     *target_ptr_curr = source_ranges_curr - source_ranges.begin();
 
     // Sanity checking
-    assert(*target_ptr_curr == source_ranges.size());
-    assert(++target_ptr_curr == target_ptr.end());
+    FMMTL_ASSERT(*target_ptr_curr == source_ranges.size());
+    FMMTL_ASSERT(++target_ptr_curr == target_ptr.end());
 
     // TODO
 		return make_p2p_gpu(bc.kernel(),

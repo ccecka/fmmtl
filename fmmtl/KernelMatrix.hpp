@@ -86,8 +86,8 @@ struct Plan
 
   virtual void execute(const std::vector<charge_type>& charges,
                        std::vector<result_type>& results) {
-    assert(charges.size() == cols());
-    assert(results.size() == rows());
+    FMMTL_ASSERT(charges.size() == cols());
+    FMMTL_ASSERT(results.size() == rows());
     return context.execute(charges, results, executor);
   }
 

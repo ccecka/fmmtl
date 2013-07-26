@@ -10,11 +10,10 @@
 #include <type_traits>
 
 #include <vector>
-#include <cassert>
 
 class Direct {
 
-public:
+ public:
 
   /** Asymmetric matvec
    */
@@ -73,8 +72,8 @@ public:
                             const std::vector<typename Kernel::target_type>& t,
                             std::vector<typename Kernel::result_type>& r)
   {
-    assert(s.size() == c.size());
-    assert(t.size() == r.size());
+    FMMTL_ASSERT(s.size() == c.size());
+    FMMTL_ASSERT(t.size() == r.size());
 
     // Pass to asymmetric p2p
     P2P::block_eval(K.kernel(),
@@ -90,8 +89,8 @@ public:
                             const std::vector<typename Kernel::charge_type>& c,
                             std::vector<typename Kernel::result_type>& r)
   {
-    assert(p.size() == c.size());
-    assert(p.size() == r.size());
+    FMMTL_ASSERT(p.size() == c.size());
+    FMMTL_ASSERT(p.size() == r.size());
 
     // Pass to symmetric p2p
     P2P::block_eval(K.kernel(),
