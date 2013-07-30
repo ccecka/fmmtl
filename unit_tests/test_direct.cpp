@@ -5,7 +5,7 @@
 #include <iostream>
 
 struct TempKernel
-    : public FMM_Kernel<TempKernel> {
+    : public fmmtl::Kernel<TempKernel> {
   //! Source type
   typedef double source_type;
   //! Charge type

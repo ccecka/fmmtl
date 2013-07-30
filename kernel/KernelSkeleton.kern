@@ -7,7 +7,7 @@
  * for all i where K is the Kernel defined by this class.
 
  * A kernel is a function:
- * K : target_type * source_type -> kernel_value_type
+ * K : (target_type, source_type) -> kernel_value_type
  * The types in the matrix-vector product are
  * result_type = kernel_value_type * charge_type
  *
@@ -38,7 +38,7 @@
  * and the operator() to compute the kernel.
  */
 struct KernelSkeleton
-    : public FMM_Kernel<KernelSkeleton>
+    : public fmmtl::Kernel<KernelSkeleton>   // This class is an FMMTL Kernel
 {
   //! Return type of a kernel evaluation
   typedef double kernel_value_type;
@@ -46,7 +46,7 @@ struct KernelSkeleton
   //! Source type
   typedef Vec<3,double> source_type;
   //! Charge type associated with each source
-  //! The primitive type of the vector in the FMM/Treecode matvec
+  //! The primitive type of the vector in the  matvec
   typedef double charge_type;
 
   //! Target type
@@ -144,9 +144,21 @@ struct KernelSkeleton
 #endif  // By default, exclude optional methods
 };
 
-/** TODO: Remove this line using the FMM_Kernel<Kernel> inheritance? */
+/** TODO: Remove this line using the fmmtl::Kernel<Kernel> inheritance? */
 FMMTL_KERNEL_EXTRAS(KernelSkeleton);
 
+
+
+/** Kernel Expansion Example
+ *
+ * A kernel expansion provides the primitive operations needed to create
+ * fast methods for kernel-matrix operations.
+ *
+ * This class should usually be defined in its own ExpansionName.hpp file.
+ * If defined in the .kern file, it should use C++03 to allow for
+ * cross-compilation with older compilers.
+ */
+#include "fmmtl/Expansion.hpp"
 
 /** @struct ExpansionSkeleton
  * @brief A set of methods that can be used in the KernelMatrix and extend
@@ -162,7 +174,7 @@ FMMTL_KERNEL_EXTRAS(KernelSkeleton);
  * L2P operator (FMM)
  */
 struct ExpansionSkeleton
-    : public FMM_Expansion<KernelSkeleton, ExpansionSkeleton>
+    : public fmmtl::Expansion<KernelSkeleton, ExpansionSkeleton>
 {
   //! The dimension of the spacial interpretation of the source/target_type.
   static const unsigned dimension = 3;
@@ -447,3 +459,6 @@ struct ExpansionSkeleton
   }
 #endif  // By default, exclude optional methods
 };
+
+
+// For simple examples, see UnitKernel.kern and ExpKernel.kern

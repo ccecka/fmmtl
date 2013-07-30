@@ -11,7 +11,7 @@
 #include "fmmtl/Vec.hpp"
 
 struct ExpPotential
-    : public FMM_Kernel<ExpPotential>
+    : public fmmtl::Kernel<ExpPotential>
 {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
@@ -36,8 +36,10 @@ struct ExpPotential
 FMMTL_KERNEL_EXTRAS(ExpPotential);
 
 
+#include "fmmtl/Expansion.hpp"
+
 struct ExpExpansion
-    : public FMM_Expansion<ExpPotential, ExpExpansion>
+    : public fmmtl::Expansion<ExpPotential, ExpExpansion>
 {
   //! The dimension of the spacial interpretation of the source/target_type.
   static const unsigned dimension = 3;

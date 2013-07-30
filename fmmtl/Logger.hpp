@@ -104,8 +104,7 @@ class Timer {
     return std::chrono::duration_cast<units>(total()).count();
   }
   // Print this Timer
-  template <typename Stream>
-  friend Stream& operator<<(Stream& s, const Timer& t) {
+  friend std::ostream& operator<<(std::ostream& s, const Timer& t) {
     return s << t.seconds() << "secs";
   }
  private:

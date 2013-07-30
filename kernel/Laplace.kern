@@ -3,7 +3,7 @@
 #include "fmmtl/Vec.hpp"
 
 struct LaplacePotential
-    : public FMM_Kernel<LaplacePotential> {
+    : public fmmtl::Kernel<LaplacePotential> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;
@@ -31,7 +31,7 @@ struct LaplacePotential
 FMMTL_KERNEL_EXTRAS(LaplacePotential);
 
 struct LaplaceKernel
-    : public FMM_Kernel<LaplaceKernel> {
+    : public fmmtl::Kernel<LaplaceKernel> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;

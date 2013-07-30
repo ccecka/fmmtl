@@ -11,7 +11,7 @@
  * S(t,s)    = I / |s-t| + (s-t) (s-t)^T / |s-t|^3
  */
 struct Stokeslet
-    : public FMM_Kernel<Stokeslet> {
+    : public fmmtl::Kernel<Stokeslet> {
   typedef Vec<3,double>  source_type;
   typedef Vec<3,double>  charge_type;
   typedef Vec<3,double>  target_type;

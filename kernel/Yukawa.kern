@@ -3,7 +3,7 @@
 #include "fmmtl/Vec.hpp"
 
 struct YukawaPotential
-    : public FMM_Kernel<YukawaPotential> {
+    : public fmmtl::Kernel<YukawaPotential> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;
@@ -38,7 +38,7 @@ struct YukawaPotential
 FMMTL_KERNEL_EXTRAS(YukawaPotential);
 
 struct YukawaKernel
-    : public FMM_Kernel<YukawaKernel> {
+    : public fmmtl::Kernel<YukawaKernel> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;

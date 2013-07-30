@@ -7,12 +7,11 @@
  */
 
 #include "fmmtl/Kernel.hpp"
-
 // Use a library-defined Vector class that supports multiple architectures
 #include "fmmtl/Vec.hpp"
 
 struct UnitPotential
-    : public FMM_Kernel<UnitPotential> {
+    : public fmmtl::Kernel<UnitPotential> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;
@@ -36,8 +35,10 @@ struct UnitPotential
 FMMTL_KERNEL_EXTRAS(UnitPotential);
 
 
+#include "fmmtl/Expansion.hpp"
+
 struct UnitExpansion
-    : public FMM_Expansion<UnitPotential, UnitExpansion>
+    : public fmmtl::Expansion<UnitPotential, UnitExpansion>
 {
   //! The dimension of the spacial interpretation of the source/target_type.
   static const unsigned dimension = 3;

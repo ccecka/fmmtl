@@ -10,13 +10,13 @@
 #include <vector>
 #include <cassert>
 
-#include "fmmtl/Kernel.hpp"
-#include "fmmtl/Vec.hpp"
-
 #include "Yukawa.kern"
 
+#include "fmmtl/Expansion.hpp"
+#include "fmmtl/Vec.hpp"
+
 class YukawaCartesian
-    : public FMM_Expansion<YukawaKernel, YukawaCartesian> {
+    : public fmmtl::Expansion<YukawaKernel, YukawaCartesian> {
  protected:
   typedef double real;
   typedef std::complex<real> complex;

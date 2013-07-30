@@ -10,14 +10,14 @@
 #include <cmath>
 #include <cassert>
 
-#include "fmmtl/Kernel.hpp"
+#include "Laplace.kern"
+
+#include "fmmtl/Expansion.hpp"
 // Use a library-defined Vector class that supports multiple architectures
 #include "fmmtl/Vec.hpp"
 
-#include "Laplace.kern"
-
 class LaplaceSpherical
-    : public FMM_Expansion<LaplaceKernel, LaplaceSpherical> {
+    : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical> {
  protected:
   typedef double real;
   typedef std::complex<real> complex;
