@@ -444,7 +444,7 @@ class P2P_Batch
 
 	/** All boxes interactions have been inserted, stage for GPU P2P
 	 */
-  P2P_Compressed<typename kernel_type::kernel_type> to_gpu(Context& bc) {
+  P2P_Compressed<kernel_type> compressed(Context& bc) {
     auto first_source = bc.source_begin();
     auto first_target = bc.target_begin();
 

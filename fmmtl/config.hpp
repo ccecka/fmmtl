@@ -11,9 +11,14 @@
 // Enable CUDA/Thrust acceleration
 #else
 
+#if defined(FMMTL_KERNEL) & !defined(__CUDACC__)
+# error Should be compiling .kern with CUDA!
+#endif
+
 # define FMMTL_USE_THRUST
 # if defined(__CUDACC__)        // Compiling with nvcc
-#  define FMMTL_INLINE inline __host__ __device__
+#  define FMMTL_INLINE inline __host__ __device__   // Provide CUDA methods
+#  define FMMTL_KERNEL                              // nvcc only for .kern now
 # endif
 
 #endif

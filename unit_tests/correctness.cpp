@@ -22,7 +22,7 @@ inline double drand(double A, double B) {
 
 int main(int argc, char **argv)
 {
-  int N = 1000;
+  int N = 10000;
   bool checkErrors = true;
 
   // Parse custom command line args

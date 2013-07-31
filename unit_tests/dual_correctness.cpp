@@ -22,8 +22,8 @@ inline double drand(double A, double B) {
 
 int main(int argc, char **argv)
 {
-  int N = 1000;  // num sources
-  int M = 1000;  // num targets
+  int N = 10000;  // num sources
+  int M = 10000;  // num targets
   bool checkErrors = true;
 
   // Parse custom command line args

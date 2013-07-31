@@ -18,64 +18,76 @@ class P2P_Compressed {
   typedef typename kernel_type::charge_type charge_type;
   typedef typename kernel_type::result_type result_type;
 
-  // The kernel to apply in the P2P
-  const kernel_type& K_;
-
-  // Device data for P2P computation
-  unsigned* d_target_ranges;
-  unsigned* d_target_ptrs;
-  unsigned* d_source_ranges;
-
-  // Device source and target arrays
-  source_type* d_sources;
-  target_type* d_targets;
-
   // Supporting data
   void* data;
 
-  P2P_Compressed(const Kernel& K);
+  // Device data for P2P computation
+  unsigned* target_ranges;
+  unsigned* source_range_ptrs;
+  unsigned* source_ranges;
 
-	P2P_Compressed(const Kernel& K,
-                 std::vector<std::pair<unsigned,unsigned> >& target_ranges,
+  // Device source and target arrays
+  source_type* sources;
+  target_type* targets;
+
+  P2P_Compressed();
+
+	P2P_Compressed(std::vector<std::pair<unsigned,unsigned> >& target_ranges,
                  std::vector<unsigned>& target_ptrs,
                  std::vector<std::pair<unsigned,unsigned> >& source_ranges,
                  std::vector<source_type>& sources,
                  std::vector<target_type>& targets);
 
+  ~P2P_Compressed();
+
+  template <class Context>
+  void execute(Context& c) {
+    return execute(c.kernel(),
+                   c.charge_begin(), c.charge_end(),
+                   c.result_begin(), c.result_end());
+  }
+
   template <typename ChargeIter, typename ResultIter>
-  void execute(ChargeIter cfirst, ChargeIter clast,
-               ResultIter rfirst, ResultIter rlast) {
+        void execute(const Kernel& K,
+                     ChargeIter cfirst, ChargeIter clast,
+                     ResultIter rfirst, ResultIter rlast) {
     // TODO: Ugh, iterator type hiding via copy
     std::vector<charge_type> charges(cfirst, clast);
     std::vector<result_type> results(rfirst, rlast);
 
-    execute(&charges[0], &results[0]);
+    execute(K, charges, results);
 
     std::copy(results.begin(), results.end(), rfirst);
   }
 
-  void execute(const charge_type* charges,
-               result_type* results);
+  void execute(const Kernel& K,
+               const std::vector<charge_type>& charges,
+               std::vector<result_type>& results);
+
+  static void execute(const Kernel& K,
+                      const std::vector<source_type>& s,
+                      const std::vector<charge_type>& c,
+                      const std::vector<target_type>& t,
+                      std::vector<result_type>& r);
 };
 
 
 
-template <typename Expansion, typename SourceIter, typename TargetIter>
-P2P_Compressed<typename Expansion::kernel_type>
-make_p2p_gpu(const Expansion& K,
+template <typename Kernel, typename SourceIter, typename TargetIter>
+P2P_Compressed<Kernel>
+make_p2p_gpu(const Kernel&,
              std::vector<std::pair<unsigned,unsigned> >& target_ranges,
              std::vector<unsigned>& target_ptrs,
              std::vector<std::pair<unsigned,unsigned> >& source_ranges,
              SourceIter sfirst, SourceIter slast,
              TargetIter tfirst, TargetIter tlast) {
   // TODO: Ugh, iterator type hiding via copy
-  std::vector<typename Expansion::source_type> sources(sfirst, slast);
-  std::vector<typename Expansion::target_type> targets(tfirst, tlast);
+  std::vector<typename Kernel::source_type> sources(sfirst, slast);
+  std::vector<typename Kernel::target_type> targets(tfirst, tlast);
 
-	return P2P_Compressed<typename Expansion::kernel_type>(K,
-                                                         target_ranges,
-                                                         target_ptrs,
-                                                         source_ranges,
-                                                         sources,
-                                                         targets);
+	return P2P_Compressed<Kernel>(target_ranges,
+                                target_ptrs,
+                                source_ranges,
+                                sources,
+                                targets);
 }

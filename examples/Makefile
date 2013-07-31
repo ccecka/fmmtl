@@ -112,8 +112,9 @@ endif
 
 # 'make clean' - deletes all .o and temp files, exec, and dependency file
 clean:
-	-$(RM) *.o *~ */*~ $(OBJS) $(FMMTL_DIR)/kernel/*.o
+	-$(RM) *.o $(OBJS) $(KERNEL_DIR)/*.o
 	-$(RM) $(EXEC)
+	find $(KERNEL_DIR) -maxdepth 1 -type l -delete
 	$(RM) -r $(DEPSDIR)
 
 # Define rules that do not actually generate the corresponding file
