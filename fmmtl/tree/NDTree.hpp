@@ -74,7 +74,7 @@ class NDTree {
 
   struct box_data {
     // The level of the box and the leaf_bit
-    char level_;
+    unsigned level_;
     // The index of the parent of this box
     unsigned parent_;
     // These can be either point offsets or box offsets depending on is_leaf
@@ -246,9 +246,9 @@ class NDTree {
     /** Write a Box to an output stream */
     inline friend std::ostream& operator<<(std::ostream& s,
                                            const box_type& b) {
-      unsigned num_bodies = std::distance(b.body_begin(), b.body_end());
+      unsigned num_bodies = b.num_bodies();
       unsigned first_body = b.body_begin()->index();
-      unsigned last_body = first_body + num_bodies;
+      unsigned last_body = first_body + num_bodies - 1;
 
       return s << "Box " << b.index()
                << " (Level " << b.level() << ", Parent " << b.parent().index()
@@ -440,27 +440,24 @@ class NDTree {
   inline friend std::ostream& operator<<(std::ostream& s,
                                          const tree_type& t) {
     struct {
-      inline std::ostream& print(std::ostream& ss,
+      inline std::ostream& print(std::ostream& s,
                                  const box_type& box) {
-        ss << std::string(2*box.level(), ' ') << box;
-        if (!box.is_leaf()) {
-          for (auto ci = box.child_begin(); ci != box.child_end(); ++ci) {
-            ss << "\n";
-            print(ss, *ci);
-          }
-        }
-        return ss;
+        s << std::string(2*box.level(), ' ') << box;
+        if (!box.is_leaf())
+          for (auto ci = box.child_begin(); ci != box.child_end(); ++ci)
+            print(s << "\n", *ci);
+        return s;
       }
-    } level_traverse;
+    } recursive_box;
 
-    return level_traverse.print(s, t.root());
+    return recursive_box.print(s, t.root());
   }
 
  private:
   //! TODO: Make dynamic and public?
   //! Uses incremental bucket sorting
   template <typename PointIter>
-  void insert(PointIter p_first, PointIter p_last, unsigned NCRIT = 126) {
+  void insert(PointIter p_first, PointIter p_last, unsigned NCRIT) {
     // Create a code-idx pair vector
     typedef std::pair<code_type, unsigned> code_pair;
     std::vector<code_pair> codes;
@@ -482,12 +479,14 @@ class NDTree {
     // For every box that is created
     for (unsigned k = 0; k != box_data_.size(); ++k) {
       // @pre box_data_[k] has not been designated a leaf yet
+      // @pre box_data_[k].begin_ and end_ refer to body indices
 
       // If this box has few enough points, mark as leaf and go to next box
       if (box_data_[k].end_ - box_data_[k].begin_ <= NCRIT) {
         box_data_[k].set_leaf();
         continue;
       }
+      // Else, split this box
 
       // Get the box data
       auto code_begin = codes.begin() + box_data_[k].begin_;
@@ -499,30 +498,28 @@ class NDTree {
                              [shift] (const code_pair& v)
                              { return (v.first >> shift) & (max_children-1); });
 
-      // Split this box - point offsets become box offsets
+      // If the children are starting a new level, record it
+      if (box_data_[k].level() + 1 > levels())
+        level_offset_.push_back(box_data_.size());
+
+      // Record the child begin idx
       box_data_[k].begin_ = box_data_.size();
-      box_data_[k].end_   = box_data_.size();
 
       // For each bucket
       for (unsigned c = 0; c < max_children; ++c) {
-        unsigned begin_c = off[c]   - codes.begin();
-        unsigned end_c   = off[c+1] - codes.begin();
-
         // If this child contains points, add this child box
-        if (end_c - begin_c > 0) {
-          // Construct the new box
-          box_data box_c(box_data_[k].level() + 1, k, begin_c, end_c);
-
-          // If this is starting a new level, record it
-          if (box_c.level() > levels())
-            level_offset_.push_back(box_data_.size());
-
-          // Increment parent child offset
-          ++box_data_[k].end_;
-          // Add the child
-          box_data_.push_back(box_c);
+        if (off[c+1] - off[c] > 0) {
+          // Construct and add the child
+          box_data_.push_back(
+              box_data(box_data_[k].level() + 1,   // Level
+                       k,                          // Parent idx
+                       off[c]   - codes.begin(),   // Body begin idx
+                       off[c+1] - codes.begin())); // Body end idx
         }
       }
+
+      // Record the child end idx
+      box_data_[k].end_   = box_data_.size();
     }
 
     level_offset_.push_back(box_data_.size());
