@@ -33,6 +33,6 @@ Optional:
 
 
 Building:
-* Enter unit_tests/ or examples/
 * Edit Makefile.inc to edit paths
+* Enter unit_tests/ or examples/
 * 'make'
