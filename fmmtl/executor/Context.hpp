@@ -67,9 +67,9 @@ class DualTreeContext<Expansion,
 
  protected:
   // Note the source_tree_type and target_tree_type are the same
-  template <typename BodyIter, typename Indexable>
-  using body_transform_iterator =
-      typename source_tree_type::template body_permute_iterator<Indexable>::type;
+  template <typename Iter>
+  using body_permuted_iterator =
+      typename source_tree_type::template body_permuted_iterator<Iter>::type;
 
   //! The tree of sources
   source_tree_type source_tree_;
@@ -163,8 +163,7 @@ class DualTreeContext<Expansion,
     return L_[box.index()];
   }
 
-  typedef body_transform_iterator<source_body_iterator,
-                                  source_container_iterator>      source_iterator;
+  typedef body_permuted_iterator<source_container_iterator> source_iterator;
   inline source_iterator source_begin(const source_box_type& b) const {
     return source_tree().body_permute(s_, b.body_begin());
   }
@@ -178,8 +177,7 @@ class DualTreeContext<Expansion,
     return source_tree().body_permute(s_, source_tree().body_end());
   }
 
-  typedef body_transform_iterator<source_body_iterator,
-                                  charge_container_iterator>      charge_iterator;
+  typedef body_permuted_iterator<charge_container_iterator> charge_iterator;
   inline charge_iterator charge_begin(const source_box_type& b) const {
     return source_tree().body_permute(c_, b.body_begin());
   }
@@ -193,8 +191,7 @@ class DualTreeContext<Expansion,
     return source_tree().body_permute(c_, source_tree().body_end());
   }
 
-  typedef body_transform_iterator<target_body_iterator,
-                                  target_container_iterator>      target_iterator;
+  typedef body_permuted_iterator<target_container_iterator> target_iterator;
   inline target_iterator target_begin(const target_box_type& b) const {
     return target_tree().body_permute(t_, b.body_begin());
   }
@@ -208,8 +205,7 @@ class DualTreeContext<Expansion,
     return target_tree().body_permute(t_, target_tree().body_end());
   }
 
-  typedef body_transform_iterator<target_body_iterator,
-                                  result_container_iterator>      result_iterator;
+  typedef body_permuted_iterator<result_container_iterator> result_iterator;
   inline result_iterator result_begin(const target_box_type& b) const {
     return target_tree().body_permute(r_, b.body_begin());
   }
@@ -239,9 +235,9 @@ class SingleTreeContext<Expansion,
 
  protected:
   // Note the source_tree_type and target_tree_type are the same
-  template <typename BodyIter, typename Indexable>
-  using body_transform_iterator =
-      typename source_tree_type::template body_permute_iterator<Indexable>::type;
+  template <typename Iter>
+  using body_permuted_iterator =
+      typename source_tree_type::template body_permuted_iterator<Iter>::type;
 
   //! The tree of sources and targets
   source_tree_type source_tree_;
@@ -322,8 +318,7 @@ class SingleTreeContext<Expansion,
     return L_[box.index()];
   }
 
-  typedef body_transform_iterator<source_body_iterator,
-                                  source_container_iterator>      source_iterator;
+  typedef body_permuted_iterator<source_container_iterator> source_iterator;
   inline source_iterator source_begin(const source_box_type& b) const {
     return source_tree().body_permute(s_, b.body_begin());
   }
@@ -337,8 +332,7 @@ class SingleTreeContext<Expansion,
     return source_tree().body_permute(s_, source_tree().body_end());
   }
 
-  typedef body_transform_iterator<source_body_iterator,
-                                  charge_container_iterator>      charge_iterator;
+  typedef body_permuted_iterator<charge_container_iterator> charge_iterator;
   inline charge_iterator charge_begin(const source_box_type& b) const {
     return source_tree().body_permute(c_, b.body_begin());
   }
@@ -352,8 +346,7 @@ class SingleTreeContext<Expansion,
     return source_tree().body_permute(c_, source_tree().body_end());
   }
 
-  typedef body_transform_iterator<target_body_iterator,
-                                  target_container_iterator>      target_iterator;
+  typedef body_permuted_iterator<target_container_iterator> target_iterator;
   inline target_iterator target_begin(const target_box_type& b) const {
     return target_tree().body_permute(s_, b.body_begin());
   }
@@ -367,8 +360,7 @@ class SingleTreeContext<Expansion,
     return target_tree().body_permute(s_, target_tree().body_end());
   }
 
-  typedef body_transform_iterator<target_body_iterator,
-                                  result_container_iterator>      result_iterator;
+  typedef body_permuted_iterator<result_container_iterator> result_iterator;
   inline result_iterator result_begin(const target_box_type& b) const {
     return target_tree().body_permute(r_, b.body_begin());
   }

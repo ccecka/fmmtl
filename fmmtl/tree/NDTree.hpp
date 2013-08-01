@@ -422,7 +422,7 @@ class NDTree {
   }
 
   template <typename RandomAccessIter>
-  struct body_permute_iterator {
+  struct body_permuted_iterator {
     typedef typename std::vector<unsigned>::const_iterator permute_iter;
     typedef boost::permutation_iterator<RandomAccessIter, permute_iter> type;
   };
@@ -431,7 +431,7 @@ class NDTree {
    * the bodies contained in this tree
    */
   template <typename RandomAccessIter>
-  typename body_permute_iterator<RandomAccessIter>::type
+  typename body_permuted_iterator<RandomAccessIter>::type
   body_permute(RandomAccessIter& it, const body_iterator& bi) const {
     return boost::make_permutation_iterator(it, permute_.cbegin() + bi.index());
   }
