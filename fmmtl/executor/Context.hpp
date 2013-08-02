@@ -66,10 +66,10 @@ class DualTreeContext<Expansion,
   FMMTL_IMPORT_TREEPAIR_TRAITS(tree_type, tree_type);
 
  protected:
-  // Note the source_tree_type and target_tree_type are the same
+  // Note source_tree_type == target_tree_type in this specialization
   template <typename Iter>
   using body_permuted_iterator =
-      typename source_tree_type::template body_permuted_iterator<Iter>::type;
+      typename tree_type::template body_permuted_iterator<Iter>::type;
 
   //! The tree of sources
   source_tree_type source_tree_;
@@ -234,10 +234,10 @@ class SingleTreeContext<Expansion,
   FMMTL_IMPORT_TREEPAIR_TRAITS(tree_type, tree_type);
 
  protected:
-  // Note the source_tree_type and target_tree_type are the same
+  // Note source_tree_type == target_tree_type in this specialization
   template <typename Iter>
   using body_permuted_iterator =
-      typename source_tree_type::template body_permuted_iterator<Iter>::type;
+      typename tree_type::template body_permuted_iterator<Iter>::type;
 
   //! The tree of sources and targets
   source_tree_type source_tree_;
