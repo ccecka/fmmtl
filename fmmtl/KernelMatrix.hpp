@@ -193,8 +193,12 @@ make_fmm_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
                 Options opts = FMMOptions()) {
   // Statically compute the context type, potentially from Options
+  typedef ExpansionContext<Expansion> expansion_context_type;
+
   typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  typedef SingleTreeContext<Expansion, tree_type> context_type;
+  typedef SingleTreeContext<Expansion, tree_type> tree_context_type;
+
+  typedef DataContext<expansion_context_type, tree_context_type> context_type;
 
   // Construct the plan
   typedef Plan<Expansion, context_type> plan_type;
@@ -212,8 +216,12 @@ make_fmm_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::target_type>& targets,
                 Options opts = FMMOptions()) {
   // Statically compute the context type, potentially from Option types
+  typedef ExpansionContext<Expansion> expansion_context_type;
+
   typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  typedef DualTreeContext<Expansion, tree_type> context_type;
+  typedef DualTreeContext<Expansion, tree_type> tree_context_type;
+
+  typedef DataContext<expansion_context_type, tree_context_type> context_type;
 
   // Construct the plan
   typedef Plan<Expansion, context_type> plan_type;
