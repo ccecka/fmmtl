@@ -29,7 +29,7 @@ Dependencies:
 * [Boost library](http://www.boost.org/) headers. (Tested with version 1.53)
 
 Optional:
-* [CUDA 5.0 and Thrust](https://developer.nvidia.com/cuda-downloads) for GPU acceleration.
+* [CUDA 5.5 and Thrust](https://developer.nvidia.com/cuda-downloads) for GPU acceleration.
 
 
 Building:
