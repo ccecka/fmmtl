@@ -11,7 +11,7 @@ BOOST_DIR = /usr/include
 
 # Optional libraries
 # Only needed if nvcc exists and using CUDA
-THRUST_DIR = /usr/local/cuda-5.0/include
+THRUST_DIR = /usr/local/cuda-5.5/include
 
 ####################
 ## Makefile Setup ##
