@@ -1,9 +1,5 @@
 #include "fmmtl/config.hpp"
 
-#if defined(FMMTL_USE_THRUST)
-#include <thrust/version.h>
-#endif
-
 #include <iostream>
 
 int main(void)
@@ -15,6 +11,5 @@ int main(void)
 #else
   std::cout << "Thrust is not being used." << std::endl;
 #endif
-
   return 0;
 }

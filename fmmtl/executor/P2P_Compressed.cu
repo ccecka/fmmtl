@@ -27,7 +27,8 @@ inline void gpuAssert(cudaError_t code, char* file, int line, bool abort=true)
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 
-template <typename Kernel,
+template <unsigned BLOCKSIZE,
+          typename Kernel,
           typename RandomAccessIterator1,  // pair<uint,uint>
           typename RandomAccessIterator2,  // Chained uint
           typename RandomAccessIterator3>  // pair<uint,uint>
@@ -59,8 +60,7 @@ blocked_p2p(const Kernel K,  // The Kernel to apply
   RandomAccessIterator3 sr_last  = source_range + source_range_ptr[blockIdx.x+1];
 
   // Parallel for each target until the last
-  t_first += threadIdx.x;
-  for (; t_first < t_last; t_first += blockDim.x) {
+  for (t_first += threadIdx.x; t_first < t_last; t_first += BLOCKSIZE) {
     const target_type t = target[t_first];
     result_type r = result_type();
 
@@ -134,10 +134,11 @@ void P2P_Compressed<Kernel>::execute(
   thrust::device_vector<charge_type> d_charges(charges);
   thrust::device_vector<result_type> d_results(results.size());
 
-  unsigned num_blocks = reinterpret_cast<Data*>(data)->num_target_blocks;
+  const unsigned threads_per_block = 256;
+  const unsigned num_blocks = reinterpret_cast<Data*>(data)->num_target_blocks;
 
   // Launch kernel <<<grid_size, block_size>>>
-  blocked_p2p<<<num_blocks,256>>>(
+  blocked_p2p<threads_per_block><<<num_blocks,threads_per_block>>>(
       K,
       reinterpret_cast<thrust::pair<unsigned,unsigned>*>(target_ranges),
       source_range_ptrs,
@@ -168,8 +169,6 @@ struct target_range_maker
   }
 };
 
-
-/*
 template <typename Kernel>
 void
 P2P_Compressed<Kernel>::execute(const Kernel& K,
@@ -188,12 +187,11 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
   thrust::device_vector<target_type> d_targets(t);
   thrust::device_vector<result_type> d_results(r);
 
+  const unsigned threads_per_block = 256;
+  const unsigned num_blocks = (t.size() + threads_per_block - 1) / threads_per_block;
 
-
-  unsigned threads_per_block = 256;
-  unsigned num_blocks = (t.size() + threads_per_block - 1) / threads_per_block;
-
-  blocked_p2p<<<num_blocks, threads_per_block>>>(
+  // Launch kernel <<<grid_size, block_size>>>
+  blocked_p2p<threads_per_block><<<num_blocks, threads_per_block>>>(
       K,
       thrust::make_transform_iterator(thrust::make_counting_iterator(0),
                                       target_range_maker()),
@@ -210,4 +208,4 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
   for (unsigned k = 0; k < h_results.size(); ++k)
     r[k] += h_results[k];
 }
-*/
+

@@ -62,10 +62,6 @@
 
 #include "config.hpp"
 
-#if defined(FMMTL_USE_THRUST)
-#include <thrust/detail/config.h>
-#endif
-
 #if (defined THRUST_DEVICE_BACKEND && THRUST_DEVICE_BACKEND == THRUST_DEVICE_BACKEND_CUDA) || (defined THRUST_DEVICE_SYSTEM && THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA)
 
 #ifdef _WIN32
