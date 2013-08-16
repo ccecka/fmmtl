@@ -51,9 +51,9 @@ blocked_p2p(const Kernel K,  // The Kernel to apply
   typedef typename kernel_type::result_type result_type;
 
   // Get the target range this block is responsible for
-  thrust::pair<unsigned,unsigned> t_range = target_range[blockIdx.x];
+  const thrust::pair<unsigned,unsigned> t_range = target_range[blockIdx.x];
   unsigned t_first = t_range.first;
-  unsigned t_last  = t_range.second;
+  const unsigned t_last  = t_range.second;
 
   // Get the range of source ranges this block is responsible for
   RandomAccessIterator3 sr_first = source_range + source_range_ptr[blockIdx.x+0];
@@ -66,9 +66,9 @@ blocked_p2p(const Kernel K,  // The Kernel to apply
 
     // For each source range
     for (; sr_first < sr_last; ++sr_first) {
-      thrust::pair<unsigned,unsigned> s_range = *sr_first;
+      const thrust::pair<unsigned,unsigned> s_range = *sr_first;
       unsigned s_first = s_range.first;
-      unsigned s_last  = s_range.second;
+      const unsigned s_last  = s_range.second;
       // TODO: Load in shared memory and reuse?
 
       // For each source in the source range
@@ -159,15 +159,17 @@ void P2P_Compressed<Kernel>::execute(
 }
 
 
-struct target_range_maker
+template <unsigned BLOCKSIZE>
+struct block_range
     : public thrust::unary_function<unsigned,
                                     thrust::pair<unsigned,unsigned> > {
   __device__
-  thrust::pair<unsigned,unsigned> operator()(unsigned target_block) const {
-    unsigned start_block = target_block * 256;
-    return thrust::make_pair(start_block, start_block + 256);
+  thrust::pair<unsigned,unsigned> operator()(unsigned blockidx) const {
+    unsigned start_block = blockidx * BLOCKSIZE;
+    return thrust::make_pair(start_block, start_block + BLOCKSIZE);
   }
 };
+
 
 template <typename Kernel>
 void
@@ -194,7 +196,7 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
   blocked_p2p<threads_per_block><<<num_blocks, threads_per_block>>>(
       K,
       thrust::make_transform_iterator(thrust::make_counting_iterator(0),
-                                      target_range_maker()),
+                                      block_range<threads_per_block>()),
       thrust::make_constant_iterator(0),
       thrust::make_constant_iterator(thrust::make_pair(0,s.size())),
       thrust::raw_pointer_cast(d_sources.data()),

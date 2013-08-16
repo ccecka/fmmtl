@@ -5,7 +5,7 @@
 
 struct HelmholtzPotential
     : public fmmtl::Kernel<HelmholtzPotential> {
-  typedef fmm::complex<double> complex;
+  typedef fmmtl::complex<double> complex;
 
   typedef Vec<3,double>  source_type;
   typedef complex        charge_type;
@@ -44,7 +44,7 @@ FMMTL_KERNEL_EXTRAS(HelmholtzPotential);
 
 struct HelmholtzKernel
     : public fmmtl::Kernel<HelmholtzKernel> {
-  typedef fmm::complex<double> complex;
+  typedef fmmtl::complex<double> complex;
 
   typedef Vec<3,double>  source_type;
   typedef complex        charge_type;
