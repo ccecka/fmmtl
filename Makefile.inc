@@ -21,11 +21,11 @@ THRUST_DIR = /usr/local/cuda-5.5/include
 UNAME := $(shell uname)
 
 # Define the C++ compiler to use
-ifeq ($(UNAME), Linux)
-CXX := g++-4.7 -std=gnu++0x
-endif
-ifeq ($(UNAME), Darwin)
-CXX := g++-mp-4.7 -std=gnu++0x
+CXX := g++ -std=gnu++0x
+# Check the version number of CXX
+CXX_VERSION_LT_47 := $(shell expr `$(CXX) -dumpversion | cut -f1,2 -d.` \< 4.7)
+ifeq ($(CXX_VERSION_LT_47),1)
+  $(error Makefile using g++ v$(shell $(CXX) -dumpversion), please use >= v4.7)
 endif
 # Check for CUDA compiler
 NVCC := $(shell which nvcc)
