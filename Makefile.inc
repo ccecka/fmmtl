@@ -112,7 +112,7 @@ $(EXEC): % : %.o
 # Default rule for creating a .o file from a .cu file
 %.o: %.cu
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
-	$(NVCC) $(INCLUDES) -M -o $(DEPSFILE) $<
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -M -o $(DEPSFILE) $<
 
 # Default rule for creating a .o file from a .kern file
 %.o: %.kern

@@ -3,8 +3,7 @@
 #include <iostream>
 
 template <typename Kernel>
-P2P_Compressed<Kernel>::P2P_Compressed()
-    : data(0) {
+P2P_Compressed<Kernel>::P2P_Compressed() {
 }
 
 template <typename Kernel>
@@ -13,8 +12,7 @@ P2P_Compressed<Kernel>::P2P_Compressed(
     std::vector<unsigned>&,
     std::vector<std::pair<unsigned,unsigned> >&,
     std::vector<typename Kernel::source_type>&,
-    std::vector<typename Kernel::target_type>&)
-    : data(0) {
+    std::vector<typename Kernel::target_type>&) {
 }
 
 template <typename Kernel>

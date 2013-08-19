@@ -7,6 +7,8 @@
 
 #include <vector>
 
+#include <iostream>
+
 template <typename Kernel>
 class P2P_Compressed {
  public:
@@ -19,16 +21,16 @@ class P2P_Compressed {
   typedef typename kernel_type::result_type result_type;
 
   // Supporting data
-  void* data;
+  void* data_;
 
   // Device data for P2P computation
-  unsigned* target_ranges;
-  unsigned* source_range_ptrs;
-  unsigned* source_ranges;
+  std::pair<unsigned,unsigned>* target_ranges_;
+  unsigned* source_range_ptrs_;
+  std::pair<unsigned,unsigned>* source_ranges_;
 
   // Device source and target arrays
-  source_type* sources;
-  target_type* targets;
+  source_type* sources_;
+  target_type* targets_;
 
   P2P_Compressed();
 
@@ -71,99 +73,81 @@ class P2P_Compressed {
                       std::vector<result_type>& r);
 
   template <class Context, class BoxPairIter>
-  P2P_Compressed<typename Context::kernel_type>
+  static
+  P2P_Compressed<typename Context::kernel_type>*
   make(Context& c, BoxPairIter first, BoxPairIter last) {
-    /*
-    typename Context::source_iterator first_source = bc.source_begin();
-    typename Context::source_iterator first_target = bc.target_begin();
+    typename Context::source_iterator first_source = c.source_begin();
+    typename Context::source_iterator first_target = c.target_begin();
 
-    unsigned num_targets = bc.target_tree().bodies();
-    //unsigned num_sources = bc.source_tree().bodies();
+    unsigned num_targets = c.target_tree().bodies();
+    //unsigned num_sources = c.source_tree().bodies();
+    unsigned num_box_pairs = last - first;
 
     // Interaction list for each target box
-    // target_first -> {(source_first, source_last), ...}
+    // (target_first,target_last) -> {(source_first, source_last), ...}
     // TODO: faster?
     typedef std::pair<unsigned, unsigned> upair;
-    std::vector<std::vector<upair>> target2sources(num_targets);
+    std::vector<std::vector<upair> > target2sources(num_targets);
     // A list of target ranges we've seen: {(target_first, target_last), ...}
     std::vector<upair> target_ranges;
 
     for ( ; first != last; ++first) {
-      const box_pair& b2b = *first;
-      const source_box_type& source_box = b2b.first;
-      const target_box_type& target_box = b2b.second;
+      const typename BoxPairIter::value_type& bpair = *first;
+      const typename Context::source_box_type& source_box = bpair.first;
+      const typename Context::target_box_type& target_box = bpair.second;
+
+      // Target boxes need to be leaf boxes because the computations are
+      // grouped by disjoint target ranges
+      // TODO: Generalize?
+      FMMTL_ASSERT(target_box.is_leaf());
 
 			// Target range
-			unsigned i_begin = bc.target_begin(target_box) - first_target;
-
-      auto& sources = target2sources[i_begin];
-      if (sources.empty()) {
-        // First time we've seen this target range
-        unsigned i_end = bc.target_end(target_box) - first_target;
-        target_ranges.push_back(upair(i_begin, i_end));
-      }
-      //FMMTL_ASSERT(targets.find(upair(i_begin, bc.target_end(target_box)-first_target)) != targets.end());
+			unsigned i_begin = c.target_begin(target_box) - first_target;
+      unsigned i_end   = c.target_end(target_box) - first_target;
 
 			// Source range
-			unsigned j_begin = bc.source_begin(source_box) - first_source;
-			unsigned j_end = bc.source_end(source_box) - first_source;
-      sources.push_back(upair(j_begin,j_end));
+			unsigned j_begin = c.source_begin(source_box) - first_source;
+			unsigned j_end   = c.source_end(source_box) - first_source;
+
+      // If this is the first time we've seen this target range
+      if (target2sources[i_begin].empty())
+        target_ranges.push_back(upair(i_begin, i_end));
+
+      target2sources[i_begin].push_back(upair(j_begin,j_end));
     }
+
+    unsigned num_target_ranges = target_ranges.size();
 
     // Construct a compressed interaction list
-    std::vector<unsigned> target_ptr(target_ranges.size() + 1);
-    auto target_ptr_curr = target_ptr.begin();
-
-    std::vector<upair> source_ranges(p2p_list.size());
-    auto source_ranges_curr = source_ranges.begin();
+    std::vector<unsigned> target_ptr(num_target_ranges + 1);
+    target_ptr[0] = 0;
+    std::vector<upair> source_ranges(num_box_pairs);
+    std::vector<upair>::iterator source_ranges_curr = source_ranges.begin();
 
     // For all the target ranges
-    for (auto& target_range : target_ranges) {
-      // Record the offset for this source range
-      *target_ptr_curr = source_ranges_curr - source_ranges.begin();
-      ++target_ptr_curr;
-
-      // Copy the interacting source ranges
-      auto& sources = target2sources[target_range.first];
-      source_ranges_curr = std::copy(sources.begin(), sources.end(),
+    for (unsigned k = 0; k < num_target_ranges; ++k) {
+      // Copy the source ranges that interact with the kth target range
+      unsigned i_begin = target_ranges[k].first;
+      source_ranges_curr = std::copy(target2sources[i_begin].begin(),
+                                     target2sources[i_begin].end(),
                                      source_ranges_curr);
+
+      // Record the stop index
+      target_ptr[k+1] = source_ranges_curr - source_ranges.begin();
     }
 
-    *target_ptr_curr = source_ranges_curr - source_ranges.begin();
-
     // Sanity checking
-    FMMTL_ASSERT(*target_ptr_curr == source_ranges.size());
-    FMMTL_ASSERT(++target_ptr_curr == target_ptr.end());
+    FMMTL_ASSERT(target_ptr.back() == source_ranges.size());
+    FMMTL_ASSERT(source_ranges_curr == source_ranges.end());
 
-    // TODO
-		return make_p2p_gpu(bc.kernel(),
-                        target_ranges,
-                        target_ptr,
-                        source_ranges,
-												first_source, bc.source_end(),
-												first_target, bc.target_end());
-    */
-    return P2P_Compressed<typename Context::kernel_type>();
+    // Copy the source and target ranges into contiguous vectors
+    std::vector<source_type> sources(c.source_begin(), c.source_end());
+    std::vector<target_type> targets(c.target_begin(), c.target_end());
+
+    return new P2P_Compressed<Kernel>(target_ranges,
+                                      target_ptr,
+                                      source_ranges,
+                                      sources,
+                                      targets);
   }
 };
-
-
-
-template <typename Kernel, typename SourceIter, typename TargetIter>
-P2P_Compressed<Kernel>
-make_p2p_gpu(const Kernel&,
-             std::vector<std::pair<unsigned,unsigned> >& target_ranges,
-             std::vector<unsigned>& target_ptrs,
-             std::vector<std::pair<unsigned,unsigned> >& source_ranges,
-             SourceIter sfirst, SourceIter slast,
-             TargetIter tfirst, TargetIter tlast) {
-  // TODO: Ugh, iterator type hiding via copy
-  std::vector<typename Kernel::source_type> sources(sfirst, slast);
-  std::vector<typename Kernel::target_type> targets(tfirst, tlast);
-
-	return P2P_Compressed<Kernel>(target_ranges,
-                                target_ptrs,
-                                source_ranges,
-                                sources,
-                                targets);
-}

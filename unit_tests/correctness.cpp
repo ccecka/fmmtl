@@ -36,8 +36,8 @@ int main(int argc, char **argv)
 
   // Init the FMM Kernel and options
   FMMOptions opts = get_options(argc, argv);
-  //typedef UnitExpansion kernel_type;
-  typedef ExpExpansion kernel_type;
+  typedef UnitExpansion kernel_type;
+  //typedef ExpExpansion kernel_type;
   kernel_type K;
 
   typedef kernel_type::point_type point_type;

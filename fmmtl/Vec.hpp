@@ -30,8 +30,8 @@ class Vec {
 
   // CONSTRUCTORS
 
-  FMMTL_INLINE Vec() {
-    for_i a[i] = value_type();
+  FMMTL_INLINE Vec() : a() {
+    //for_i a[i] = value_type();
   }
   FMMTL_INLINE explicit Vec(value_type b) {
     for_i a[i] = b;
@@ -122,12 +122,12 @@ class Vec {
 
   /** Access the @a i th (lvalue) element of this Vec
    * @pre i < size() */
-  FMMTL_INLINE value_type& operator[](unsigned i) {
+  FMMTL_INLINE reference operator[](unsigned i) {
     return a[i];
   }
   /** Access the @a i th (rvalue) element of this Vec
    * @pre i < size() */
-  FMMTL_INLINE const value_type& operator[](unsigned i) const {
+  FMMTL_INLINE const_reference operator[](unsigned i) const {
     return a[i];
   }
   FMMTL_INLINE static unsigned size() {
@@ -152,13 +152,13 @@ class Vec {
 
 /** Write a Vec to an output stream */
 template <unsigned N, typename P>
-FMMTL_INLINE std::ostream& operator<<(std::ostream& s, const Vec<N,P>& a) {
+inline std::ostream& operator<<(std::ostream& s, const Vec<N,P>& a) {
   for_i s << a[i] << " ";
   return s;
 }
 /** Read a Vec from an input stream */
 template <unsigned N, typename P>
-FMMTL_INLINE std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
+inline std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
   for_i s >> a[i];
   return s;
 }

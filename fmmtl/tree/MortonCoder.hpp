@@ -45,23 +45,29 @@ struct MortonCoder {
   typedef unsigned code_type;
 
   /** The number of bits per dimension = the maximum number of levels */
-  static constexpr unsigned levels = (8*sizeof(code_type)) / DIM;
+  static constexpr unsigned levels() {
+    return (8*sizeof(code_type)) / DIM;
+  }
   /** The number of cells per side of the bounding box (2^L). */
-  static constexpr uint64_t cells_per_side = uint64_t(1) << levels;
+  static constexpr uint64_t cells_per_side() {
+    return uint64_t(1) << levels();
+  }
   /** One more than the largest code (2^DL) */
-  static constexpr uint64_t end_code = uint64_t(1) << (DIM*levels);
+  static constexpr uint64_t end_code() {
+    return uint64_t(1) << (DIM * levels());
+  }
 
   /** Construct a MortonCoder with a bounding box. */
   MortonCoder(const BoundingBox<DIM>& bb)
       : pmin_(bb.min()),
-        cell_size_((bb.max() - bb.min()) / cells_per_side) {
+        cell_size_((bb.max() - bb.min()) / cells_per_side()) {
     cell_size_ *= (1.0 + 1e-12);  // Inclusive bounding box by small extension
     FMMTL_ASSERT(!bb.empty());
   }
 
   /** Return the MortonCoder's bounding box. */
   BoundingBox<DIM> bounding_box() const {
-    point_type pmax = pmin_ + cell_size_ * cells_per_side;
+    point_type pmax = pmin_ + cell_size_ * cells_per_side();
     return BoundingBox<DIM>(pmin_, pmax);
   }
 
@@ -110,7 +116,7 @@ struct MortonCoder {
   inline code_type interleave(const point_type& s) const {
     code_type code = code_type(0);
     for (unsigned i = 0; i < DIM; ++i) {
-      FMMTL_ASSERT(unsigned(s[i]) < cells_per_side);
+      FMMTL_ASSERT(unsigned(s[i]) < cells_per_side());
       code |= spread_bits(unsigned(s[i])) << i;
     }
     return code;

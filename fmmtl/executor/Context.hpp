@@ -313,7 +313,7 @@ class DataContext
     return this->source(this->source_tree().body_begin());
   }
   inline source_iterator source_end() const {
-    return this->source(this->source_tree().body_begin());
+    return this->source(this->source_tree().body_end());
   }
 
   // Accessor to the charge of a source body
@@ -345,7 +345,7 @@ class DataContext
     return this->target(this->target_tree().body_begin());
   }
   inline target_iterator target_end() const {
-    return this->target(this->target_tree().body_begin());
+    return this->target(this->target_tree().body_end());
   }
 
   // Accessor to the result of a target body

@@ -4,7 +4,7 @@
 
 int main(void)
 {
-#if defined(FMMTL_USE_THRUST)
+#if defined(THRUST_MAJOR_VERSION) & defined(THRUST_MINOR_VERSION)
   int major = THRUST_MAJOR_VERSION;
   int minor = THRUST_MINOR_VERSION;
   std::cout << "Thrust v" << major << "." << minor << std::endl;

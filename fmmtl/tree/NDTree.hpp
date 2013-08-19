@@ -491,7 +491,7 @@ class NDTree {
       // Get the box data
       auto code_begin = codes.begin() + box_data_[k].begin_;
       auto code_end   = codes.begin() + box_data_[k].end_;
-      unsigned shift = DIM*(MortonCoder<DIM>::levels - box_data_[k].level() - 1);
+      unsigned shift = DIM*(MortonCoder<DIM>::levels()-box_data_[k].level()-1);
 
       // Sort the points in this box into the "bucket" children
       auto off = bucket_sort(code_begin, code_end, max_children,
