@@ -44,10 +44,10 @@ INCLUDES += -I. -I$(FMMTL_DIR) -I$(KERNEL_DIR)
 INCLUDES += -I$(BOOST_DIR)
 
 # Define any compile flags
-CXXFLAGS  = $(ADDED_FLAGS) -fopenmp -funroll-loops -O3 -W -Wall -Wextra
+CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra
 
 # Define nvcc compile flags
-NVCCFLAGS := $(ADDED_FLAGS) -arch=sm_30 -w --compiler-options "$(CXXFLAGS)"
+NVCCFLAGS := -arch=sm_30 -w --compiler-options "$(CXXFLAGS)"
 
 # Define any directories containing libraries
 #   To include directories use -Lpath/to/files
@@ -77,11 +77,9 @@ ifeq ($(NO_CUDA),1)
 NVCC :=
 endif
 # Set up for CUDA if available
-ifeq ($(NVCC),)
-# NVCC isn't available
+ifeq ($(NVCC),)    # NVCC is not available
 CXXFLAGS += -DFMMTL_NO_CUDA
-else
-# NVCC is available
+else               # NVCC is available
 INCLUDES += -I$(THRUST_DIR)
 LDFLAGS += -L/usr/local/cuda-5.0/lib64
 LDLIBS  += -lcudart
@@ -95,8 +93,8 @@ endif
 #   $^: the name of the prereqs of the rule
 #   $<: the name of the first prereq of the rule
 #   $@: the name of the target of the rule
-.SUFFIXES:                    # Delete the default suffixes
-.SUFFIXES: .hpp .cpp .kern .o # Define our suffix list
+.SUFFIXES:                                        # Delete the default suffixes
+.SUFFIXES: .hpp .cpp .kern .kern.cpp .kern.cu .o  # Define our suffix list
 
 # 'make' - default rule
 all: $(EXEC)
@@ -112,16 +110,27 @@ $(EXEC): % : %.o
 # Default rule for creating a .o file from a .cu file
 %.o: %.cu
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
-	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -M -o $(DEPSFILE) $<
+	@$(NVCC) $(NVCCFLAGS) $(INCLUDES) -M -o $(DEPSFILE) $<
+	@sed -i "1s,.*.o,$@," $(DEPSFILE)  # Fix dep file file.o -> /path/file.o
+
+# Default rule for creating a .o file from a .kern.cpp file
+%.o: %.kern.cpp
+	$(CXX) -DFMMTL_KERNEL $(CXXFLAGS) $(INCLUDES) $(DEPSFLAGS) -c -o $@ $<
+
+# Default rule for creating a .o file from a .kern.cu file
+%.o: %.kern.cu
+	$(NVCC) -DFMMTL_KERNEL $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
+	@$(NVCC) -DFMMTL_KERNEL $(NVCCFLAGS) $(INCLUDES) -M -o $(DEPSFILE) $<
+	@sed -i "1s,.*.kern.o,$@," $(DEPSFILE)  # Fix dep file file.o -> /path/file.o
 
 # Default rule for creating a .o file from a .kern file
 %.o: %.kern
 ifeq ($(NVCC),)  # NVCC isn't available
-	ln -s $< $(<:%.kern=%.cpp)
-	@$(MAKE) --no-print-directory $@ ADDED_FLAGS='-DFMMTL_KERNEL'
+	ln -s $< $(<:%.kern=%.kern.cpp)
+	@$(MAKE) --no-print-directory $@
 else             # NVCC is availble
-	ln -s $< $(<:%.kern=%.cu)
-	@$(MAKE) --no-print-directory $@ ADDED_FLAGS='-DFMMTL_KERNEL'
+	ln -s $< $(<:%.kern=%.kern.cu)
+	@$(MAKE) --no-print-directory $@
 endif
 
 # 'make clean' - deletes all .o and temp files, exec, and dependency file
