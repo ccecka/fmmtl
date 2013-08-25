@@ -37,10 +37,9 @@ class TickerNotifier {
   TickerNotifier& operator=(const TickerNotifier&) = delete;
   // Destructor
   ~TickerNotifier() {
-    if (owner_) {
-      duration tick_time = clock::now() - starttime_;
+    duration tick_time = elapsed();
+    if (owner_)
       owner_->operator+=(tick_time);
-    }
   }
   // Get the duration on this Ticker
   duration elapsed() const {

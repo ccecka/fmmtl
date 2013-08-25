@@ -36,7 +36,7 @@ DEPSDIR := $(shell mkdir -p .deps; echo .deps)
 # MF: File for output
 # MP: Include phony targets
 DEPSFILE = $(DEPSDIR)/$(notdir $*.d)
-DEPSFLAGS = -MD -MF $(DEPSFILE) -MP
+DEPSFLAGS = -MD -MF $(DEPSFILE) #-MP
 
 # Define any directories containing header files
 #   To include directories use -Ipath/to/files
@@ -135,7 +135,7 @@ endif
 
 # 'make clean' - deletes all .o and temp files, exec, and dependency file
 clean:
-	-$(RM) *.o $(OBJS) $(KERNEL_DIR)/*.o
+	-$(RM) *.o $(KERNEL_DIR)/*.o
 	-$(RM) $(EXEC)
 	find $(KERNEL_DIR) -maxdepth 1 -type l -delete
 	$(RM) -r $(DEPSDIR)

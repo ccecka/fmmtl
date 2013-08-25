@@ -107,10 +107,10 @@ struct P2P
       const target_type& t = *t_first;
       result_type& r       = *r_first;
 
-      SourceIter s = s_first;
-      ChargeIter c = c_first;
-      for ( ; s != s_last; ++s, ++c)
-        r += K(t,*s) * (*c);
+      SourceIter si = s_first;
+      ChargeIter ci = c_first;
+      for ( ; si != s_last; ++si, ++ci)
+        r += K(t,*si) * (*ci);
     }
   }
 
@@ -276,8 +276,12 @@ struct P2P
                           const TWO_SIDED&)
   {
 #if defined(FMMTL_DEBUG)
-    std::cout << "P2P:\n  " << box1 << "\n  " << box2 << std::endl;
-    std::cout << "P2P:\n  " << box2 << "\n  " << box1 << std::endl;
+    std::cout << "P2P:"
+              << "\n  " << box1
+              << "\n  " << box2 << std::endl;
+    std::cout << "P2P:"
+              << "\n  " << box2
+              << "\n  " << box1 << std::endl;
 #endif
     FMMTL_LOG("P2P 2box symm");
 
