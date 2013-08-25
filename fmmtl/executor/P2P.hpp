@@ -371,8 +371,10 @@ class P2P_Batch
 #if FMMTL_NO_CUDA
     auto b_end = p2p_list.end();
     //#pragma omp parallel for//   TODO: Make thread safe!
-    for (auto bi = p2p_list.begin(); bi < b_end; ++bi)
-      P2P::eval(c, bi->first, bi->second, P2P::ONE_SIDED());
+    for (auto bi = p2p_list.begin(); bi < b_end; ++bi) {
+      auto& b2b = *bi;
+      P2P::eval(c, b2b.first, b2b.second, P2P::ONE_SIDED());
+    }
 #else
     if (p2p_compressed == nullptr)
       p2p_compressed =

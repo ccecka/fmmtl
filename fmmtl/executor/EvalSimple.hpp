@@ -56,11 +56,10 @@ class EvalSimple
 
   template <class MAC>
   EvalSimple(Context& c, const MAC& mac)
-      : mac_(mac) {
-    // Perform the box interactions
+      : m2l_batch(c),
+        mac_(mac) {
+    // Determine the box interactions
     Traverse::eval(c.source_tree().root(), c.target_tree().root(), *this);
-    // TEMP: experimental
-    //p2p_comp = p2p_batch.compressed(c);
   }
 
   void execute(Context& c) {

@@ -109,7 +109,8 @@ class NDTree {
   MortonCoder<DIM> coder_;
 
   // Morton coded objects this Tree holds.
-  std::vector<point_type> point_;
+  //std::vector<point_type> point_;
+
   // Morton code for each point
   std::vector<code_type> mc_;
   // Permutation: permute_[i] is the current idx of originally ith point
@@ -133,9 +134,9 @@ class NDTree {
     Body()
         : idx_(0), tree_(nullptr) {
     }
-    const point_type& point() const {
-      return tree_->point_[idx_];
-    }
+    //const point_type& point() const {
+    //  return tree_->point_[idx_];
+    //}
     //! The original order this body was seen
     unsigned number() const {
       return tree_->permute_[idx_];
@@ -354,7 +355,7 @@ class NDTree {
 
   /** The number of bodies contained in this tree */
   inline unsigned size() const {
-    return point_.size();
+    return permute_.size();
   }
   /** The number of bodies contained in this tree */
   inline unsigned bodies() const {
@@ -396,7 +397,7 @@ class NDTree {
   }
   /** Return an iterator one past the last body in this tree */
   body_iterator body_end() const {
-    return body_iterator(point_.size(), this);
+    return body_iterator(size(), this);
   }
   /** Return an iterator to the first box in this tree */
   box_iterator box_begin() const {
@@ -404,7 +405,7 @@ class NDTree {
   }
   /** Return an iterator one past the last box in this tree */
   box_iterator box_end() const {
-    return box_iterator(box_data_.size(), this);
+    return box_iterator(boxes(), this);
   }
   /** Return an iterator to the first box at level L in this tree
    * @pre L < levels()
@@ -461,14 +462,14 @@ class NDTree {
     // Create a code-idx pair vector
     typedef std::pair<code_type, unsigned> code_pair;
     std::vector<code_pair> codes;
-    std::vector<point_type> points;
+    //std::vector<point_type> points;
 
     unsigned idx = 0;
     for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
       point_type p = static_cast<point_type>(*pi);
       FMMTL_ASSERT(coder_.bounding_box().contains(p));
 
-      points.push_back(p);
+      //points.push_back(p);
       codes.push_back(std::make_pair(coder_.code(p), idx));
     }
 
@@ -524,11 +525,15 @@ class NDTree {
 
     level_offset_.push_back(box_data_.size());
 
+    // Allocate
+    mc_.reserve(codes.size());
+    permute_.reserve(codes.size());
     // Extract the code, permutation vector, and sorted point
     for (auto it = codes.begin(); it != codes.end(); ++it) {
-      mc_.push_back(it->first);
-      permute_.push_back(it->second);
-      point_.push_back(points[permute_.back()]);
+      auto& c = *it;
+      mc_.push_back(c.first);
+      permute_.push_back(c.second);
+      //point_.push_back(points[permute_.back()]);
     }
   }
 

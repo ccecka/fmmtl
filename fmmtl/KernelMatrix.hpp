@@ -192,6 +192,8 @@ fmm_matrix<Expansion>
 make_fmm_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
                 Options opts = FMMOptions()) {
+  FMMTL_LOG("*Setup");
+
   // Statically compute the context type, potentially from Options
   typedef ExpansionContext<Expansion> expansion_context_type;
 
@@ -215,6 +217,8 @@ make_fmm_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
                 const std::vector<typename ExpansionTraits<Expansion>::target_type>& targets,
                 Options opts = FMMOptions()) {
+  FMMTL_LOG("*Setup");
+
   // Statically compute the context type, potentially from Option types
   typedef ExpansionContext<Expansion> expansion_context_type;
 

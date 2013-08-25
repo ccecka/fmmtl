@@ -137,10 +137,13 @@ class Logger {
   /** Start a ticker for an event. */
   inline ticker_type log(const std::string& event) {
     auto range = data_.equal_range(event);
+    if (range.first == range.second) {
 #pragma omp critical
-    if (range.first == range.second)
+      {
       range.first = data_.insert(range.first,
                                  std::make_pair(event, new EventData()));
+      }
+    }
     return ticker_type((*range.first).second);
   }
 
@@ -192,7 +195,7 @@ class Logger {
 static Logger fmmtl_logger;
 
 #if defined(FMMTL_LOGGING)
-#define FMMTL_LOG(STRING) auto t##__LINE__ = fmmtl_logger.log(std::to_string(omp_get_thread_num()) + std::string("--") + STRING)
+#define FMMTL_LOG(STRING) auto t##__LINE__ = fmmtl_logger.log(std::string(STRING) + " [" + std::to_string(omp_get_thread_num()) + ']')
 #define FMMTL_PRINT_LOG(OUT) OUT << fmmtl_logger << std::endl
 #else
 #define FMMTL_LOG(STRING)
