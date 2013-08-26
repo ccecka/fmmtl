@@ -36,7 +36,7 @@ class FMMOptions {
 	EvalType evaluator;
 
 	FMMOptions()
-      : ncrit(16),
+      : ncrit(128),
         theta(0.5),
         print_tree(false),
         evaluator(FMM) {

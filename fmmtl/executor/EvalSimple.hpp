@@ -21,9 +21,6 @@ class EvalSimple
 
   std::function<bool(source_box, target_box)> mac_;
 
-  // TEMP: experimental
-  //P2P_Compressed<typename Context::kernel_type> p2p_comp;
-
   struct Dispatch {
     Context& c_;
     Dispatch(Context& c) : c_(c) {}
@@ -81,10 +78,6 @@ class EvalSimple
     DownwardPass::eval(c.target_tree(), updown);
 
     p2p_batch.execute(c);
-
-    // TEMP: experimental
-    //FMMTL_LOG("P2P Compressed");
-    //p2p_comp.execute(c);
   }
 
   /*******************/
