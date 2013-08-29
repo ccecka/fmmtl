@@ -55,11 +55,11 @@ struct Expansion
         : E_(E), t_(t), s_(s)  {
     }
 
-    operator fmm_matrix<expansion_type>() {
+    operator kernel_matrix<expansion_type>() {
       if (&s_ == &t_)
-        return make_fmm_matrix(E_, s_, t_);
+        return make_kernel_matrix(E_, s_, t_);
       else
-        return make_fmm_matrix(E_, s_);
+        return make_kernel_matrix(E_, s_);
     }
   };
 

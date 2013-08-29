@@ -29,7 +29,7 @@ int main() {
       charges[k] = drand();
 
     // Initialize matrix
-    fmm_matrix<expansion_type> A = make_fmm_matrix(K, points, opts);
+    kernel_matrix<expansion_type> A = make_kernel_matrix(K, points, opts);
 
     // Compute the product
     Ticker tick;

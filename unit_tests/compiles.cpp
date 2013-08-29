@@ -41,12 +41,12 @@ int main(int argc, char** argv) {
   std::vector<result_type> result;
 
   // Single Tree
-  fmm_matrix<expansion_type> A1 = K(sources, sources);
+  kernel_matrix<expansion_type> A1 = K(sources, sources);
   result = A1 * charges;
   //for (result_type r : result) std::cout << r << std::endl;
 
   // Dual Tree
-  fmm_matrix<expansion_type> A2  = K(targets, sources);
+  kernel_matrix<expansion_type> A2  = K(targets, sources);
   result = A2 * charges;
   //for (result_type r : result) std::cout << r << std::endl;
 }

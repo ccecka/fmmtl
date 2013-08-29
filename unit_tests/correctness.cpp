@@ -56,7 +56,7 @@ int main(int argc, char **argv)
     charges[k] = drand(-1,1);
 
   // Build the FMM
-  fmm_matrix<kernel_type> A = make_fmm_matrix(K, points, opts);
+  kernel_matrix<kernel_type> A = make_kernel_matrix(K, points, opts);
 
   // Execute the FMM
   std::vector<result_type> result = A * charges;

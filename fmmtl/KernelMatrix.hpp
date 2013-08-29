@@ -120,7 +120,7 @@ struct Plan
 };
 
 template <class Expansion>
-class fmm_matrix {  // Inherit ExpasionTraits?
+class kernel_matrix {  // Inherit ExpasionTraits?
  public:
   typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
   typedef typename ExpansionTraits<Expansion>::kernel_type    kernel_type;
@@ -130,10 +130,10 @@ class fmm_matrix {  // Inherit ExpasionTraits?
 	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
 	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
 
-  fmm_matrix(PlanBase<Expansion>* _plan)
+  kernel_matrix(PlanBase<Expansion>* _plan)
       : plan(_plan) {
   }
-  ~fmm_matrix() {
+  ~kernel_matrix() {
     delete plan;
     FMMTL_PRINT_LOG(std::cout);
     fmmtl_logger.clear();
@@ -188,8 +188,8 @@ class fmm_matrix {  // Inherit ExpasionTraits?
 
 template <class Expansion,
           class Options = FMMOptions>
-fmm_matrix<Expansion>
-make_fmm_matrix(const Expansion& E,
+kernel_matrix<Expansion>
+make_kernel_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
                 Options opts = FMMOptions()) {
   FMMTL_LOG("*Setup");
@@ -207,13 +207,13 @@ make_fmm_matrix(const Expansion& E,
   plan_type* plan = new plan_type(E,
                                   sources.begin(), sources.end(),
                                   opts);
-  return fmm_matrix<Expansion>(plan);
+  return kernel_matrix<Expansion>(plan);
 }
 
 template <class Expansion,
           class Options = FMMOptions>
-fmm_matrix<Expansion>
-make_fmm_matrix(const Expansion& E,
+kernel_matrix<Expansion>
+make_kernel_matrix(const Expansion& E,
                 const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
                 const std::vector<typename ExpansionTraits<Expansion>::target_type>& targets,
                 Options opts = FMMOptions()) {
@@ -233,7 +233,7 @@ make_fmm_matrix(const Expansion& E,
                                   sources.begin(), sources.end(),
                                   targets.begin(), targets.end(),
                                   opts);
-  return fmm_matrix<Expansion>(plan);
+  return kernel_matrix<Expansion>(plan);
 }
 
 
