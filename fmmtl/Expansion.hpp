@@ -23,11 +23,17 @@ namespace fmmtl
 template <class Kernel, class DerivedExpansion>
 struct Expansion
     : public Kernel {
-  typedef Kernel kernel_type;
-  typedef DerivedExpansion expansion_type;
+  // The type of kernel this expansion is representing
+  typedef Kernel            kernel_type;
+  // The type of the derived expansion implementation
+  typedef DerivedExpansion  expansion_type;
 
-  typedef typename kernel_type::target_type target_type;
-  typedef typename kernel_type::source_type source_type;
+  // Default constructor
+  Expansion() {}
+
+  // Forward the construction on a Kernel to the copy constructor
+  Expansion(const Kernel& K)
+      : Kernel(K) {}
 
   expansion_type& expansion() {
     return static_cast<expansion_type&>(*this);
@@ -43,6 +49,10 @@ struct Expansion
   }
 
 #if !defined(FMMTL_KERNEL)
+  typedef typename kernel_type::target_type target_type;
+  typedef typename kernel_type::source_type source_type;
+
+  // Sugar that can be improved
   class KernelMatrixProxy {
     const expansion_type& E_;
     const std::vector<target_type>& t_;

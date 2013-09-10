@@ -20,7 +20,6 @@ int main(int argc, char** argv) {
   }
 
   typedef ExpansionSkeleton expansion_type;
-  typedef expansion_type::point_type point_type;
   typedef expansion_type::source_type source_type;
   typedef expansion_type::target_type target_type;
   typedef expansion_type::charge_type charge_type;
@@ -28,6 +27,7 @@ int main(int argc, char** argv) {
 
   expansion_type K;
   FMMOptions opts = get_options(argc, argv);
+  (void) opts; // TODO: Work into sugar interface
 
   std::vector<source_type> sources(N);
   for (source_type& s : sources)

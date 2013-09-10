@@ -91,8 +91,9 @@ class YukawaCartesian
   }
   //! Constructor
   YukawaCartesian(int p, double _kappa)
-      : P(p), MTERMS((P+1)*(P+2)*(P+3)/6), fact(2*P), index_cache(P) {
-    kappa = _kappa;
+      : Expansion(YukawaKernel(_kappa)),
+        P(p), MTERMS((P+1)*(P+2)*(P+3)/6), fact(2*P), index_cache(P) {
+    //kappa = _kappa;  // Sets the YukawaKernel kappa
 
     I = std::vector<unsigned>(MTERMS,0);
     J = std::vector<unsigned>(MTERMS,0);
