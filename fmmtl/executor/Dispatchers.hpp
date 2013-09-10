@@ -1,3 +1,5 @@
+#pragma once
+
 #include "INITM.hpp"
 #include "INITL.hpp"
 

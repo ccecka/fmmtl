@@ -71,7 +71,7 @@ class P2L
               c.local(tbox));
   }
 
-  /** Unwrap the data from BoxContext and dispatch to the M2P evaluator
+  /** Unwrap the data from BoxContext and dispatch to the P2L evaluator
    */
   template <typename Context>
   inline static void eval(Context& c,

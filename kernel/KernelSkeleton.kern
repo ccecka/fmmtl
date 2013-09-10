@@ -190,6 +190,9 @@ struct ExpansionSkeleton
   //! Local expansion type
   typedef std::vector<double> local_type;
 
+  // Constructor
+  ExpansionSkeleton() : Expansion() {}
+
   /** Initialize a multipole expansion to zero
    * using the size and level number of the box containing it
    * (Optional: If not implemented, default constructor for multipole_type used)

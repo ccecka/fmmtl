@@ -30,7 +30,7 @@ class M2L
 
  public:
 
-  /** Unwrap data from Context and dispatch to the L2P evaluator
+  /** Unwrap data from Context and dispatch to the M2L evaluator
    */
   template <typename Context>
   inline static void eval(Context& c,
