@@ -62,10 +62,6 @@
 
 #include "config.hpp"
 
-#ifdef FMMTL_USE_THRUST
-#include <thrust/detail/config.h>
-#endif
-
 #if (defined THRUST_DEVICE_BACKEND && THRUST_DEVICE_BACKEND == THRUST_DEVICE_BACKEND_CUDA) || (defined THRUST_DEVICE_SYSTEM && THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA)
 
 #ifdef _WIN32
@@ -77,9 +73,9 @@
 #include <cuComplex.h>
 #include <sstream>
 
-// We need this to make sure code inside cusp:: that calls sqrt() using real numbers
+// We need this to make sure code that calls sqrt() using real numbers
 // doesn't try to call the complex sqrt, but the standard sqrt
-namespace fmm
+namespace fmmtl
 {
 template <typename ValueType>
 __host__ __device__
@@ -168,7 +164,7 @@ inline ValueType conj(ValueType x){
 }
 }
 
-namespace fmm
+namespace fmmtl
 {
 template <typename ValueType> struct complex;
 template <> struct complex<float>;
@@ -1076,7 +1072,7 @@ inline complex<ValueType> atan(const complex<ValueType>& z){
 template <typename ValueType>
 __host__ __device__
 inline complex<ValueType> acosh(const complex<ValueType>& z){
-  fmm::complex<ValueType> ret((z.real() - z.imag()) * (z.real() + z.imag()) - ValueType(1.0),
+  fmmtl::complex<ValueType> ret((z.real() - z.imag()) * (z.real() + z.imag()) - ValueType(1.0),
                               ValueType(2.0) * z.real() * z.imag());
   ret = sqrt(ret);
   if (z.real() < ValueType(0.0)){
@@ -1090,7 +1086,7 @@ inline complex<ValueType> acosh(const complex<ValueType>& z){
   return ret;
 
   /*
-    fmm::complex<ValueType> ret = log(sqrt(z*z-ValueType(1))+z);
+    fmmtl::complex<ValueType> ret = log(sqrt(z*z-ValueType(1))+z);
     if(ret.real() < 0){
     ret.real(-ret.real());
     }
@@ -1141,12 +1137,12 @@ inline complex<float> atanh(const complex<float>& z){
 
 }
 
-} // end namespace fmm
+} // end namespace fmmtl
 
 #else
 #include <complex>
 
-namespace fmm
+namespace fmmtl
 {
 using std::complex;
 using std::conj;
@@ -1176,7 +1172,7 @@ using std::atanh;
 #else
 template <typename ValueType>
 inline complex<ValueType> acosh(const complex<ValueType>& z){
-  fmm::complex<ValueType> ret((z.real() - z.imag()) * (z.real() + z.imag()) - ValueType(1.0),
+  fmmtl::complex<ValueType> ret((z.real() - z.imag()) * (z.real() + z.imag()) - ValueType(1.0),
                               ValueType(2.0) * z.real() * z.imag());
   ret = sqrt(ret);
   if (z.real() < ValueType(0.0)){

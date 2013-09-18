@@ -6,16 +6,15 @@
 
 #include <iostream>
 #include <cmath>
-#include <cassert>
 
 #include "config.hpp"
 
-#define for_i for(unsigned i=0; i!=N; ++i)
+#define for_i for(unsigned i = 0; i != N; ++i)
 
 /** @class Vec
  * @brief Class representing ND points and vectors.
  */
-template <unsigned N, typename T>
+template <unsigned N, typename T = double>
 class Vec {
   T a[N];
 
@@ -31,22 +30,22 @@ class Vec {
 
   // CONSTRUCTORS
 
-  FMMTL_INLINE Vec() {
-    for_i a[i] = value_type();
+  FMMTL_INLINE Vec() : a() {
+    //for_i a[i] = value_type();
   }
-  FMMTL_INLINE explicit Vec(T b) {
+  FMMTL_INLINE explicit Vec(value_type b) {
     for_i a[i] = b;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1) {
-    assert(N == 2);
+    FMMTL_ASSERT(N == 2);
     a[0] = b0; a[1] = b1;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2) {
-    assert(N == 3);
+    FMMTL_ASSERT(N == 3);
     a[0] = b0; a[1] = b1; a[2] = b2;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2, value_type b3) {
-    assert(N == 4);
+    FMMTL_ASSERT(N == 4);
     a[0] = b0; a[1] = b1; a[2] = b2; a[3] = b3;
   }
 
@@ -62,12 +61,6 @@ class Vec {
 
   // MODIFIERS
 
-  /** Return a negated version of @a p. */
-  FMMTL_INLINE Vec operator-() const {
-    Vec<N,T> m = *this;
-    for_i m[i] = -m[i];
-    return m;
-  }
   /** Add scalar @a b to this Vec */
   template <typename D>
   FMMTL_INLINE Vec& operator+=(const D& b) {
@@ -122,13 +115,13 @@ class Vec {
   // ACCESSORS
 
   /** Access the @a i th (lvalue) element of this Vec
-   * @pre i < dimension */
-  FMMTL_INLINE value_type& operator[](unsigned i) {
+   * @pre i < size() */
+  FMMTL_INLINE reference operator[](unsigned i) {
     return a[i];
   }
   /** Access the @a i th (rvalue) element of this Vec
-   * @pre i < dimension */
-  FMMTL_INLINE const value_type& operator[](unsigned i) const {
+   * @pre i < size() */
+  FMMTL_INLINE const_reference operator[](unsigned i) const {
     return a[i];
   }
   FMMTL_INLINE static unsigned size() {
@@ -153,13 +146,13 @@ class Vec {
 
 /** Write a Vec to an output stream */
 template <unsigned N, typename P>
-FMMTL_INLINE std::ostream& operator<<(std::ostream& s, const Vec<N,P>& a) {
+inline std::ostream& operator<<(std::ostream& s, const Vec<N,P>& a) {
   for_i s << a[i] << " ";
   return s;
 }
 /** Read a Vec from an input stream */
 template <unsigned N, typename P>
-FMMTL_INLINE std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
+inline std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
   for_i s >> a[i];
   return s;
 }
@@ -167,7 +160,13 @@ FMMTL_INLINE std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
 /** Compute the dot product of two Vecs */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type dot(const Vec<N,P>& a,
-                                                  const Vec<N,P>& b) {
+                                               const Vec<N,P>& b) {
+  return a.dot(b);
+}
+/** Compute the dot product of two Vecs */
+template <unsigned N, typename P>
+FMMTL_INLINE typename Vec<N,P>::value_type inner_prod(const Vec<N,P>& a,
+                                                      const Vec<N,P>& b) {
   return a.dot(b);
 }
 /** Compute cross product of two 3D Vecs */
@@ -177,20 +176,23 @@ FMMTL_INLINE Vec<3,P> cross(const Vec<3,P>& a, const Vec<3,P>& b) {
                   a[2]*b[0] - a[0]*b[2],
                   a[0]*b[1] - a[1]*b[0]);
 }
-/** Compute the squared L2 norm of this Vec */
+/** Compute the squared L2 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type normSq(const Vec<N,P>& a) {
   return a.dot(a);
 }
-/** Compute the L2 norm of this Vec */
+/** Compute the L2 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm(const Vec<N,P>& a) {
+  using std::sqrt;
   return sqrt(normSq(a));
 }
+/** Compute the L2 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm_2(const Vec<N,P>& a) {
   return norm(a);
 }
+/** Compute the L1 norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm_1(const Vec<N,P>& a) {
   using std::abs;
@@ -198,6 +200,7 @@ FMMTL_INLINE typename Vec<N,P>::value_type norm_1(const Vec<N,P>& a) {
   for_i r += abs(a[i]);
   return r;
 }
+/** Compute the L-infinity norm */
 template <unsigned N, typename P>
 FMMTL_INLINE typename Vec<N,P>::value_type norm_inf(const Vec<N,P>& a) {
   using std::abs;
@@ -207,9 +210,15 @@ FMMTL_INLINE typename Vec<N,P>::value_type norm_inf(const Vec<N,P>& a) {
   return a_max;
 }
 
-// ARITHMETIC
+// ARITHMETIC OPERATORS
 
-/** Unary plus: Return @a p. ("+p" should work if "-p" works.) */
+/** Unary negation: Return -@a a */
+template <unsigned N, typename P>
+FMMTL_INLINE Vec<N,P> operator-(Vec<N,P> a) {
+  for_i a[i] = -a[i];
+  return a;
+}
+/** Unary plus: Return @a a. ("+a" should work if "-a" works.) */
 template <unsigned N, typename P>
 FMMTL_INLINE Vec<N,P> operator+(const Vec<N,P>& a) {
   return a;
@@ -259,7 +268,8 @@ FMMTL_INLINE Vec<N,P> operator/(Vec<N,P> a, const D& b) {
   return a /= b;
 }
 
-// ADDITIONAL OPERATORS (Helps with Vec<N,Vec<M,T>> norms, etc)
+// ELEMENTWISE OPERATORS
+
 template <unsigned N, typename P>
 FMMTL_INLINE Vec<N,P> abs(Vec<N,P> a) {
   using std::abs;
@@ -273,5 +283,16 @@ FMMTL_INLINE Vec<N,P> sqrt(Vec<N,P> a) {
   return a;
 }
 
-
 #undef for_i
+
+
+#include "fmmtl/meta/dimension.hpp"
+
+namespace fmmtl {
+
+template <unsigned N, typename P>
+struct dimension<Vec<N,P> > {
+  const static unsigned value = N;
+};
+
+} // end namespace fmmtl

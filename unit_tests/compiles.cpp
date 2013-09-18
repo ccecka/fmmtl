@@ -19,8 +19,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  typedef KernelExpansion expansion_type;
-  typedef expansion_type::point_type point_type;
+  typedef ExpansionSkeleton expansion_type;
   typedef expansion_type::source_type source_type;
   typedef expansion_type::target_type target_type;
   typedef expansion_type::charge_type charge_type;
@@ -28,6 +27,7 @@ int main(int argc, char** argv) {
 
   expansion_type K;
   FMMOptions opts = get_options(argc, argv);
+  (void) opts; // TODO: Work into sugar interface
 
   std::vector<source_type> sources(N);
   for (source_type& s : sources)
@@ -41,12 +41,14 @@ int main(int argc, char** argv) {
   std::vector<result_type> result;
 
   // Single Tree
-  fmm_matrix<expansion_type> A1 = make_fmm_matrix(K, sources, opts);
+  fmmtl::kernel_matrix<expansion_type> A1 = K(sources, sources);
+  A1.set_options(opts);
   result = A1 * charges;
   //for (result_type r : result) std::cout << r << std::endl;
 
   // Dual Tree
-  fmm_matrix<expansion_type> A2  = make_fmm_matrix(K, sources, targets, opts);
+  fmmtl::kernel_matrix<expansion_type> A2  = K(targets, sources);
+  A2.set_options(opts);
   result = A2 * charges;
   //for (result_type r : result) std::cout << r << std::endl;
 }

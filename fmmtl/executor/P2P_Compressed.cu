@@ -1,50 +1,77 @@
-#include "P2P_Compressed.hpp"
-
 #include <thrust/device_malloc.h>
 #include <thrust/device_vector.h>
-#include <thrust/copy.h>
+#include <thrust/uninitialized_copy.h>
 
-#include <cstdio>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 
-template <typename value_type, typename Container>
-inline value_type* gpu_copy(const Container& c) {
-  typedef thrust::device_vector<typename Container::value_type> d_vector;
-  d_vector* d = new d_vector(c.begin(), c.end());
-  return reinterpret_cast<value_type*>(thrust::raw_pointer_cast(d->data()));
+#include "P2P_Compressed.hpp"
+#include "fmmtl/config.hpp"
+
+template <typename T>
+inline T* gpu_new(unsigned n) {
+  return thrust::raw_pointer_cast(thrust::device_malloc<T>(n));
 }
 
+template <typename Container>
+inline typename Container::value_type* gpu_copy(const Container& c) {
+  typedef typename Container::value_type c_value;
+  // Allocate
+  thrust::device_ptr<c_value> dptr = thrust::device_malloc<c_value>(c.size());
+  // Copy
+  thrust::uninitialized_copy(c.begin(), c.end(), dptr);
+  // Return
+  return thrust::raw_pointer_cast(dptr);
+}
 
-template <typename Kernel>
-__global__ void dumb_p2p(const Kernel K,
-                         const unsigned* target_ranges,  // pair<unit,uint>
-                         const unsigned* target_ptrs,
-                         const unsigned* source_ranges,  // pair<uint,uint>
-                         const typename Kernel::source_type* source,
-                         const typename Kernel::charge_type* charge,
-                         const typename Kernel::target_type* target,
-                         typename Kernel::result_type* result) {
+template <typename T>
+inline void gpu_free(T* p) {
+  thrust::device_free(thrust::device_pointer_cast<void>(p));
+}
+
+template <typename Kernel,
+          typename RandomAccessIterator1,  // pair<uint,uint>
+          typename RandomAccessIterator2,  // Chained uint
+          typename RandomAccessIterator3>  // pair<uint,uint>
+__global__ void
+blocked_p2p(Kernel K,  // The Kernel to apply
+            // BlockIdx -> pair<uint,uint> target range
+            RandomAccessIterator1 target_range,
+            // BlockIdx,BlockIdx+1 -> pair<uint,uint> into source_range
+            RandomAccessIterator2 source_range_ptr,
+            // Idx -> pair<uint,uint> source range
+            RandomAccessIterator3 source_range,
+            const typename Kernel::source_type* source,
+            const typename Kernel::charge_type* charge,
+            const typename Kernel::target_type* target,
+            typename Kernel::result_type* result) {
   typedef Kernel kernel_type;
   typedef typename kernel_type::source_type source_type;
-  typedef typename kernel_type::target_type target_type;
   typedef typename kernel_type::charge_type charge_type;
+  typedef typename kernel_type::target_type target_type;
   typedef typename kernel_type::result_type result_type;
 
-  unsigned t_first = target_ranges[2*blockIdx.x+0] + threadIdx.x;
-  unsigned t_last  = target_ranges[2*blockIdx.x+1];
+  // Get the target range this block is responsible for
+  const thrust::pair<unsigned,unsigned> t_range = target_range[blockIdx.x];
+  unsigned t_first = t_range.first;
+  const unsigned t_last  = t_range.second;
 
-  unsigned sr_first = target_ptrs[blockIdx.x+0];
-  unsigned sr_last  = target_ptrs[blockIdx.x+1];
+  // Get the range of source ranges this block is responsible for
+  RandomAccessIterator3 sr_first = source_range + source_range_ptr[blockIdx.x+0];
+  RandomAccessIterator3 sr_last  = source_range + source_range_ptr[blockIdx.x+1];
 
-  // For each target until the last
-  for (; t_first < t_last; t_first += blockDim.x) {
+  // Parallel for each target until the last
+  for (t_first += threadIdx.x; t_first < t_last; t_first += blockDim.x) {
     const target_type t = target[t_first];
     result_type r = result_type();
 
     // For each source range
-    for (; sr_first != sr_last; ++sr_first) {
-      unsigned s_first = source_ranges[2*sr_first+0];
-      unsigned s_last  = source_ranges[2*sr_first+1];
-      // TODO: Load in shared memory and reuse
+    for (; sr_first < sr_last; ++sr_first) {
+      const thrust::pair<unsigned,unsigned> s_range = *sr_first;
+      unsigned s_first = s_range.first;
+      const unsigned s_last  = s_range.second;
+      // TODO: Load in shared memory and reuse?
 
       // For each source in the source range
       for (; s_first < s_last; ++s_first) {
@@ -55,94 +82,154 @@ __global__ void dumb_p2p(const Kernel K,
     }
 
     // Assign the result
-    result[t_first] = r;
+    result[t_first] += r;
   }
 }
 
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
-{
-  if (code != cudaSuccess) {
-    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-    if (abort) exit(code);
-  }
-}
 
 struct Data {
   unsigned num_sources;
   unsigned num_targets;
+  unsigned num_threads_per_block;
   unsigned num_blocks;
-
   Data(unsigned s, unsigned t, unsigned b)
-      : num_sources(s), num_targets(t), num_blocks(b) {
+      : num_sources(s),
+        num_targets(t),
+        num_threads_per_block(256),
+        num_blocks(b) {
   }
 };
 
 template <typename Kernel>
-P2P_Compressed<Kernel>::P2P_Compressed(const Kernel& K)
-    : K_(K) {
+P2P_Compressed<Kernel>::P2P_Compressed()
+    : data_(0) {
 }
 
 template <typename Kernel>
 P2P_Compressed<Kernel>::P2P_Compressed(
-    const Kernel& K,
     std::vector<std::pair<unsigned,unsigned> >& target_ranges,
-    std::vector<unsigned>& target_ptrs,
+    std::vector<unsigned>& source_range_ptrs,
     std::vector<std::pair<unsigned,unsigned> >& source_ranges,
     std::vector<typename Kernel::source_type>& sources,
     std::vector<typename Kernel::target_type>& targets)
-    : K_(K),
-      data(new Data(sources.size(), targets.size(), target_ranges.size())),
-      d_target_ranges(gpu_copy<unsigned>(target_ranges)),
-      d_target_ptrs(gpu_copy<unsigned>(target_ptrs)),
-      d_source_ranges(gpu_copy<unsigned>(source_ranges)),
-      d_sources(gpu_copy<typename Kernel::source_type>(sources)),
-      d_targets(gpu_copy<typename Kernel::target_type>(targets)) {
+    : data_(new Data(sources.size(), targets.size(), target_ranges.size())),
+      target_ranges_(gpu_copy(target_ranges)),
+      source_range_ptrs_(gpu_copy(source_range_ptrs)),
+      source_ranges_(gpu_copy(source_ranges)),
+      sources_(gpu_copy(sources)),
+      targets_(gpu_copy(targets)) {
+}
+
+template <typename Kernel>
+P2P_Compressed<Kernel>::~P2P_Compressed() {
+  delete data_;
+  gpu_free(target_ranges_);
+  gpu_free(source_range_ptrs_);
+  gpu_free(source_ranges_);
+  gpu_free(sources_);
+  gpu_free(targets_);
 }
 
 template <typename Kernel>
 void P2P_Compressed<Kernel>::execute(
-    const typename Kernel::charge_type* charges,
-    typename Kernel::result_type* results) {
+    const Kernel& K,
+    const std::vector<typename Kernel::charge_type>& charges,
+    std::vector<typename Kernel::result_type>& results) {
   typedef Kernel kernel_type;
   typedef typename kernel_type::source_type source_type;
   typedef typename kernel_type::target_type target_type;
   typedef typename kernel_type::charge_type charge_type;
   typedef typename kernel_type::result_type result_type;
 
-  std::cout << "Launching GPU P2P Kernel\n";
+  thrust::device_vector<charge_type> d_charges(charges);
+  thrust::device_vector<result_type> d_results(results);
+  // XXX: This causes a "floating point exception"?
+  //thrust::device_vector<result_type> d_results(results.size());
 
-  unsigned num_sources = reinterpret_cast<Data*>(data)->num_sources;
-  unsigned num_targets = reinterpret_cast<Data*>(data)->num_targets;
+  Data* data = reinterpret_cast<Data*>(data_);
+  const unsigned num_tpb    = data->num_threads_per_block;
+  const unsigned num_blocks = data->num_blocks;
 
-  thrust::device_vector<charge_type> d_charges(charges, charges + num_sources);
-  thrust::device_vector<result_type> d_results(num_targets);
-
-  std::cout << "Host to Device\n";
-
-  unsigned num_blocks = reinterpret_cast<Data*>(data)->num_blocks;
+  std::cerr << "Launching GPU Kernel" << std::endl;
 
   // Launch kernel <<<grid_size, block_size>>>
-  dumb_p2p<<<num_blocks,256>>>(K_,
-                               d_target_ranges,
-                               d_target_ptrs,
-                               d_source_ranges,
-                               d_sources,
-                               thrust::raw_pointer_cast(d_charges.data()),
-                               d_targets,
-                               thrust::raw_pointer_cast(d_results.data()));
+  blocked_p2p<<<num_blocks,num_tpb>>>(
+      K,
+      target_ranges_,
+      source_range_ptrs_,
+      source_ranges_,
+      sources_,
+      thrust::raw_pointer_cast(d_charges.data()),
+      targets_,
+      thrust::raw_pointer_cast(d_results.data()));
+  FMMTL_CUDA_CHECK;
 
-  gpuErrchk( cudaPeekAtLastError() );
-  gpuErrchk( cudaDeviceSynchronize() );
+  // Copy results back
+  thrust::copy(d_results.begin(), d_results.end(), results.begin());
 
-  std::cout << "GPU Kernel Done\n";
+  // XXX:
+  // Accumulate back
+  //thrust::host_vector<result_type> h_results = d_results;
+  //for (unsigned k = 0; k < h_results.size(); ++k)
+  //  results[k] += h_results[k];
+}
+
+
+/** A functor that maps blockidx -> (target_begin,target_end) */
+template <unsigned BLOCKSIZE>
+class block_range
+    : public thrust::unary_function<unsigned,
+                                    thrust::pair<unsigned,unsigned> > {
+  unsigned num_targets_;
+ public:
+  __host__ __device__
+  block_range(unsigned num_targets) : num_targets_(num_targets) {}
+  __device__
+  thrust::pair<unsigned,unsigned> operator()(unsigned blockidx) const {
+    unsigned start_block = blockidx * BLOCKSIZE;
+    return thrust::make_pair(start_block,
+                             min(start_block + BLOCKSIZE, num_targets_));
+  }
+};
+
+
+template <typename Kernel>
+void
+P2P_Compressed<Kernel>::execute(const Kernel& K,
+                                const std::vector<source_type>& s,
+                                const std::vector<charge_type>& c,
+                                const std::vector<target_type>& t,
+                                std::vector<result_type>& r) {
+  typedef Kernel kernel_type;
+  typedef typename kernel_type::source_type source_type;
+  typedef typename kernel_type::target_type target_type;
+  typedef typename kernel_type::charge_type charge_type;
+  typedef typename kernel_type::result_type result_type;
+
+  thrust::device_vector<source_type> d_sources(s);
+  thrust::device_vector<charge_type> d_charges(c);
+  thrust::device_vector<target_type> d_targets(t);
+  thrust::device_vector<result_type> d_results(r);
+
+  const unsigned num_tpb    = 256;
+  const unsigned num_blocks = (t.size() + num_tpb - 1) / num_tpb;
+
+  // Launch kernel <<<grid_size, block_size>>>
+  blocked_p2p<<<num_blocks, num_tpb>>>(
+      K,
+      thrust::make_transform_iterator(thrust::make_counting_iterator(0),
+                                      block_range<num_tpb>(t.size())),
+      thrust::make_constant_iterator(0),
+      thrust::make_constant_iterator(thrust::make_pair(0,s.size())),
+      thrust::raw_pointer_cast(d_sources.data()),
+      thrust::raw_pointer_cast(d_charges.data()),
+      thrust::raw_pointer_cast(d_targets.data()),
+      thrust::raw_pointer_cast(d_results.data()));
+  FMMTL_CUDA_CHECK;
 
   // Copy results back and add
-  thrust::host_vector<typename Kernel::result_type> h_results = d_results;
+  thrust::host_vector<result_type> h_results = d_results;
 
-  std::cout << "Device to Host\n";
-
-  for (unsigned k = 0; k < h_results.size(); ++k) {
-    results[k] += h_results[k];
-  }
+  for (unsigned k = 0; k < h_results.size(); ++k)
+    r[k] += h_results[k];
 }

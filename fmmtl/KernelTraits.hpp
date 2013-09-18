@@ -15,8 +15,9 @@
     template <class A>                                                  \
     struct has_op<A,                                                    \
       typename std::enable_if<                                          \
-        std::is_same<ReturnType,                                        \
-                     decltype(std::declval<const A&>().OP(std::declval<Arg>()...)) \
+        std::is_same<                                                   \
+          ReturnType,                                                   \
+          decltype(std::declval<const A&>().OP(std::declval<Arg>()...)) \
         >::value                                                        \
       >::type> : std::true_type {};                                     \
     static constexpr bool value = has_op<KERNEL>::value;                \
@@ -27,7 +28,7 @@ template <typename Kernel>
 struct KernelTraits {
  public:
   typedef KernelTraits<Kernel>                    self_type;
-  typedef Kernel                                  kernel_type;
+  typedef typename Kernel::kernel_type            kernel_type;
 
   typedef typename kernel_type::source_type       source_type;
   typedef typename kernel_type::target_type       target_type;
@@ -67,9 +68,6 @@ struct KernelTraits {
              source_iterator, source_iterator, charge_iterator,
              target_iterator, target_iterator, result_iterator>::value;
 
-  static constexpr bool is_valid_kernel =
-      (has_eval_op || has_vector_P2P_asymm);
-
   friend std::ostream& operator<<(std::ostream& s, const self_type& traits) {
     s << "has_eval_op: "           << traits.has_eval_op           << std::endl;
     s << "has_transpose: "         << traits.has_transpose         << std::endl;
@@ -101,13 +99,12 @@ struct ExpansionTraits
   typedef typename super_type::target_iterator    target_iterator;
   typedef typename super_type::result_iterator    result_iterator;
 
-  //static constexpr unsigned dimension = expansion_type::dimension;
-  typedef typename expansion_type::point_type        point_type;
+  static constexpr unsigned dimension = expansion_type::dimension;
+  typedef typename expansion_type::point_type     point_type;
+  // TODO: Check point_type = Vec<dimension,double> or generalize
 
-  // TODO: Check that dimension and point_type make sense
-
-  typedef typename expansion_type::multipole_type    multipole_type;
-  typedef typename expansion_type::local_type        local_type;
+  typedef typename expansion_type::multipole_type multipole_type;
+  typedef typename expansion_type::local_type     local_type;
 
   // Initializers
   SFINAE_TEMPLATE(HasInitMultipole,expansion_type,init_multipole);
@@ -119,15 +116,9 @@ struct ExpansionTraits
       HasInitLocal<void,
                    local_type&, const point_type&, unsigned>::value;
 
-  // Kernel Evaluations and P2P
-  static constexpr bool has_eval_op          = super_type::has_eval_op;
-  static constexpr bool has_transpose        = super_type::has_transpose;
-  static constexpr bool has_vector_P2P_symm  = super_type::has_vector_P2P_symm;
-  static constexpr bool has_vector_P2P_asymm = super_type::has_vector_P2P_asymm;
-
   // P2M
   SFINAE_TEMPLATE(HasP2M,expansion_type,P2M);
-  static constexpr bool has_P2M =
+  static constexpr bool has_scalar_P2M =
       HasP2M<void,
              const source_type&, const charge_type&,
              const point_type&, multipole_type&>::value;
@@ -135,10 +126,12 @@ struct ExpansionTraits
       HasP2M<void,
              source_iterator, source_iterator, charge_iterator,
              const point_type&, multipole_type&>::value;
+  static constexpr bool has_P2M =
+      (has_scalar_P2M || has_vector_P2M);
 
   // P2L
   SFINAE_TEMPLATE(HasP2L,expansion_type,P2M);
-  static constexpr bool has_P2L =
+  static constexpr bool has_scalar_P2L =
       HasP2L<void,
              const source_type&, const charge_type&,
              const point_type&, local_type&>::value;
@@ -146,6 +139,8 @@ struct ExpansionTraits
       HasP2L<void,
              source_iterator, source_iterator, charge_iterator,
              const point_type&, local_type&>::value;
+  static constexpr bool has_P2L =
+      (has_scalar_P2L || has_vector_P2L);
 
   // M2M
   SFINAE_TEMPLATE(HasM2M,expansion_type,M2M);
@@ -167,7 +162,7 @@ struct ExpansionTraits
 
   // M2P
   SFINAE_TEMPLATE(HasM2P,expansion_type,M2P);
-  static constexpr bool has_M2P =
+  static constexpr bool has_scalar_M2P =
       HasM2P<void,
              const multipole_type&, const point_type&,
              const target_type&, result_type&>::value;
@@ -175,10 +170,12 @@ struct ExpansionTraits
       HasM2P<void,
              const multipole_type&, const point_type&,
              target_iterator, target_iterator, result_iterator>::value;
+  static constexpr bool has_M2P =
+      (has_scalar_M2P || has_vector_M2P);
 
   // L2P
   SFINAE_TEMPLATE(HasL2P,expansion_type,L2P);
-  static constexpr bool has_L2P =
+  static constexpr bool has_scalar_L2P =
       HasL2P<void,
              const local_type&, const point_type&,
              const target_type&, result_type&>::value;
@@ -186,52 +183,46 @@ struct ExpansionTraits
       HasL2P<void,
              const local_type&, const point_type&,
              target_iterator, target_iterator, result_iterator>::value;
-
-  static constexpr bool is_valid_treecode =
-      (has_eval_op || has_vector_P2P_asymm) &&
-      (has_P2M || has_vector_P2M) &&
-      (has_M2M) &&
-      (has_M2P || has_vector_M2P);
-
-  static constexpr bool is_valid_fmm =
-      (super_type::is_valid_kernel) &&
-      (has_P2M || has_vector_P2M) &&
-      (has_M2M) &&
-      (has_M2L) &&
-      (has_L2L) &&
-      (has_L2P || has_vector_L2P);
+  static constexpr bool has_L2P =
+      (has_scalar_L2P || has_vector_L2P);
 
   friend std::ostream& operator<<(std::ostream& s, const self_type& traits) {
     s << static_cast<super_type>(traits)                     << std::endl;
     s << "has_init_multipole: " << traits.has_init_multipole << std::endl;
     s << "has_init_local: "     << traits.has_init_local     << std::endl;
     s << "has_P2M: "            << traits.has_P2M            << std::endl;
-    s << "has_vector_P2M: "     << traits.has_vector_P2M     << std::endl;
+    s << "  has_scalar_P2M: "   << traits.has_scalar_P2M     << std::endl;
+    s << "  has_vector_P2M: "   << traits.has_vector_P2M     << std::endl;
     s << "has_P2L: "            << traits.has_P2L            << std::endl;
-    s << "has_vector_P2L: "     << traits.has_vector_P2L     << std::endl;
+    s << "  has_scalar_P2L: "   << traits.has_scalar_P2L     << std::endl;
+    s << "  has_vector_P2L: "   << traits.has_vector_P2L     << std::endl;
     s << "has_M2M: "            << traits.has_M2M            << std::endl;
     s << "has_M2L: "            << traits.has_M2L            << std::endl;
     s << "has_L2L: "            << traits.has_L2L            << std::endl;
     s << "has_M2P: "            << traits.has_M2P            << std::endl;
-    s << "has_vector_M2P: "     << traits.has_vector_M2P     << std::endl;
-    s << "has_L2P: "            << traits.has_L2P            << std::endl;
-    s << "has_vector_L2P: "     << traits.has_vector_L2P;
+    s << "  has_scalar_M2P: "   << traits.has_scalar_M2P     << std::endl;
+    s << "  has_vector_M2P: "   << traits.has_vector_M2P     << std::endl;
+    s << "has_L2P: "            << traits.has_M2P            << std::endl;
+    s << "  has_scalar_L2P: "   << traits.has_scalar_L2P     << std::endl;
+    s << "  has_vector_L2P: "   << traits.has_vector_L2P;
     return s;
   }
 };
 
 #undef SFINAE_TEMPLATE
 
+#define FMMTL_IMPORT_KERNEL_TRAITS(K)                                     \
+  typedef typename KernelTraits<K>::kernel_type        kernel_type;       \
+  typedef typename KernelTraits<K>::kernel_value_type  kernel_value_type; \
+  typedef typename KernelTraits<K>::source_type        source_type;       \
+  typedef typename KernelTraits<K>::target_type        target_type;       \
+  typedef typename KernelTraits<K>::charge_type        charge_type;       \
+  typedef typename KernelTraits<K>::result_type        result_type
 
+#define FMMTL_IMPORT_EXPANSION_TRAITS(E)                                  \
+  FMMTL_IMPORT_KERNEL_TRAITS(E);                                          \
+  typedef typename ExpansionTraits<E>::expansion_type     expansion_type; \
+  typedef typename ExpansionTraits<E>::multipole_type     multipole_type; \
+  typedef typename ExpansionTraits<E>::local_type         local_type;     \
+  typedef typename ExpansionTraits<E>::point_type         point_type
 
-#define FMMTL_IMPORT_EXPANSION_TRAITS(EXPANSIONTRAITS)               \
-  typedef typename EXPANSIONTRAITS::expansion_type     expansion_type;  \
-  typedef typename EXPANSIONTRAITS::kernel_type        kernel_type;     \
-  typedef typename EXPANSIONTRAITS::kernel_value_type  kernel_value_type; \
-  typedef typename EXPANSIONTRAITS::multipole_type     multipole_type;  \
-  typedef typename EXPANSIONTRAITS::local_type         local_type;      \
-  typedef typename EXPANSIONTRAITS::point_type         point_type;      \
-  typedef typename EXPANSIONTRAITS::source_type        source_type;     \
-  typedef typename EXPANSIONTRAITS::target_type        target_type;     \
-  typedef typename EXPANSIONTRAITS::charge_type        charge_type;     \
-  typedef typename EXPANSIONTRAITS::result_type        result_type

@@ -8,16 +8,16 @@
 
 #include <complex>
 #include <cmath>
-
-#include "fmmtl/Kernel.hpp"
-// Use a library-defined Vector class that supports multiple architectures
-#include "fmmtl/Vec.hpp"
+#include <cassert>
 
 #include "Laplace.kern"
 
+#include "fmmtl/Expansion.hpp"
+// Use a library-defined Vector class that supports multiple architectures
+#include "fmmtl/Vec.hpp"
+
 class LaplaceSpherical
-    : public LaplaceKernel,
-      public FMM_Expansion<LaplaceSpherical> {
+    : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical> {
  protected:
   typedef double real;
   typedef std::complex<real> complex;
@@ -68,6 +68,8 @@ class LaplaceSpherical
   };
 
  public:
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
   //! Point type
   typedef Vec<3,real> point_type;
 

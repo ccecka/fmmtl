@@ -11,7 +11,7 @@
 #include "fmmtl/Vec.hpp"
 
 struct ExpPotential
-    : public FMM_Kernel<ExpPotential>
+    : public fmmtl::Kernel<ExpPotential>
 {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
@@ -36,10 +36,13 @@ struct ExpPotential
 FMMTL_KERNEL_EXTRAS(ExpPotential);
 
 
+#include "fmmtl/Expansion.hpp"
+
 struct ExpExpansion
-    : public ExpPotential,
-      public FMM_Expansion<ExpExpansion>
+    : public fmmtl::Expansion<ExpPotential, ExpExpansion>
 {
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
   //! Point type to use for the tree
   typedef Vec<3,double> point_type;
 
@@ -59,6 +62,22 @@ struct ExpExpansion
   void P2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
     M += exp(center[0] + center[1] + center[2]
+             - source[0] - source[1] - source[2]) * charge;
+  }
+
+  /** Kernel P2L operation
+   * L += c * Op(s) where L is the local expansion,
+   *                      s is the source,
+   *                  and c is the charge.
+   *
+   * @param[in] source  The source to accumulate into the local expansion
+   * @param[in] charge  The source's corresponding charge
+   * @param[in] center  The center of the box containing the local expansion
+   * @param[in,out] L   The local expansion to accumulate into
+   */
+  void P2L(const source_type& source, const charge_type& charge,
+           const point_type& center, local_type& L) const {
+    L += exp(center[0] + center[1] + center[2]
              - source[0] - source[1] - source[2]) * charge;
   }
 

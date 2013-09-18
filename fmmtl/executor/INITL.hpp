@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -28,14 +29,21 @@ struct INITL
     K.init_local(L, extents, level);
   }
 
+  /** Unwrap data from Context and dispatch to the INITL evaluator
+   */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::target_box_type& tbox)
   {
-#ifdef DEBUG
-    std::cout << "INITL: " << tbox << std::endl;
+#if defined(FMMTL_DEBUG)
+    std::cout << "INITL:"
+              << "\n  " << tbox << std::endl;
 #endif
+    FMMTL_LOG("INITL");
 
-    INITL::eval(c.expansion(), c.local(tbox), tbox.extents(), tbox.level());
+    INITL::eval(c.expansion(),
+                c.local(tbox),
+                tbox.extents(),
+                tbox.level());
   }
 };

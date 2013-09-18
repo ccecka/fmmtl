@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -36,7 +37,7 @@ class P2L
    */
   template <typename Expansion, typename SourceIter, typename ChargeIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_P2L &
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_P2L &
                           !ExpansionTraits<Expansion>::has_vector_P2L>::type
   eval(const Expansion& K,
        SourceIter s_begin, SourceIter s_end,
@@ -55,27 +56,33 @@ class P2L
   inline static void eval(Context& c,
                           const typename Context::source_body_iterator sfirst,
                           const typename Context::source_body_iterator slast,
-                          const typename Context::target_box_type& target) {
-#ifdef DEBUG
-    //printf("P2L: [%d,%d) to %d\n", sfirst.index(), slast.index(), target.index());
+                          const typename Context::target_box_type& tbox) {
+#if defined(FMMTL_DEBUG)
+    std::cout << "P2L:"
+              << "\n  Bodies [" << sfirst << ", " << slast << ")"
+              << "\n  " << tbox << std::endl;
 #endif
+    FMMTL_LOG("P2L vec");
 
     P2L::eval(c.expansion(),
               c.source(sfirst), c.source(slast),
               c.charge(sfirst),
-              target.center(),
-              c.local(target));
+              tbox.center(),
+              c.local(tbox));
   }
 
-  /** Unwrap the data from BoxContext and dispatch to the M2P evaluator
+  /** Unwrap the data from BoxContext and dispatch to the P2L evaluator
    */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::source_box_type& source,
                           const typename Context::target_box_type& target) {
-#ifdef DEBUG
-    std::cout << "P2L:\n " << source << "\n " << target << std::endl;
+#if defined(FMMTL_DEBUG)
+    std::cout << "P2L:"
+              << "\n  " << source
+              << "\n  " << target << std::endl;
 #endif
+    FMMTL_LOG("P2L box");
 
     P2L::eval(c.expansion(),
               c.source_begin(source), c.source_begin(source),

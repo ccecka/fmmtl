@@ -7,12 +7,11 @@
  */
 
 #include "fmmtl/Kernel.hpp"
-
 // Use a library-defined Vector class that supports multiple architectures
 #include "fmmtl/Vec.hpp"
 
 struct UnitPotential
-    : public FMM_Kernel<UnitPotential> {
+    : public fmmtl::Kernel<UnitPotential> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;
@@ -36,10 +35,13 @@ struct UnitPotential
 FMMTL_KERNEL_EXTRAS(UnitPotential);
 
 
+#include "fmmtl/Expansion.hpp"
+
 struct UnitExpansion
-    : public UnitPotential,
-      public FMM_Expansion<UnitExpansion>
+    : public fmmtl::Expansion<UnitPotential, UnitExpansion>
 {
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
   //! Point type to use for the tree
   typedef Vec<3,double> point_type;
 
@@ -68,6 +70,21 @@ struct UnitExpansion
   void P2M(const point_type&, const charge_type& charge,
            const point_type&, multipole_type& M) const {
     M += charge;
+  }
+
+  /** Kernel P2L operation
+   * L += c * Op(s) where L is the local expansion,
+   *                      s is the source,
+   *                  and c is the charge.
+   *
+   * @param[in] source  The source to accumulate into the local expansion
+   * @param[in] charge  The source's corresponding charge
+   * @param[in] center  The center of the box containing the local expansion
+   * @param[in,out] L   The local expansion to accumulate into
+   */
+  void P2L(const source_type&, const charge_type& charge,
+           const point_type&, local_type& L) const {
+    L += charge;
   }
 
   /** Kernel M2M operator

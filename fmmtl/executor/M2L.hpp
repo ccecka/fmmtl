@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -29,18 +30,77 @@ class M2L
 
  public:
 
+  /** Unwrap data from Context and dispatch to the M2L evaluator
+   */
   template <typename Context>
   inline static void eval(Context& c,
-                          const typename Context::source_box_type& source,
-                          const typename Context::target_box_type& target)
+                          const typename Context::source_box_type& sbox,
+                          const typename Context::target_box_type& tbox)
   {
-#ifdef DEBUG
-    std::cout << "M2L:\n  " << source << "\n  " << target << std::endl;
+#if defined(FMMTL_DEBUG)
+    std::cout << "M2L:"
+              << "\n  " << sbox
+              << "\n  " << tbox << std::endl;
 #endif
+    FMMTL_LOG("M2L");
 
     M2L::eval(c.expansion(),
-              c.multipole(source),
-              c.local(target),
-              target.center() - source.center());
+              c.multipole(sbox),
+              c.local(tbox),
+              tbox.center() - sbox.center());
+  }
+};
+
+
+#include "Evaluator.hpp"
+
+/** A lazy M2L evaluator which saves a list of pairs of boxes
+ * That are sent to the M2L dispatcher on demand.
+ */
+template <typename Context>
+class M2L_Batch {
+  //! Type of box
+  typedef typename Context::source_box_type source_box_type;
+  typedef typename Context::target_box_type target_box_type;
+
+  std::vector<target_box_type> target_box_list;
+  std::vector<std::vector<source_box_type>> source_boxes;
+
+  //! Box list for M2L interactions    TODO: could further compress these...
+  //typedef std::pair<source_box_type, target_box_type> box_pair;
+  //std::vector<box_pair> m2l_list;
+
+ public:
+  M2L_Batch(const Context& c)
+      : source_boxes(c.target_tree().boxes()) {
+  }
+
+  /** Insert a source-target box interaction to the interaction list */
+  void insert(const source_box_type& s, const target_box_type& t) {
+    if (source_boxes[t.index()].empty())
+      target_box_list.push_back(t);
+
+    source_boxes[t.index()].push_back(s);
+
+    //m2l_list.push_back(std::make_pair(s,t));
+  }
+
+  /** Compute all interations in the interaction list */
+  void execute(Context& c) {
+#pragma omp parallel for
+    for (auto ti = target_box_list.begin(); ti < target_box_list.end(); ++ti) {
+      target_box_type& tb = *ti;
+      auto s_end = source_boxes[tb.index()].end();
+      for (auto si = source_boxes[tb.index()].begin(); si != s_end; ++si) {
+        M2L::eval(c, *si, tb);
+      }
+    }
+
+    /*
+    auto b_end = m2l_list.end();
+    //#pragma omp parallel for   TODO: Make thread safe!
+    for (auto bi = m2l_list.begin(); bi < b_end; ++bi)
+      M2L::eval(c, bi->first, bi->second);
+    */
   }
 };

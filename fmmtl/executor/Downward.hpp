@@ -7,7 +7,7 @@
  */
 struct DownwardPass {
   template <class Tree, class Evaluator>
-  inline static void eval(Tree& tree, Evaluator& e) {
+  inline static void eval(Tree& tree, Evaluator e) {
     // For the highest level down to the lowest level
     for (unsigned l = 0; l < tree.levels(); ++l) {
       // For all boxes at this level

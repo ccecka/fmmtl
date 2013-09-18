@@ -36,14 +36,14 @@ class FMMOptions {
 	EvalType evaluator;
 
 	FMMOptions()
-      : ncrit(64),
+      : ncrit(128),
         theta(0.5),
         print_tree(false),
         evaluator(FMM) {
 	};
 
   // TODO: Generalize type/construction
-	DefaultMAC MAC() {
+	DefaultMAC MAC() const {
 		return DefaultMAC(theta);
 	}
 };

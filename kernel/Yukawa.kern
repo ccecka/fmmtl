@@ -3,7 +3,7 @@
 #include "fmmtl/Vec.hpp"
 
 struct YukawaPotential
-    : public FMM_Kernel<YukawaPotential> {
+    : public fmmtl::Kernel<YukawaPotential> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;
@@ -13,9 +13,9 @@ struct YukawaPotential
   double kappa;
 
   FMMTL_INLINE
-  YukawaPotential(double _kappa)
-      : kappa(_kappa) {
-  }
+  YukawaPotential() : kappa(1) {}
+  FMMTL_INLINE
+  YukawaPotential(double _kappa) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  exp(-kR)/R  if R >= 1e-10
@@ -38,7 +38,7 @@ struct YukawaPotential
 FMMTL_KERNEL_EXTRAS(YukawaPotential);
 
 struct YukawaKernel
-    : public FMM_Kernel<YukawaKernel> {
+    : public fmmtl::Kernel<YukawaKernel> {
   typedef Vec<3,double>  source_type;
   typedef double         charge_type;
   typedef Vec<3,double>  target_type;
@@ -48,9 +48,9 @@ struct YukawaKernel
   double kappa;
 
   FMMTL_INLINE
-  YukawaKernel(double _kappa)
-      : kappa(_kappa) {
-  }
+  YukawaKernel() : kappa(1) {}
+  FMMTL_INLINE
+  YukawaKernel(double _kappa) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  {exp(-kR)/R, (s-t)(kR+1)exp(-kR)/R^3}  if R >= 1e-10

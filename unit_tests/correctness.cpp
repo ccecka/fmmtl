@@ -22,7 +22,7 @@ inline double drand(double A, double B) {
 
 int main(int argc, char **argv)
 {
-  int N = 1000;
+  int N = 10000;
   bool checkErrors = true;
 
   // Parse custom command line args
@@ -56,13 +56,16 @@ int main(int argc, char **argv)
     charges[k] = drand(-1,1);
 
   // Build the FMM
-  fmm_matrix<kernel_type> A = make_fmm_matrix(K, points, opts);
+  fmmtl::kernel_matrix<kernel_type> A = K(points, points);
+  A.set_options(opts);
 
   // Execute the FMM
   std::vector<result_type> result = A * charges;
 
   // Check the result
   if (checkErrors) {
+    std::cout << "Computing direct matvec..." << std::endl;
+
     std::vector<result_type> exact(N);
 
     // Compute the result with a direct matrix-vector multiplication

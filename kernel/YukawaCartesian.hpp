@@ -10,14 +10,13 @@
 #include <vector>
 #include <cassert>
 
-#include "fmmtl/Kernel.hpp"
-#include "fmmtl/Vec.hpp"
-
 #include "Yukawa.kern"
 
+#include "fmmtl/Expansion.hpp"
+#include "fmmtl/Vec.hpp"
+
 class YukawaCartesian
-    : public YukawaKernel,
-      public FMM_Expansion<YukawaCartesian> {
+    : public fmmtl::Expansion<YukawaKernel, YukawaCartesian> {
  protected:
   typedef double real;
   typedef std::complex<real> complex;
@@ -37,8 +36,8 @@ class YukawaCartesian
   std::vector<double> fact;
 
  protected:
-  //! store all possible index combinations returned from setIndex
-  // TODO: Analytic computation
+  //! Store all possible index combinations returned from setIndex
+  // TODO: Static/Analytic computation
   struct IndexCache {
    private:
     unsigned setIndex(unsigned i, unsigned j, unsigned k) const {
@@ -73,24 +72,29 @@ class YukawaCartesian
     }
   };
 
- public:
   IndexCache index_cache;
+
+ public:
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
+  //! Point type
+  typedef Vec<3,real> point_type;
+
   //! Multipole expansion type
   typedef std::vector<real> multipole_type;
   //! Local expansion type
   typedef std::vector<real> local_type;
-
-  //! Point type
-  typedef Vec<3,real> point_type;
 
   //! default constructor - use delegating constructor
   YukawaCartesian()
       : YukawaCartesian(4,0.125) {
   }
   //! Constructor
-  YukawaCartesian(int p, double kappa = 0.125)
-      : YukawaKernel(kappa),
+  YukawaCartesian(int p, double _kappa)
+      : Expansion(YukawaKernel(_kappa)),
         P(p), MTERMS((P+1)*(P+2)*(P+3)/6), fact(2*P), index_cache(P) {
+    //kappa = _kappa;  // Sets the YukawaKernel kappa
+
     I = std::vector<unsigned>(MTERMS,0);
     J = std::vector<unsigned>(MTERMS,0);
     K = std::vector<unsigned>(MTERMS,0);

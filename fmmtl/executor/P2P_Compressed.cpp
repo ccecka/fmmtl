@@ -3,25 +3,26 @@
 #include <iostream>
 
 template <typename Kernel>
-P2P_Compressed<Kernel>::P2P_Compressed(const Kernel& K)
-    : K_(K) {
+P2P_Compressed<Kernel>::P2P_Compressed() {
 }
 
 template <typename Kernel>
 P2P_Compressed<Kernel>::P2P_Compressed(
-    const Kernel& K,
     std::vector<std::pair<unsigned,unsigned> >&,
     std::vector<unsigned>&,
     std::vector<std::pair<unsigned,unsigned> >&,
     std::vector<typename Kernel::source_type>&,
-    std::vector<typename Kernel::target_type>&)
-    : K_(K) {
+    std::vector<typename Kernel::target_type>&) {
 }
 
 template <typename Kernel>
-void
-P2P_Compressed<Kernel>::execute(const typename Kernel::charge_type*,
-                                typename Kernel::result_type*) {
+P2P_Compressed<Kernel>::~P2P_Compressed() {
+  // TODO: delete
+}
 
-  std::cout << "Launching CPU P2P Kernel!\n";
+template <typename Kernel>
+void P2P_Compressed<Kernel>::execute(
+    const Kernel&,
+    const std::vector<typename Kernel::charge_type>&,
+    std::vector<typename Kernel::result_type>&) {
 }

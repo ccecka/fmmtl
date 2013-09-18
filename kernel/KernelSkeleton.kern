@@ -7,7 +7,7 @@
  * for all i where K is the Kernel defined by this class.
 
  * A kernel is a function:
- * K : target_type * source_type -> kernel_value_type
+ * K : (target_type, source_type) -> kernel_value_type
  * The types in the matrix-vector product are
  * result_type = kernel_value_type * charge_type
  *
@@ -31,14 +31,14 @@
 #include "fmmtl/Vec.hpp"
 
 
-/** @struct Kernel
- * @brief A short description of the implemented Kernel. The Kernel class
+/** @struct KernelSkeleton
+ * @brief A short description of an implemented Kernel. The Kernel class
  * need only define the types required in the equation
  * result = K(target,source) * charge
  * and the operator() to compute the kernel.
  */
-struct Kernel
-    : public FMM_Kernel<Kernel>
+struct KernelSkeleton
+    : public fmmtl::Kernel<KernelSkeleton>   // This class is an FMMTL Kernel
 {
   //! Return type of a kernel evaluation
   typedef double kernel_value_type;
@@ -46,7 +46,7 @@ struct Kernel
   //! Source type
   typedef Vec<3,double> source_type;
   //! Charge type associated with each source
-  //! The primitive type of the vector in the FMM/Treecode matvec
+  //! The primitive type of the vector in the  matvec
   typedef double charge_type;
 
   //! Target type
@@ -144,12 +144,24 @@ struct Kernel
 #endif  // By default, exclude optional methods
 };
 
-/** TODO: Remove this line using the FMM_Kernel<Kernel> inheritance? */
-FMMTL_KERNEL_EXTRAS(Kernel);
+/** TODO: Remove this line using the fmmtl::Kernel<Kernel> inheritance? */
+FMMTL_KERNEL_EXTRAS(KernelSkeleton);
 
 
-/** @struct KernelExpansion
- * @brief A set of methods that can be used in the FMM/Treecode and extend
+
+/** Kernel Expansion Example
+ *
+ * A kernel expansion provides the primitive operations needed to create
+ * fast methods for kernel-matrix operations.
+ *
+ * This class should usually be defined in its own ExpansionName.hpp file.
+ * If defined in the .kern file, it should use C++03 to allow for
+ * cross-compilation with older compilers.
+ */
+#include "fmmtl/Expansion.hpp"
+
+/** @struct ExpansionSkeleton
+ * @brief A set of methods that can be used in the KernelMatrix and extend
  * the functionality of a Kernel with
  *
  * multipole_type and local_type with initialization methods
@@ -161,21 +173,25 @@ FMMTL_KERNEL_EXTRAS(Kernel);
  * L2L operator (FMM)
  * L2P operator (FMM)
  */
-struct KernelExpansion
-    : public Kernel,
-      public FMM_Expansion<KernelExpansion>
+struct ExpansionSkeleton
+    : public fmmtl::Expansion<KernelSkeleton, ExpansionSkeleton>
 {
-  //! Point type to use for the tree -- Recommend include/Vec.hpp.
-  // TODO: Ability to use anything with op[]/size() or begin()/end()?
+  //! The dimension of the spacial interpretation of the source/target_type.
+  static const unsigned dimension = 3;
+  //! Point type to use for the tree -- Restricted to include/Vec.hpp.
   //! source_type and target_type must be convertible to point_type:
   //!    static_cast<point_type>(source_type)
   //!    static_cast<point_type>(target_type)
-  typedef Vec<3,double> point_type;
+  //! TODO: Generalize? Use any type with op[]/size() or begin()/end()?
+  typedef Vec<dimension,double> point_type;
 
   //! Multipole expansion type
   typedef std::vector<double> multipole_type;
   //! Local expansion type
   typedef std::vector<double> local_type;
+
+  // Constructor
+  ExpansionSkeleton() : Expansion() {}
 
   /** Initialize a multipole expansion to zero
    * using the size and level number of the box containing it
@@ -218,7 +234,7 @@ struct KernelExpansion
    * M2M /  \      M2L     /  \ L2L
    *     \->M------>------>L<-/
    *        ^\__        __/|
-            |   \__  __/   |
+   *        |   \__  __/   |
    *        |      \/      v
    *    P2M ^   ___/\___   | L2P
    *        | _/P2L  M2P\_ |
@@ -245,6 +261,24 @@ struct KernelExpansion
     (void) charge;
     (void) center;
     (void) M;
+  }
+
+  /** Kernel P2L operation
+   * L += c * Op(s) where L is the local expansion,
+   *                      s is the source,
+   *                  and c is the charge.
+   *
+   * @param[in] source  The source to accumulate into the local expansion
+   * @param[in] charge  The source's corresponding charge
+   * @param[in] center  The center of the box containing the local expansion
+   * @param[in,out] L   The local expansion to accumulate into
+   */
+  void P2L(const source_type& source, const charge_type& charge,
+           const point_type& center, local_type& L) const {
+    (void) source;
+    (void) charge;
+    (void) center;
+    (void) L;
   }
 
   /** Kernel M2M operation
@@ -299,24 +333,6 @@ struct KernelExpansion
     (void) source;
     (void) target;
     (void) translation;
-  }
-
-  /** Kernel P2L operation
-   * L += c * Op(s) where L is the local expansion,
-   *                      s is the source,
-   *                  and c is the charge.
-   *
-   * @param[in] source  The source to accumulate into the local expansion
-   * @param[in] charge  The source's corresponding charge
-   * @param[in] center  The center of the box containing the local expansion
-   * @param[in,out] L   The local expansion to accumulate into
-   */
-  void P2L(const source_type& source, const charge_type& charge,
-           const point_type& center, local_type& L) const {
-    (void) source;
-    (void) charge;
-    (void) center;
-    (void) L;
   }
 
   /** Kernel L2L operation
@@ -446,3 +462,6 @@ struct KernelExpansion
   }
 #endif  // By default, exclude optional methods
 };
+
+
+// For simple examples, see UnitKernel.kern and ExpKernel.kern

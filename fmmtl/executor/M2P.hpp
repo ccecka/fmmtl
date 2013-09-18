@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -36,7 +37,7 @@ class M2P
    */
   template <typename Expansion, typename TargetIter, typename ResultIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_M2P &
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_M2P &
                           !ExpansionTraits<Expansion>::has_vector_M2P>::type
   eval(const Expansion& K,
        const typename Expansion::multipole_type& M,
@@ -49,33 +50,39 @@ class M2P
 
  public:
 
-  /** Unwrap the data from BoxContext and dispatch to the M2P evaluator
+  /** Unwrap data from Context and dispatch to the M2P evaluator
    */
   template <typename Context>
   inline static void eval(Context& c,
-                          const typename Context::source_box_type& source,
+                          const typename Context::source_box_type& sbox,
                           const typename Context::target_body_iterator tfirst,
                           const typename Context::target_body_iterator tlast) {
-#ifdef DEBUG
-    printf("M2P: %d to [%d,%d)\n", source.index(), tfirst.index(), tlast.index());
+#if defined(FMMTL_DEBUG)
+    std::cout << "M2P:"
+              << "\n  " << sbox
+              << "\n  Bodies [" << tfirst << ", " << tlast << ")" << std::endl;
 #endif
+    FMMTL_LOG("M2P vec");
 
     M2P::eval(c.expansion(),
-              c.multipole(source),
-              source.center(),
+              c.multipole(sbox),
+              sbox.center(),
               c.target(tfirst), c.target(tlast),
               c.result(tfirst));
   }
 
-  /** Unwrap the data from BoxContext and dispatch to the M2P evaluator
+  /** Unwrap data from Context and dispatch to the M2P evaluator
    */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::source_box_type& source,
                           const typename Context::target_box_type& target) {
-#ifdef DEBUG
-    printf("M2P: %d to %d\n", source.index(), target.index());
+#if defined(FMMTL_DEBUG)
+    std::cout << "M2P:"
+              << "\n  " << source
+              << "\n  " << target << std::endl;
 #endif
+    FMMTL_LOG("M2P box");
 
     M2P::eval(c.expansion(),
               c.multipole(source),

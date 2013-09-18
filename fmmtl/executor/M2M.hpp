@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -29,18 +30,23 @@ class M2M
 
  public:
 
+  /** Unwrap data from Context and dispatch to the M2M evaluator
+   */
   template <typename Context>
   inline static void eval(Context& c,
-                          const typename Context::source_box_type& source,
-                          const typename Context::source_box_type& target)
+                          const typename Context::source_box_type& sbox,
+                          const typename Context::source_box_type& tbox)
   {
-#ifdef DEBUG
-    std::cout << "M2M:\n  " << source << "\n  " << target << std::endl;
+#if defined(FMMTL_DEBUG)
+    std::cout << "M2M:"
+              << "\n  " << sbox
+              << "\n  " << tbox << std::endl;
 #endif
+    FMMTL_LOG("M2M");
 
     M2M::eval(c.expansion(),
-              c.multipole(source),
-              c.multipole(target),
-              target.center() - source.center());
+              c.multipole(sbox),
+              c.multipole(tbox),
+              tbox.center() - sbox.center());
   }
 };

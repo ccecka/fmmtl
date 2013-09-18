@@ -1,53 +1,49 @@
 #pragma once
-/** @file L2L.hpp
- * @brief Dispatch methods for the L2L stage
- *
+/** @file MAC.hpp
+ * @brief Dispatch methods for the Multipole Acceptance Criteria
  */
 
 #include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
-struct L2L
+class MAC
 {
-  /** If no other L2L dispatcher matches */
+  /** If no other MAC dispatcher matches */
   template <typename Expansion, typename... Args>
   inline static void eval(const Expansion&, Args...) {
-    std::cerr << "Expansion does not have a correct L2L!\n";
-    std::cerr << ExpansionTraits<Expansion>() << std::endl;
-    exit(1);
+    // TODO
   }
 
   template <typename Expansion>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_L2L>::type
+  typename std::enable_if<ExpansionTraits<Expansion>::has_M2L>::type
   eval(const Expansion& K,
-       const typename Expansion::local_type& source,
+       const typename Expansion::multipole_type& source,
        typename Expansion::local_type& target,
        const typename Expansion::point_type& translation) {
-    K.L2L(source, target, translation);
+    // TODO
   }
 
  public:
 
-  /** Unwrap data from Context and dispatch to the L2L evaluator
+  /** Unwrap data from Context and dispatch to the MAC evaluator
    */
   template <typename Context>
   inline static void eval(Context& c,
-                          const typename Context::target_box_type& sbox,
+                          const typename Context::source_box_type& sbox,
                           const typename Context::target_box_type& tbox)
   {
 #if defined(FMMTL_DEBUG)
-    std::cout << "L2L:"
+    std::cout << "MAC:"
               << "\n  " << sbox
               << "\n  " << tbox << std::endl;
 #endif
-    FMMTL_LOG("L2L");
+    FMMTL_LOG("MAC");
 
-    L2L::eval(c.expansion(),
-              c.local(sbox),
+    MAC::eval(c.expansion(),
+              c.multipole(sbox),
               c.local(tbox),
               tbox.center() - sbox.center());
   }
 };
-

@@ -10,11 +10,10 @@
 #include <type_traits>
 
 #include <vector>
-#include <cassert>
 
 class Direct {
 
-public:
+ public:
 
   /** Asymmetric matvec
    */
@@ -25,9 +24,9 @@ public:
                             SourceIter s_first, SourceIter s_last,
                             ChargeIter c_first,
                             TargetIter t_first, TargetIter t_last,
-                              ResultIter r_first)
+                            ResultIter r_first)
   {
-    P2P::block_eval(K,
+    P2P::block_eval(K.kernel(),
                     s_first, s_last, c_first,
                     t_first, t_last, r_first);
   }
@@ -42,7 +41,7 @@ public:
                             SourceIter p2_first, SourceIter p2_last,
                             ChargeIter c2_first, ResultIter r2_first)
   {
-    P2P::block_eval(K,
+    P2P::block_eval(K.kernel(),
                     p1_first, p1_last, c1_first, r1_first,
                     p2_first, p2_last, c2_first, r2_first);
   }
@@ -60,7 +59,7 @@ public:
          SourceIter p_first, SourceIter p_last,
          ChargeIter c_first, ResultIter r_first)
   {
-    P2P::block_eval(K,
+    P2P::block_eval(K.kernel(),
                     p_first, p_last, c_first, r_first);
   }
 
@@ -73,11 +72,11 @@ public:
                             const std::vector<typename Kernel::target_type>& t,
                             std::vector<typename Kernel::result_type>& r)
   {
-    assert(s.size() == c.size());
-    assert(t.size() == r.size());
+    FMMTL_ASSERT(s.size() == c.size());
+    FMMTL_ASSERT(t.size() == r.size());
 
     // Pass to asymmetric p2p
-    P2P::block_eval(K,
+    P2P::block_eval(K.kernel(),
                     s.begin(), s.end(), c.begin(),
                     t.begin(), t.end(), r.begin());
   }
@@ -90,11 +89,11 @@ public:
                             const std::vector<typename Kernel::charge_type>& c,
                             std::vector<typename Kernel::result_type>& r)
   {
-    assert(p.size() == c.size());
-    assert(p.size() == r.size());
+    FMMTL_ASSERT(p.size() == c.size());
+    FMMTL_ASSERT(p.size() == r.size());
 
     // Pass to symmetric p2p
-    P2P::block_eval(K,
+    P2P::block_eval(K.kernel(),
                     p.begin(), p.end(), c.begin(), r.begin());
   }
 };

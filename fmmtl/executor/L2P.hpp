@@ -4,6 +4,7 @@
  *
  */
 
+#include "fmmtl/Logger.hpp"
 #include "fmmtl/KernelTraits.hpp"
 #include <type_traits>
 
@@ -35,7 +36,7 @@ struct L2P
    */
   template <typename Expansion, typename TargetIter, typename ResultIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_L2P &
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_L2P &
                           !ExpansionTraits<Expansion>::has_vector_L2P>::type
   eval(const Expansion& K,
        const typename Expansion::local_type& L,
@@ -47,34 +48,17 @@ struct L2P
 
  public:
 
-  /** Unwrap the data from BoxContext and dispatch to the L2P evaluator
-   */
-  template <typename Context>
-  inline static void eval(Context& c,
-                          const typename Context::target_box_type& tbox,
-                          const typename Context::target_body_iterator tfirst,
-                          const typename Context::target_body_iterator tlast) {
-#ifdef DEBUG
-    std::cout << "L2P:\n  " << tbox
-              << "\n  [" << tfirst << "," << tlast << std::endl;
-#endif
-
-    L2P::eval(c.expansion(),
-              c.multipole(tbox),
-              tbox.center(),
-              c.target_iterator(tfirst), c.target_iterator(tlast),
-              c.result_iterator(tfirst));
-  }
-
-  /** Unwrap the data from BoxContext and dispatch to the L2P evaluator
+  /** Unwrap data from Context and dispatch to the L2P evaluator
    */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::target_box_type& tbox)
   {
-#ifdef DEBUG
-    std::cout << "L2P:\n  " << tbox << std::endl;
+#if defined(FMMTL_DEBUG)
+    std::cout << "L2P:"
+              << "\n  " << tbox << std::endl;
 #endif
+    FMMTL_LOG("L2P");
 
     L2P::eval(c.expansion(),
               c.local(tbox),
