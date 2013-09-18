@@ -86,7 +86,7 @@ class M2L_Batch {
   }
 
   /** Compute all interations in the interaction list */
-  virtual void execute(Context& c) {
+  void execute(Context& c) {
 #pragma omp parallel for
     for (auto ti = target_box_list.begin(); ti < target_box_list.end(); ++ti) {
       target_box_type& tb = *ti;

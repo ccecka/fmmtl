@@ -12,56 +12,33 @@
 
 #include <boost/iterator/transform_iterator.hpp>
 
-template <class Expansion>
-class ExpansionContext {
-  Expansion E_;
+#include "fmmtl/meta/dimension.hpp"
 
- public:
-  FMMTL_IMPORT_EXPANSION_TRAITS(Expansion);
-
-  template <typename Options>
-  ExpansionContext(const Expansion& E,
-                   Options&)
-      : E_(E) {
-  }
-
-  Expansion& expansion() {
-    return E_;
-  }
-  const Expansion& expansion() const {
-    return E_;
-  }
-  typename Expansion::kernel_type& kernel() {
-    return E_;
-  }
-  const typename Expansion::kernel_type& kernel() const {
-    return E_;
-  }
-};
-
-
-// General TreeContxt declarations
-template <typename Expansion,
-          typename SourceTree,
-          typename TargetTree = SourceTree>
-class DualTreeContext;
-
-template <typename Expansion,
-          typename Tree>
+// General TreeContext declarations
+template <typename SourceType,
+          typename TreeType>
 class SingleTreeContext;
+
+template <typename SourceType,
+          typename TargetType,
+          typename SourceTreeType,
+          typename TargetTreeType>
+class DualTreeContext;
 
 
 /** @struct SingleTreeContext
  * Single tree context specialized for an NDTree
  */
-template <typename Expansion>
-class SingleTreeContext<Expansion,
-                        NDTree<ExpansionTraits<Expansion>::dimension> > {
+template <typename SourceType>
+class SingleTreeContext<SourceType,
+                        NDTree<fmmtl::dimension<SourceType>::value> > {
  public:
-  FMMTL_IMPORT_EXPANSION_TRAITS(Expansion);
+  typedef SourceType source_type;
+  typedef SourceType target_type;
 
-  typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  FMMTL_IMPORT_TREEPAIR_TRAITS(tree_type, tree_type);
+  typedef NDTree<fmmtl::dimension<SourceType>::value> source_tree_type;
+  typedef NDTree<fmmtl::dimension<SourceType>::value> target_tree_type;
+  FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:
   template <typename Iter>
@@ -73,17 +50,6 @@ class SingleTreeContext<Expansion,
 
   //! The tree of sources and targets
   source_tree_type source_tree_;
-
-  // TODO: If std::is_same<source_type,point_type>,
-  // then we don't need to store sources, the source tree is doing it for us
-
-  //! The sources associated with bodies in the source_tree_
-  typedef const std::vector<source_type> source_container;
-  typedef typename source_container::const_iterator source_container_iterator;
-  source_container sources_;
-  //! The targets associated with bodies in the target_tree_
-  typedef source_container target_container;
-  typedef source_container_iterator target_container_iterator;
 
   /** Permute iterators */
   template <typename Iterator>
@@ -99,11 +65,9 @@ class SingleTreeContext<Expansion,
 
  public:
   //! Constructor
-  template <typename SourceIter, typename Options>
-  SingleTreeContext(SourceIter sfirst, SourceIter slast,
-                    Options& opts)
-      : source_tree_(sfirst, slast, opts.ncrit),
-        sources_(sfirst, slast) {
+  template <typename KernelMatrix, typename Options>
+  SingleTreeContext(const KernelMatrix& mat, Options& opts)
+      : source_tree_(mat.sources().begin(), mat.sources().end(), opts.ncrit) {
   }
 
   // Tree accessors
@@ -119,31 +83,24 @@ class SingleTreeContext<Expansion,
   inline const target_tree_type& target_tree() const {
     return source_tree_;
   }
-
-  // Accessor to the source of a source body
-  typedef stree_permute_iterator<source_container_iterator> source_iterator;
-  inline source_iterator source(const source_body_iterator& sbi) const {
-    return source_tree_permute(sources_.cbegin(), sbi);
-  }
-  // Accessor to the target of a target body
-  typedef ttree_permute_iterator<target_container_iterator> target_iterator;
-  inline target_iterator target(const target_body_iterator& tbi) const {
-    return target_tree_permute(sources_.cbegin(), tbi);
-  }
 };
 
 
 /** @struct DualTreeContext
  * Dual tree context specialized for NDTree trees
  */
-template <typename Expansion>
-class DualTreeContext<Expansion,
-                      NDTree<ExpansionTraits<Expansion>::dimension> > {
+template <typename SourceType, typename TargetType>
+class DualTreeContext<SourceType,
+                      TargetType,
+                      NDTree<fmmtl::dimension<SourceType>::value>,
+                      NDTree<fmmtl::dimension<TargetType>::value> > {
  public:
-  FMMTL_IMPORT_EXPANSION_TRAITS(Expansion);
+  typedef SourceType source_type;
+  typedef TargetType target_type;
 
-  typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  FMMTL_IMPORT_TREEPAIR_TRAITS(tree_type, tree_type);
+  typedef NDTree<fmmtl::dimension<SourceType>::value> source_tree_type;
+  typedef NDTree<fmmtl::dimension<TargetType>::value> target_tree_type;
+  FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:
   template <typename Iter>
@@ -157,18 +114,6 @@ class DualTreeContext<Expansion,
   source_tree_type source_tree_;
   //! The tree of targets
   target_tree_type target_tree_;
-
-  // TODO: If std::is_same<source_type,point_type>,
-  // then we don't need to store sources, the source tree is doing it for us
-
-  //! The sources associated with bodies in the source_tree_
-  typedef const std::vector<source_type> source_container;
-  typedef typename source_container::const_iterator source_container_iterator;
-  source_container sources_;
-  //! The targets associated with bodies in the target_tree_
-  typedef const std::vector<target_type> target_container;
-  typedef typename target_container::const_iterator target_container_iterator;
-  target_container targets_;
 
   /** Permuted iterators */
   template <typename Iterator>
@@ -184,14 +129,10 @@ class DualTreeContext<Expansion,
 
  public:
   //! Constructor
-  template <typename SourceIter, typename TargetIter, typename Options>
-  DualTreeContext(SourceIter sfirst, SourceIter slast,
-                  TargetIter tfirst, TargetIter tlast,
-                  Options& opts)
-      : source_tree_(sfirst, slast, opts.ncrit),
-        target_tree_(tfirst, tlast, opts.ncrit),
-        sources_(sfirst, slast),
-        targets_(tfirst, tlast) {
+  template <typename KernelMatrix, typename Options>
+  DualTreeContext(const KernelMatrix& mat, Options& opts)
+      : source_tree_(mat.sources().begin(), mat.sources().end(), opts.ncrit),
+        target_tree_(mat.targets().begin(), mat.targets().end(), opts.ncrit) {
   }
 
   inline source_tree_type& source_tree() {
@@ -206,37 +147,34 @@ class DualTreeContext<Expansion,
   inline const target_tree_type& target_tree() const {
     return target_tree_;
   }
-
-  // Accessor to the source of a source body
-  typedef stree_permute_iterator<source_container_iterator> source_iterator;
-  inline source_iterator source(const source_body_iterator& sbi) const {
-    return source_tree_permute(sources_.cbegin(), sbi);
-  }
-  // Accessor to the target of a target body
-  typedef ttree_permute_iterator<target_container_iterator> target_iterator;
-  inline target_iterator target(const target_body_iterator& tbi) const {
-    return target_tree_permute(targets_.cbegin(), tbi);
-  }
 };
 
 
 
-template <typename ExpansionContext,
+template <typename KernelMatrix,
           typename TreeContext>
 class DataContext
-    : public ExpansionContext,
-      public TreeContext {
+    : public TreeContext {
  public:
-  FMMTL_IMPORT_EXPANSION_TRAITS(typename ExpansionContext::expansion_type);
+  typedef KernelMatrix kernel_matrix_type;
+  FMMTL_IMPORT_EXPANSION_TRAITS(typename kernel_matrix_type::expansion_type);
+
   FMMTL_IMPORT_TREEPAIR_TRAITS(typename TreeContext::source_tree_type,
                                typename TreeContext::target_tree_type);
  private:
+  //! The kernel matrix this context is built for
+  const kernel_matrix_type& mat_;
+
   //! Multipole expansions corresponding to Box indices in Tree
   typedef std::vector<multipole_type> multipole_container;
   multipole_container M_;
   //! Local expansions corresponding to Box indices in Tree
   typedef std::vector<local_type> local_container;
   local_container L_;
+
+  //!
+  typedef typename kernel_matrix_type::source_array::const_iterator source_container_iterator;
+  typedef typename kernel_matrix_type::target_array::const_iterator target_container_iterator;
 
   //! Iterator to the start of the charge vector
   typedef std::vector<charge_type> charge_container;
@@ -248,25 +186,11 @@ class DataContext
   result_container_iterator r_;
 
  public:
-  template <typename SourceIter, typename TargetIter,
-            typename Options>
-  DataContext(const expansion_type& E,
-              SourceIter sfirst, SourceIter slast,
-              TargetIter tfirst, TargetIter tlast,
-              Options& opts)
-      : ExpansionContext(E, opts),
-        TreeContext(sfirst, slast, tfirst, tlast, opts),
-        M_(this->source_tree().boxes()),
-        L_(this->target_tree().boxes()) {
-  }
-
-  template <typename SourceIter,
-            typename Options>
-  DataContext(const expansion_type& E,
-              SourceIter sfirst, SourceIter slast,
-              Options& opts)
-      : ExpansionContext(E, opts),
-        TreeContext(sfirst, slast, opts),
+  template <class Options>
+  DataContext(const kernel_matrix_type& mat, Options& opts)
+      : TreeContext(mat, opts),
+        mat_(mat),
+        // TODO: only allocate if used...
         M_(this->source_tree().boxes()),
         L_(this->target_tree().boxes()) {
   }
@@ -279,6 +203,13 @@ class DataContext
     r_ = results.begin();
 
     exec->execute(*this);
+  }
+
+  const expansion_type& expansion() const {
+    return mat_.expansion();
+  }
+  const kernel_type& kernel() const {
+    return mat_.kernel();
   }
 
   // Accessors to the multipole expansion of a source box
@@ -297,11 +228,15 @@ class DataContext
   }
 
   // Define the body data iterators
-  typedef typename TreeContext::source_iterator source_iterator;
+  typedef typename TreeContext::template stree_permute_iterator<source_container_iterator> source_iterator;
   typedef typename TreeContext::template stree_permute_iterator<charge_container_iterator> charge_iterator;
-  typedef typename TreeContext::target_iterator target_iterator;
+  typedef typename TreeContext::template ttree_permute_iterator<target_container_iterator> target_iterator;
   typedef typename TreeContext::template ttree_permute_iterator<result_container_iterator> result_iterator;
 
+  // Accessor to the source data of a source body
+  inline source_iterator source(const source_body_iterator& sbi) const {
+    return this->source_tree_permute(mat_.sources().begin(), sbi);
+  }
   // Convenience methods for the sources
   inline source_iterator source_begin(const source_box_type& b) const {
     return this->source(b.body_begin());
@@ -334,6 +269,10 @@ class DataContext
     return this->charge(this->source_tree().body_end());
   }
 
+  // Accessor to the target data of a target body
+  inline target_iterator target(const target_body_iterator& sbi) const {
+    return this->target_tree_permute(mat_.targets().begin(), sbi);
+  }
   // Convenience methods for the targets
   inline target_iterator target_begin(const target_box_type& b) const {
     return this->target(b.body_begin());

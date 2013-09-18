@@ -6,283 +6,168 @@
 #include "Logger.hpp"
 static Logger fmm_global_log;
 
-// FMM includes
-#include "KernelTraits.hpp"
-#include "executor/make_executor.hpp"
+#include "FMMOptions.hpp"
+#include "KernelMatrixPlan.hpp"
 
 #include <vector>
 
-/** Abstract PlanBase class */
-template <class Expansion>
-class PlanBase {
+namespace fmmtl {
+
+/** @brief A kernel matrix with kernel of type \c E
+ *
+ * For a \f$(m \times n)\f$-dimension matrix and
+ * \f$ 0 \leq i < m, 0 \leq j < n\f$, every element \f$ m_{i,j} \f$ is generated
+ * by the kernel mapping \f$i\f$th target and \f$j\f$th source to a value:
+ *
+ * @tparam E The expansion type. An expansion is a kernel with additional
+ *             operators to accelerate matrix math.
+ *
+ * TODO: Optimize on aliased source and targets
+ */
+template <class E>
+class kernel_matrix {
+  typedef kernel_matrix<E>  this_type;
  public:
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
+  typedef  E                                          expansion_type;
+  typedef typename expansion_type::kernel_type        kernel_type;
 
-  /** Virtual destructor */
-  virtual ~PlanBase() {};
+  typedef typename expansion_type::source_type        source_type;
+	typedef typename expansion_type::target_type        target_type;
+	typedef typename expansion_type::charge_type        charge_type;
+	typedef typename expansion_type::result_type        result_type;
+  typedef typename expansion_type::kernel_value_type  kernel_value_type;
 
-  /** Execute this plan */
-  virtual void execute(const std::vector<charge_type>& charges,
-                       std::vector<result_type>& results) = 0;
+  typedef std::vector<target_type> target_array;
+  typedef std::vector<source_type> source_array;
 
-  /** Accessors */
+  typedef std::size_t size_type;
 
-  /** The number of rows (number of targets) of the abstract matrix */
-  virtual unsigned rows() const = 0;
-  /** The (potentially reordered) targets generating the abstract matrix */
-  virtual std::vector<target_type> targets() const = 0;
+  typedef kernel_value_type  value_type;
+  typedef const value_type&  reference;  // ?
+  typedef const value_type&  const_reference;
 
-  /** The number of cols (number of sources) of the abstract matrix */
-  virtual unsigned cols() const = 0;
-  /** The (potentially reordered) sources generating the abstract matrix */
-  virtual std::vector<source_type> sources() const = 0;
+  /** @brief Default constructor. */
+  explicit kernel_matrix() : plan(nullptr) {}
 
-  /** Access to the kernel/expansion that generates this matrix */
-  virtual expansion_type& expansion() = 0;
-  virtual const expansion_type& expansion() const = 0;
-};
+  /** @brief         Creates the matrix with the given size
+   *
+   * @param rows      Number of rows of the matrix
+   * @param cols      Number of columns of the matrix
+   */
+  explicit kernel_matrix(size_type rows, size_type cols)
+      : targets_(rows), sources_(cols), plan(nullptr) {}
 
-
-template <typename Expansion, typename Context>
-struct Plan
-    : public PlanBase<Expansion> {
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
-
-  template <typename SourceIter, typename Options>
-  Plan(const Expansion& K,
-       SourceIter sbegin, SourceIter send,
-       Options& opts)
-      : context(K, sbegin, send, opts),
-        executor(make_evaluator(context, opts)) {
-    if (opts.print_tree) {
-      std::cout << "Source/Target Tree:\n" << context.source_tree() << std::endl;
-    }
+  template <class TA, class SA>
+  explicit kernel_matrix(const expansion_type& e,
+                         const TA& targets,
+                         const SA& sources)
+      : e_(e),
+        targets_(targets.begin(), targets.end()),
+        sources_(sources.begin(), sources.end()),
+        plan(nullptr) {
   }
 
-  template <typename SourceIter, typename TargetIter, typename Options>
-  Plan(const Expansion& K,
-       SourceIter sbegin, SourceIter send,
-       TargetIter tbegin, TargetIter tend,
-       Options& opts)
-      : context(K, sbegin, send, tbegin, tend, opts),
-        executor(make_evaluator(context, opts)) {
-    if (opts.print_tree) {
-      std::cout << "Source Tree:\n" << context.source_tree() << std::endl;
-      std::cout << "Target Tree:\n" << context.target_tree() << std::endl;
-    }
+  template <class SA>
+  explicit kernel_matrix(const expansion_type& e,
+                         const SA& sources)
+      : e_(e),
+        targets_(sources.begin(), sources.end()),
+        sources_(sources.begin(), sources.end()),
+        plan(nullptr) {
   }
 
-  virtual ~Plan() {
-    delete executor;
+  /** @brief Destroy this Kernel matrix */
+  ~kernel_matrix() { destroy_plan(); }
+
+  /** @brief Returns the number of rows of the matrix */
+  inline size_type rows()  const { return targets_.size(); }
+  /** @brief Returns the number of rows of the matrix */
+  inline size_type size1() const { return rows(); }
+
+  /** @brief Returns the number of columns of the matrix */
+  inline size_type cols()  const { return sources_.size(); }
+  /** @brief Returns the number of columns of the matrix */
+  inline size_type size2() const { return cols(); }
+
+  /** @brief Returns the kernel generating the elements of the matrix */
+  inline       kernel_type& kernel()       { return e_.kernel(); }
+  /** @brief Returns the const kernel generating the elements of the matrix */
+  inline const kernel_type& kernel() const { return e_.kernel(); }
+  /** @brief Returns the expansion operating in the fast MVM */
+  inline       expansion_type& expansion()       { return e_.expansion(); }
+  /** @brief Returns the const expansion operating in the fast MVM */
+  inline const expansion_type& expansion() const { return e_.expansion(); }
+
+  /** @brief Returns a const reference to the source array */
+  inline const target_array& targets() const { return targets_; }
+  // TODO: Return a proxy?
+  /** @brief Returns a const reference to the ith target */
+  inline const target_type& target(size_type i) const { return targets_[i]; }
+  /** @brief Returns a reference to the ith target */
+  inline target_type& target(size_type i) {
+    destroy_plan();
+    return targets_[i];
+  }
+  /** @brief Returns a const reference to the permuted target array */
+  inline const target_array& permuted_targets() const { return plan->targets(); }
+
+  /** @brief Returns a const reference to the source array */
+  inline const source_array& sources() const { return sources_; }
+  // TODO: Return a proxy?
+  /** @brief Returns a const reference to the jth source */
+  inline const source_type& source(size_type j) const { return sources_[j]; }
+  /** @brief Returns a reference to the ith target */
+  inline source_type& source(size_type j) {
+    destroy_plan();
+    return sources_[j];
+  }
+  /** @brief Returns a const reference to the permuted target array */
+  inline const target_array& permuted_sources() const { return plan->sources(); }
+
+  /** @brief Returns the matrix element K(i,j) */
+  inline const_reference operator()(size_type i, size_type j) const {
+    FMMTL_ASSERT(i < rows());
+    FMMTL_ASSERT(j < cols());
+    return expansion()(target(i), source(j));
+  }
+  /** @brief Syntactic sugar for matrix-vector multiplication
+   * TODO: Replace with expression template library */
+  inline std::vector<result_type> operator*(const std::vector<charge_type>& c) {
+    std::vector<result_type> result(rows());
+    this->prod_impl(c, result);
+    return result;
   }
 
-  virtual void execute(const std::vector<charge_type>& charges,
-                       std::vector<result_type>& results) {
-    FMMTL_ASSERT(charges.size() == cols());
-    FMMTL_ASSERT(results.size() == rows());
-    return context.execute(charges, results, executor);
-  }
-
-  virtual unsigned rows() const {
-    return context.target_tree().bodies();
-  }
-  virtual std::vector<target_type> targets() const {
-    return std::vector<target_type>(context.target_begin(),
-                                    context.target_end());
-  }
-
-  virtual unsigned cols() const {
-    return context.source_tree().bodies();
-  }
-  virtual std::vector<source_type> sources() const {
-    return std::vector<source_type>(context.source_begin(),
-                                    context.source_end());
-  }
-
-  virtual expansion_type& expansion() {
-    return context.expansion();
-  }
-  virtual const expansion_type& expansion() const {
-    return context.expansion();
+  /** @brief Set options to be passed on to the matrix-vector product plan */
+  inline void set_options(const FMMOptions& opts) {
+    destroy_plan();
+    opts_ = opts;
   }
 
  private:
-  Context context;
-  EvaluatorBase<Context>* executor;
-};
-
-template <class Expansion>
-class kernel_matrix {  // Inherit ExpasionTraits?
- public:
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-  typedef typename ExpansionTraits<Expansion>::kernel_type    kernel_type;
-
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
-
-  kernel_matrix(PlanBase<Expansion>* _plan)
-      : plan(_plan) {
-  }
-  ~kernel_matrix() {
+  inline void destroy_plan() {
     delete plan;
-    FMMTL_PRINT_LOG(std::cout);
-    fmmtl_logger.clear();
-  };
-
-  inline unsigned rows() const {
-    return plan->rows();
+    plan = nullptr;
   }
-  inline unsigned cols() const {
-    return plan->cols();
-  }
-  inline unsigned size() const {
-    return rows() * cols();
+  inline void create_plan() const {
+    FMMTL_ASSERT(plan == nullptr);
+    plan = make_kernel_matrix_plan(*this, opts_);
   }
 
-  inline void execute(const std::vector<charge_type>& charges,
-                      std::vector<result_type>& results) {
+  template <class CA, class RA>
+  inline void prod_impl(const CA& charges, RA& results) const {
+    if (plan == nullptr)
+      create_plan();
     return plan->execute(charges, results);
   }
-  inline std::vector<result_type> execute(const std::vector<charge_type>& charges) {
-    std::vector<result_type> results(rows());
-    this->execute(charges, results);
-    return results;
-  }
-  // Syntactic sugar, return a proxy that can be
-  // manipulated or passed to fmm::direct, fmm::treecode, etc?
-  inline std::vector<result_type> operator*(const std::vector<charge_type>& c) {
-    return this->execute(c);
-  }
 
-  inline expansion_type& expansion() {
-    return plan->expansion();
-  }
-  const expansion_type& expansion() const {
-    return plan->expansion();
-  }
-  inline std::vector<target_type> targets() const {
-    return plan->targets();
-  }
-  inline std::vector<source_type> sources() const {
-    return plan->sources();
-  }
+  expansion_type e_;
+  target_array targets_;
+  source_array sources_;
 
- private:
-  PlanBase<Expansion>* plan;
+  mutable FMMOptions opts_;
+  mutable PlanBase<expansion_type>* plan;
 };
 
 
-
-#include "tree/NDTree.hpp"
-#include "executor/Context.hpp"
-
-template <class Expansion,
-          class Options = FMMOptions>
-kernel_matrix<Expansion>
-make_kernel_matrix(const Expansion& E,
-                const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
-                Options opts = FMMOptions()) {
-  FMMTL_LOG("*Setup");
-
-  // Statically compute the context type, potentially from Options
-  typedef ExpansionContext<Expansion> expansion_context_type;
-
-  typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  typedef SingleTreeContext<Expansion, tree_type> tree_context_type;
-
-  typedef DataContext<expansion_context_type, tree_context_type> context_type;
-
-  // Construct the plan
-  typedef Plan<Expansion, context_type> plan_type;
-  plan_type* plan = new plan_type(E,
-                                  sources.begin(), sources.end(),
-                                  opts);
-  return kernel_matrix<Expansion>(plan);
-}
-
-template <class Expansion,
-          class Options = FMMOptions>
-kernel_matrix<Expansion>
-make_kernel_matrix(const Expansion& E,
-                const std::vector<typename ExpansionTraits<Expansion>::source_type>& sources,
-                const std::vector<typename ExpansionTraits<Expansion>::target_type>& targets,
-                Options opts = FMMOptions()) {
-  FMMTL_LOG("*Setup");
-
-  // Statically compute the context type, potentially from Option types
-  typedef ExpansionContext<Expansion> expansion_context_type;
-
-  typedef NDTree<ExpansionTraits<Expansion>::dimension> tree_type;
-  typedef DualTreeContext<Expansion, tree_type> tree_context_type;
-
-  typedef DataContext<expansion_context_type, tree_context_type> context_type;
-
-  // Construct the plan
-  typedef Plan<Expansion, context_type> plan_type;
-  plan_type* plan = new plan_type(E,
-                                  sources.begin(), sources.end(),
-                                  targets.begin(), targets.end(),
-                                  opts);
-  return kernel_matrix<Expansion>(plan);
-}
-
-
-/*
-struct FMM_NEAR_FIELD_ONLY {};
-struct FMM_FAR_FIELD_ONLY {};
-
-struct FMM_DYNAMIC_TRAVERSAL {};
-struct FMM_INTERACTION_LIST {};
-etc etc
-
-
-template <class Expansion, typename... CompileOptions>
-struct FMM_Builder {
-  // Compute the FMM_Plan type from the CompileOptions
-
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-  typedef typename ExpansionTraits<Expansion>::kernel_type    kernel_type;
-
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
-
-  typedef typename ExpansionTraits<Expansion>::point_type     point_type;
-
-  typedef Octree<point_type>                                  tree_type;
-
-
-
-  template <class RunOptions>
-  FMM_Plan<Expansion,
-           Context,Executor>
-  make(const Expansion& K,
-       const std::vector<source_type>& s,
-       const std::vector<target_type>& t,
-       const RunOptions& opts) {
-    // Construct the Tree, Context, Evaluators, etc from the Runtime options
-
-    // Pass the runtime options on to the plan_type
-  }
-
-  template <class RunOptions>
-  SOMETHING make(const Expansion& K,
-                 const std::vector<typename Expansion::source_type>& s,
-                 const RunOptions& opts) {
-    // Construct the Tree, Context, Evaluators, etc from the Runtime options
-
-    // Pass the runtime options on to the plan_type
-  }
-};
-*/
+} // end namespace fmmtl

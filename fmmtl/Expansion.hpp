@@ -67,9 +67,9 @@ struct Expansion
 
     operator kernel_matrix<expansion_type>() {
       if (&s_ == &t_)
-        return make_kernel_matrix(E_, s_, t_);
+        return kernel_matrix<expansion_type>(E_, s_);
       else
-        return make_kernel_matrix(E_, s_);
+        return kernel_matrix<expansion_type>(E_, t_, s_);
     }
   };
 

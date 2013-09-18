@@ -24,7 +24,7 @@ class Direct {
                             SourceIter s_first, SourceIter s_last,
                             ChargeIter c_first,
                             TargetIter t_first, TargetIter t_last,
-                              ResultIter r_first)
+                            ResultIter r_first)
   {
     P2P::block_eval(K.kernel(),
                     s_first, s_last, c_first,

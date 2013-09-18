@@ -165,7 +165,7 @@ void P2P_Compressed<Kernel>::execute(
   FMMTL_CUDA_CHECK;
 
   // Copy results back
-  //thrust::copy(d_results.begin(), d_results.end(), results.begin());
+  thrust::copy(d_results.begin(), d_results.end(), results.begin());
 
   // XXX:
   // Accumulate back
@@ -225,6 +225,7 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
       thrust::raw_pointer_cast(d_charges.data()),
       thrust::raw_pointer_cast(d_targets.data()),
       thrust::raw_pointer_cast(d_results.data()));
+  FMMTL_CUDA_CHECK;
 
   // Copy results back and add
   thrust::host_vector<result_type> h_results = d_results;
@@ -232,4 +233,3 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
   for (unsigned k = 0; k < h_results.size(); ++k)
     r[k] += h_results[k];
 }
-

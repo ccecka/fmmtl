@@ -9,7 +9,7 @@
 
 #include "config.hpp"
 
-#define for_i for(unsigned i=0; i!=N; ++i)
+#define for_i for(unsigned i = 0; i != N; ++i)
 
 /** @class Vec
  * @brief Class representing ND points and vectors.
@@ -61,12 +61,6 @@ class Vec {
 
   // MODIFIERS
 
-  /** Return a negated version of @a p. */
-  FMMTL_INLINE Vec operator-() const {
-    Vec<N,T> m = *this;
-    for_i m[i] = -m[i];
-    return m;
-  }
   /** Add scalar @a b to this Vec */
   template <typename D>
   FMMTL_INLINE Vec& operator+=(const D& b) {
@@ -216,9 +210,15 @@ FMMTL_INLINE typename Vec<N,P>::value_type norm_inf(const Vec<N,P>& a) {
   return a_max;
 }
 
-// ARITHMETIC
+// ARITHMETIC OPERATORS
 
-/** Unary plus: Return @a p. ("+p" should work if "-p" works.) */
+/** Unary negation: Return -@a a */
+template <unsigned N, typename P>
+FMMTL_INLINE Vec<N,P> operator-(Vec<N,P> a) {
+  for_i a[i] = -a[i];
+  return a;
+}
+/** Unary plus: Return @a a. ("+a" should work if "-a" works.) */
 template <unsigned N, typename P>
 FMMTL_INLINE Vec<N,P> operator+(const Vec<N,P>& a) {
   return a;
@@ -268,7 +268,8 @@ FMMTL_INLINE Vec<N,P> operator/(Vec<N,P> a, const D& b) {
   return a /= b;
 }
 
-// ADDITIONAL OPERATORS (Helps with Vec<N,Vec<M,T>> norms, etc)
+// ELEMENTWISE OPERATORS
+
 template <unsigned N, typename P>
 FMMTL_INLINE Vec<N,P> abs(Vec<N,P> a) {
   using std::abs;
@@ -283,3 +284,15 @@ FMMTL_INLINE Vec<N,P> sqrt(Vec<N,P> a) {
 }
 
 #undef for_i
+
+
+#include "fmmtl/meta/dimension.hpp"
+
+namespace fmmtl {
+
+template <unsigned N, typename P>
+struct dimension<Vec<N,P> > {
+  const static unsigned value = N;
+};
+
+} // end namespace fmmtl

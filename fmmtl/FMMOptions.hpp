@@ -43,7 +43,7 @@ class FMMOptions {
 	};
 
   // TODO: Generalize type/construction
-	DefaultMAC MAC() {
+	DefaultMAC MAC() const {
 		return DefaultMAC(theta);
 	}
 };

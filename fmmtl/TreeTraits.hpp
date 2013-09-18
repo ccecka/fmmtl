@@ -12,9 +12,9 @@ struct TreeTraits {
 template <typename SourceTree,
           typename TargetTree = SourceTree>
 struct TreePairTraits {
-  typedef TreeTraits<SourceTree> source_traits;
+  typedef TreeTraits<SourceTree>                source_traits;
   //! Source tree type
-  typedef typename source_traits::tree_type        source_tree_type;
+  typedef typename source_traits::tree_type     source_tree_type;
   //! Source tree box type
   typedef typename source_traits::box_type      source_box_type;
   //! Source tree box iterator
@@ -24,9 +24,9 @@ struct TreePairTraits {
   //! Source tree body iterator
   typedef typename source_traits::body_iterator source_body_iterator;
 
-  typedef TreeTraits<TargetTree> target_traits;
+  typedef TreeTraits<TargetTree>                target_traits;
   //! Target tree type
-  typedef typename target_traits::tree_type        target_tree_type;
+  typedef typename target_traits::tree_type     target_tree_type;
   //! Target tree box type
   typedef typename target_traits::box_type      target_box_type;
   //! Target tree box iterator
@@ -39,8 +39,6 @@ struct TreePairTraits {
 
 
 #define FMMTL_IMPORT_TREEPAIR_TRAITS(T1, T2)                            \
-  typedef typename TreePairTraits<T1,T2>::source_tree_type     source_tree_type; \
-  typedef typename TreePairTraits<T1,T2>::target_tree_type     target_tree_type; \
   typedef typename TreePairTraits<T1,T2>::source_box_type      source_box_type; \
   typedef typename TreePairTraits<T1,T2>::source_box_iterator  source_box_iterator; \
   typedef typename TreePairTraits<T1,T2>::source_body_type     source_body_type; \

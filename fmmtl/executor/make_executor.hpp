@@ -4,7 +4,7 @@
 
 template <typename Context, typename Options>
 EvaluatorBase<Context>* make_evaluator(Context& c, Options& opts) {
-  // Determine thetype of Evaluator
+  // Determine the type of Evaluator
   // Statically from the type of Options
   // Dynamically from the Options input
 
