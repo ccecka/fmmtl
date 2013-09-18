@@ -81,18 +81,25 @@ struct Plan
 template <class KernelMatrix, class Options>
 PlanBase<typename KernelMatrix::expansion_type>*
 make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
+  // Statically compute the plan type, potentially from Option types
+
   typedef typename KernelMatrix::expansion_type expansion_type;
-  typedef typename KernelMatrix::source_type    source_type;
-  typedef typename KernelMatrix::target_type    target_type;
 
-  // Statically compute the context type, potentially from Option types
-  typedef NDTree<fmmtl::dimension<source_type>::value> source_tree_type;
-  typedef NDTree<fmmtl::dimension<target_type>::value> target_tree_type;
+  // The source and target tree types
+  typedef typename expansion_type::point_type point_type;
+  typedef NDTree<fmmtl::dimension<point_type>::value> source_tree_type;
+  typedef NDTree<fmmtl::dimension<point_type>::value> target_tree_type;
 
+  typedef typename expansion_type::source_type source_type;
+  typedef typename expansion_type::target_type target_type;
+
+  // Check if source and target sets are the same
   if (std::is_same<source_type, target_type>::value) {
     if (mat.sources() == mat.targets()) {    // TODO: fix O(N) with aliased test
-      std::cerr << "Using single tree context" << std::endl;
-      typedef SingleTreeContext<source_type, source_tree_type> tree_context_type;
+#if defined(FMMTL_DEBUG)
+      std::cout << "Using single tree context." << std::endl;
+#endif
+      typedef SingleTreeContext<source_tree_type> tree_context_type;
       typedef DataContext<KernelMatrix, tree_context_type> context_type;
 
       typedef Plan<expansion_type, context_type> plan_type;
@@ -100,8 +107,11 @@ make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
     }
   }
 
-  std::cerr << "Using dual tree context" << std::endl;
-  typedef DualTreeContext<source_type, target_type, source_tree_type, target_tree_type> tree_context_type;
+  // Source and target sets are unique
+#if defined(FMMTL_DEBUG)
+      std::cout << "Using dual tree context." << std::endl;
+#endif
+  typedef DualTreeContext<source_tree_type, target_tree_type> tree_context_type;
   typedef DataContext<KernelMatrix, tree_context_type> context_type;
 
   typedef Plan<expansion_type, context_type> plan_type;

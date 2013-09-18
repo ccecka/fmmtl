@@ -46,8 +46,8 @@ INCLUDES += -I$(BOOST_DIR)
 # Define any compile flags
 CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra
 
-# Define nvcc compile flags
-NVCCFLAGS := -arch=sm_30 -w --compiler-options "$(CXXFLAGS)"
+# Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
+NVCCFLAGS := -arch=sm_20 -w --compiler-options "$(CXXFLAGS)"
 
 # Define any directories containing libraries
 #   To include directories use -Lpath/to/files

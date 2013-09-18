@@ -15,13 +15,10 @@
 #include "fmmtl/meta/dimension.hpp"
 
 // General TreeContext declarations
-template <typename SourceType,
-          typename TreeType>
+template <typename TreeType>
 class SingleTreeContext;
 
-template <typename SourceType,
-          typename TargetType,
-          typename SourceTreeType,
+template <typename SourceTreeType,
           typename TargetTreeType>
 class DualTreeContext;
 
@@ -29,15 +26,11 @@ class DualTreeContext;
 /** @struct SingleTreeContext
  * Single tree context specialized for an NDTree
  */
-template <typename SourceType>
-class SingleTreeContext<SourceType,
-                        NDTree<fmmtl::dimension<SourceType>::value> > {
+template <unsigned DIM>
+class SingleTreeContext<NDTree<DIM> > {
  public:
-  typedef SourceType source_type;
-  typedef SourceType target_type;
-
-  typedef NDTree<fmmtl::dimension<SourceType>::value> source_tree_type;
-  typedef NDTree<fmmtl::dimension<SourceType>::value> target_tree_type;
+  typedef NDTree<DIM> source_tree_type;
+  typedef NDTree<DIM> target_tree_type;
   FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:
@@ -87,19 +80,14 @@ class SingleTreeContext<SourceType,
 
 
 /** @struct DualTreeContext
- * Dual tree context specialized for NDTree trees
+ * Dual tree context specialized for two NDTree trees
  */
-template <typename SourceType, typename TargetType>
-class DualTreeContext<SourceType,
-                      TargetType,
-                      NDTree<fmmtl::dimension<SourceType>::value>,
-                      NDTree<fmmtl::dimension<TargetType>::value> > {
+template <unsigned SOURCEDIM, unsigned TARGETDIM>
+class DualTreeContext<NDTree<SOURCEDIM>,
+                      NDTree<TARGETDIM> > {
  public:
-  typedef SourceType source_type;
-  typedef TargetType target_type;
-
-  typedef NDTree<fmmtl::dimension<SourceType>::value> source_tree_type;
-  typedef NDTree<fmmtl::dimension<TargetType>::value> target_tree_type;
+  typedef NDTree<SOURCEDIM> source_tree_type;
+  typedef NDTree<TARGETDIM> target_tree_type;
   FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:

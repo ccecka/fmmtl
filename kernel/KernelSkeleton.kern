@@ -46,13 +46,15 @@ struct KernelSkeleton
   //! Source type
   typedef Vec<3,double> source_type;
   //! Charge type associated with each source
-  //! The primitive type of the vector in the  matvec
+  //! The primitive type of the vector in the matvec
+  // TODO: Accept anything algebraically compatable with kernel_value_type?
   typedef double charge_type;
 
   //! Target type
   typedef Vec<3,double> target_type;
   //! Result type associated with each target
   //! The product of the kernel_value_type and the charge_type
+  // TODO: Infer from std::result_of<charge_type * kernel_value_type>::type?
   typedef double result_type;
 
   /** Kernel evaluation
@@ -176,21 +178,20 @@ FMMTL_KERNEL_EXTRAS(KernelSkeleton);
 struct ExpansionSkeleton
     : public fmmtl::Expansion<KernelSkeleton, ExpansionSkeleton>
 {
-  //! The dimension of the spacial interpretation of the source/target_type.
-  static const unsigned dimension = 3;
-  //! Point type to use for the tree -- Restricted to include/Vec.hpp.
-  //! source_type and target_type must be convertible to point_type:
-  //!    static_cast<point_type>(source_type)
-  //!    static_cast<point_type>(target_type)
-  //! TODO: Generalize? Use any type with op[]/size() or begin()/end()?
-  typedef Vec<dimension,double> point_type;
+  /** @brief Spacial type to build the tree. Restricted to fmmtl/Vec.hpp for now.
+   * @note source_type and target_type must be convertible to point_type:
+   *    static_cast<point_type>(source_type)
+   *    static_cast<point_type>(target_type)
+   * @note Also defines the spacial dimension of the problem: [1-4] available.
+   * TODO: Generalize? Use any type with op[]/size() or begin()/end()? */
+  typedef Vec<3,double> point_type;
 
   //! Multipole expansion type
   typedef std::vector<double> multipole_type;
   //! Local expansion type
   typedef std::vector<double> local_type;
 
-  // Constructor
+  //! Constructor
   ExpansionSkeleton() : Expansion() {}
 
   /** Initialize a multipole expansion to zero
