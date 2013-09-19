@@ -1,4 +1,5 @@
 EXEC += scaling
+EXEC += error
 
 include ../Makefile.inc
 
@@ -7,3 +8,4 @@ include ../Makefile.inc
 
 # List the Kernel dependency (.kern) for each executable
 scaling:  $(KERNEL_DIR)/Laplace.o
+error:    $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/Yukawa.o

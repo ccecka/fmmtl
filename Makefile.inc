@@ -21,7 +21,7 @@ THRUST_DIR = /usr/local/cuda-5.5/include
 UNAME := $(shell uname)
 
 # Define the C++ compiler to use
-CXX := g++ -std=gnu++0x
+CXX := g++ -std=gnu++0x -fPIC
 # Check the version number of CXX
 CXX_VERSION_LT_47 := $(shell expr `$(CXX) -dumpversion | cut -f1,2 -d.` \< 4.7)
 ifeq ($(CXX_VERSION_LT_47),1)
@@ -47,7 +47,7 @@ INCLUDES += -I$(BOOST_DIR)
 CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra
 
 # Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
-NVCCFLAGS := -arch=sm_20 -w --compiler-options "$(CXXFLAGS)"
+NVCCFLAGS := --compiler-options "$(CXXFLAGS)" -w -arch=sm_20
 
 # Define any directories containing libraries
 #   To include directories use -Lpath/to/files

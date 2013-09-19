@@ -29,7 +29,11 @@ int main() {
       charges[k] = drand();
 
     // Initialize matrix
-    kernel_matrix<expansion_type> A = make_kernel_matrix(K, points, opts);
+    fmmtl::kernel_matrix<expansion_type> A = K(points, points);
+    A.set_options(opts);
+
+    // Warm up
+    std::vector<result_type> r = A * charges;
 
     // Compute the product
     Ticker tick;
