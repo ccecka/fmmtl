@@ -125,14 +125,14 @@ class kernel_matrix {
   inline const target_array& permuted_sources() const { return plan->sources(); }
 
   /** @brief Returns the matrix element K(i,j) */
-  inline const_reference operator()(size_type i, size_type j) const {
+  inline value_type operator()(size_type i, size_type j) const {
     FMMTL_ASSERT(i < rows());
     FMMTL_ASSERT(j < cols());
     return expansion()(target(i), source(j));
   }
   /** @brief Syntactic sugar for matrix-vector multiplication
    * TODO: Replace with expression template library */
-  inline std::vector<result_type> operator*(const std::vector<charge_type>& c) {
+  inline std::vector<result_type> operator*(const std::vector<charge_type>& c) const {
     std::vector<result_type> result(rows());
     this->prod_impl(c, result);
     return result;
