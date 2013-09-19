@@ -1,7 +1,7 @@
 #include <thrust/device_ptr.h>
 #include <thrust/device_malloc.h>
 #include <thrust/device_vector.h>
-#include <thrust/uninitialized_copy.h>
+#include <thrust/copy.h>
 
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -21,7 +21,8 @@ inline typename Container::value_type* gpu_copy(const Container& c) {
   // Allocate
   thrust::device_ptr<c_value> dptr = thrust::device_malloc<c_value>(c.size());
   // Copy
-  thrust::uninitialized_copy(c.begin(), c.end(), dptr);
+  //thrust::uninitialized_copy(c.begin(), c.end(), dptr);
+  thrust::copy(c.begin(), c.end(), dptr);
   // Return
   return thrust::raw_pointer_cast(dptr);
 }
