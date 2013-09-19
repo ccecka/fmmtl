@@ -31,7 +31,6 @@ class Vec {
   // CONSTRUCTORS
 
   FMMTL_INLINE Vec() : a() {
-    //for_i a[i] = value_type();
   }
   FMMTL_INLINE explicit Vec(value_type b) {
     for_i a[i] = b;
@@ -140,7 +139,6 @@ class Vec {
     return a + N;
   }
 };
-
 
 // OPERATORS
 

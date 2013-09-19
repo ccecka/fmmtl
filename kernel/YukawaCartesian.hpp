@@ -85,7 +85,7 @@ class YukawaCartesian
   //! Local expansion type
   typedef std::vector<real> local_type;
 
-  //! default constructor - use delegating constructor
+  //! Default constructor - use delegating constructor
   YukawaCartesian()
       : YukawaCartesian(4,0.125) {
   }

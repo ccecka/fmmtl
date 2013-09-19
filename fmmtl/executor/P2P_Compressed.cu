@@ -1,3 +1,4 @@
+#include <thrust/device_ptr.h>
 #include <thrust/device_malloc.h>
 #include <thrust/device_vector.h>
 #include <thrust/uninitialized_copy.h>
@@ -141,16 +142,18 @@ void P2P_Compressed<Kernel>::execute(
   typedef typename kernel_type::charge_type charge_type;
   typedef typename kernel_type::result_type result_type;
 
-  thrust::device_vector<charge_type> d_charges(charges);
-  thrust::device_vector<result_type> d_results(results);
-  // XXX: This causes a "floating point exception"?
-  //thrust::device_vector<result_type> d_results(results.size());
+  // XXX: Using a device_vector here was giving "floating point exceptions"...
+  // XXX: device_vector doesn't like the Vec?
+  charge_type* d_charges = gpu_copy(charges);
+  result_type* d_results = gpu_copy(results);
 
   Data* data = reinterpret_cast<Data*>(data_);
   const unsigned num_tpb    = data->num_threads_per_block;
   const unsigned num_blocks = data->num_blocks;
 
-  std::cerr << "Launching GPU Kernel" << std::endl;
+#if defined(FMMTL_DEBUG)
+  std::cout << "Launching GPU Kernel" << std::endl;
+#endif
 
   // Launch kernel <<<grid_size, block_size>>>
   blocked_p2p<<<num_blocks,num_tpb>>>(
@@ -159,19 +162,19 @@ void P2P_Compressed<Kernel>::execute(
       source_range_ptrs_,
       source_ranges_,
       sources_,
-      thrust::raw_pointer_cast(d_charges.data()),
+      //thrust::raw_pointer_cast(d_charges.data()),
+      d_charges,
       targets_,
-      thrust::raw_pointer_cast(d_results.data()));
+      d_results);
+      //thrust::raw_pointer_cast(d_results.data()));
   FMMTL_CUDA_CHECK;
 
   // Copy results back
-  thrust::copy(d_results.begin(), d_results.end(), results.begin());
+  thrust::device_ptr<result_type> d_results_ptr = thrust::device_pointer_cast(d_results);
+  thrust::copy(d_results_ptr, d_results_ptr + results.size(), results.begin());
 
-  // XXX:
-  // Accumulate back
-  //thrust::host_vector<result_type> h_results = d_results;
-  //for (unsigned k = 0; k < h_results.size(); ++k)
-  //  results[k] += h_results[k];
+  gpu_free(d_results);
+  gpu_free(d_charges);
 }
 
 
@@ -192,7 +195,7 @@ class block_range
   }
 };
 
-
+// XXX: Untested!!
 template <typename Kernel>
 void
 P2P_Compressed<Kernel>::execute(const Kernel& K,
@@ -227,9 +230,7 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
       thrust::raw_pointer_cast(d_results.data()));
   FMMTL_CUDA_CHECK;
 
-  // Copy results back and add
+  // Copy results back and assign
   thrust::host_vector<result_type> h_results = d_results;
-
-  for (unsigned k = 0; k < h_results.size(); ++k)
-    r[k] += h_results[k];
+  thrust::copy(h_results.begin(), h_results.end(), r.begin());
 }

@@ -58,7 +58,7 @@
 #include <cstdlib>
 #include <cstdio>
 inline void cuda_check(char* file, int line) {
-  cudaError_t code = cudaThreadSynchronize();
+  cudaError_t code = cudaDeviceSynchronize();
   if (code != cudaSuccess) {
     fprintf(stderr,"CUDA assert: %s %s %d\n",cudaGetErrorString(code),file,line);
     exit(code);

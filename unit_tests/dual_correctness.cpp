@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 
     int wrong_results = 0;
     for (unsigned k = 0; k < result.size(); ++k) {
-      if ((exact[k] - result[k]) / exact[k] > 1e-10) {
+      if ((exact[k] - result[k]) / exact[k] > 1e-13) {
         std::cout << "[" << std::setw(log10(M)+1) << k << "]"
                   << " Exact: " << exact[k]
                   << ", FMM: " << result[k] << std::endl;

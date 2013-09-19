@@ -78,8 +78,11 @@ class LaplaceSpherical
   //! Local expansion type
   typedef std::vector<complex> local_type;
 
+  //! Default constructor -- use delegating constructor
+  LaplaceSpherical() : LaplaceSpherical(5) {}
+
   //! Constructor
-  LaplaceSpherical(int _P = 5)
+  LaplaceSpherical(int _P)
       : P(_P), prefactor(4*P*P), Anm(4*P*P), Cnm(P*P*P*P) {
     for (int n = 0; n != 2*P; ++n) {           // Loop over n in Anm
       for (int m = -n; m <= n; ++m) {          //  Loop over m in Anm
