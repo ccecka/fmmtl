@@ -36,15 +36,15 @@ class Vec {
     for_i a[i] = b;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1) {
-    FMMTL_ASSERT(N == 2);
+    FMMTL_STATIC_ASSERT(N == 2);
     a[0] = b0; a[1] = b1;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2) {
-    FMMTL_ASSERT(N == 3);
+    FMMTL_STATIC_ASSERT(N == 3);
     a[0] = b0; a[1] = b1; a[2] = b2;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2, value_type b3) {
-    FMMTL_ASSERT(N == 4);
+    FMMTL_STATIC_ASSERT(N == 4);
     a[0] = b0; a[1] = b1; a[2] = b2; a[3] = b3;
   }
 
