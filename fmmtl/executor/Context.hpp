@@ -153,16 +153,12 @@ class DataContext
   //! The kernel matrix this context is built for
   const kernel_matrix_type& mat_;
 
-  //! Multipole expansions corresponding to Box indices in Tree
-  typedef std::vector<multipole_type> multipole_container;
-  multipole_container M_;
-  //! Local expansions corresponding to Box indices in Tree
-  typedef std::vector<local_type> local_container;
-  local_container L_;
-
-  //!
+  //! Source and target iterator types in the kernel_matrix
   typedef typename kernel_matrix_type::source_array::const_iterator source_container_iterator;
   typedef typename kernel_matrix_type::target_array::const_iterator target_container_iterator;
+
+  //! The "multipole acceptance criteria" to decide which boxes to interact
+  std::function<bool(const source_box_type&, const target_box_type&)> mac_;
 
   //! Iterator to the start of the charge vector
   typedef std::vector<charge_type> charge_container;
@@ -173,11 +169,19 @@ class DataContext
   typedef typename result_container::iterator result_container_iterator;
   result_container_iterator r_;
 
+  //! Multipole expansions corresponding to Box indices in Tree
+  typedef std::vector<multipole_type> multipole_container;
+  multipole_container M_;
+  //! Local expansions corresponding to Box indices in Tree
+  typedef std::vector<local_type> local_container;
+  local_container L_;
+
  public:
   template <class Options>
   DataContext(const kernel_matrix_type& mat, Options& opts)
       : TreeContext(mat, opts),
         mat_(mat),
+        mac_(opts.MAC()),
         // TODO: only allocate if used...
         M_(this->source_tree().boxes()),
         L_(this->target_tree().boxes()) {
@@ -213,6 +217,12 @@ class DataContext
   }
   inline const local_type& local(const target_box_type& box) const {
     return L_[box.index()];
+  }
+
+  // Accept or reject the interaction of this source-target box pair
+  inline bool mac(const source_box_type& sbox,
+                  const target_box_type& tbox) const {
+    return mac_(sbox, tbox);
   }
 
   // Define the body data iterators

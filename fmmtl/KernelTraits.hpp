@@ -154,6 +154,12 @@ struct ExpansionTraits
       HasM2L<void,
              const multipole_type&, local_type&, const point_type&>::value;
 
+  // MAC
+  SFINAE_TEMPLATE(HasDynMAC,expansion_type,MAC);
+  static constexpr bool has_dynamic_MAC =
+      HasDynMAC<bool,
+                const multipole_type&, const local_type&>::value;
+
   // L2L
   SFINAE_TEMPLATE(HasL2L,expansion_type,L2L);
   static constexpr bool has_L2L =
@@ -204,7 +210,8 @@ struct ExpansionTraits
     s << "  has_vector_M2P: "   << traits.has_vector_M2P     << std::endl;
     s << "has_L2P: "            << traits.has_M2P            << std::endl;
     s << "  has_scalar_L2P: "   << traits.has_scalar_L2P     << std::endl;
-    s << "  has_vector_L2P: "   << traits.has_vector_L2P;
+    s << "  has_vector_L2P: "   << traits.has_vector_L2P     << std::endl;
+    s << "has_dynamic_MAC: "    << traits.has_dynamic_MAC;
     return s;
   }
 };
