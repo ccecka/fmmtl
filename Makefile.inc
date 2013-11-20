@@ -2,16 +2,16 @@
 ## Library Directories ##
 ########################
 
-# This FMM library
-FMMTL_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
-KERNEL_DIR = $(FMMTL_DIR)kernel
-
 # External libraries
 BOOST_DIR = /usr/include
 
 # Optional libraries
-# Only needed if nvcc exists and using CUDA
-THRUST_DIR = /usr/local/cuda-5.5/include
+# Only needed if using CUDA
+CUDA_DIR = /usr/local/cuda-5.5
+
+# This FMM library
+FMMTL_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+KERNEL_DIR = $(FMMTL_DIR)kernel
 
 ####################
 ## Makefile Setup ##
@@ -21,7 +21,7 @@ THRUST_DIR = /usr/local/cuda-5.5/include
 UNAME := $(shell uname)
 
 # Define the C++ compiler to use
-CXX := g++ -std=gnu++0x -fPIC
+CXX := $(shell which g++) -std=gnu++0x -fPIC
 # Check the version number of CXX
 CXX_VERSION_LT_47 := $(shell expr `$(CXX) -dumpversion | cut -f1,2 -d.` \< 4.7)
 ifeq ($(CXX_VERSION_LT_47),1)
@@ -80,8 +80,8 @@ endif
 ifeq ($(NVCC),)    # NVCC is not available
 CXXFLAGS += -DFMMTL_NO_CUDA
 else               # NVCC is available
-INCLUDES += -I$(THRUST_DIR)
-LDFLAGS += -L/usr/local/cuda-5.0/lib64
+INCLUDES += -I$(CUDA_DIR)/include
+LDFLAGS += -L$(CUDA_DIR)/lib64
 LDLIBS  += -lcudart
 endif
 
