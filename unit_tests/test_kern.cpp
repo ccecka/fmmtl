@@ -17,14 +17,9 @@ void test_kernel(const Kernel& K) {
   typedef typename Kernel::target_type target_type;
   typedef typename Kernel::result_type result_type;
 
-  std::vector<source_type> sources(1);
-  std::vector<charge_type> charges(1);
-  std::vector<target_type> targets(1);
-  std::vector<result_type> results(1);
+  result_type r = K(target_type(), source_type()) * charge_type();
 
-  Direct::matvec(K, sources, charges, targets, results);
-
-  std::cout << results[0] << std::endl;
+  std::cout << r << std::endl;
   std::cout << KernelTraits<Kernel>() << std::endl;
   std::cout << typeid(Kernel).name() << " OK." << std::endl;
 }
