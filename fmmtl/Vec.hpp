@@ -281,10 +281,10 @@ FMMTL_INLINE Vec<N,P> sqrt(Vec<N,P> a) {
   return a;
 }
 
-#undef for_i
-
+// META OPERATIONS
 
 #include "fmmtl/meta/dimension.hpp"
+#include "fmmtl/meta/random.hpp"
 
 namespace fmmtl {
 
@@ -293,4 +293,19 @@ struct dimension<Vec<N,P> > {
   const static unsigned value = N;
 };
 
-} // end namespace fmmtl
+template <unsigned N, typename P>
+struct random<Vec<N,P> > {
+  static Vec<N,P> get(P a, P b) {
+    Vec<N,P> v;
+    for_i v[i] = fmmtl::random<P>::get(a, b);
+    return v;
+  }
+  static Vec<N,P> get() {
+    return get(P(0), P(1));
+  }
+};
+
+}  // end namespace fmmtl
+
+
+#undef for_i

@@ -14,17 +14,6 @@
 
 #include "Math.hpp"
 
-// Random number in [0,1)
-inline double drand() {
-  return ::drand48();
-}
-
-// Random number in [A,B)
-inline double drand(double A, double B) {
-  return (B-A) * drand() + A;
-}
-
-
 int main(int argc, char **argv)
 {
   int N = 10000;
@@ -58,11 +47,11 @@ int main(int argc, char **argv)
   // Init points and charges
   std::vector<source_type> points(N);
   for (unsigned k = 0; k < points.size(); ++k)
-    points[k] = source_type(drand(-1,1), drand(-1,1), drand(-1,1));
+    points[k] = fmmtl::random<source_type>::get();
 
   std::vector<charge_type> charges(N);
   for (unsigned k = 0; k < charges.size(); ++k)
-    charges[k] = drand(-1,1);
+    charges[k] = fmmtl::random<charge_type>::get();
 
   // Build the FMM
   fmmtl::kernel_matrix<kernel_type> A = K(points, points);
