@@ -47,7 +47,7 @@ class LaplaceSpherical
     return complex(0,0);
   }
   //! Factorial helper function
-  long double factorial(unsigned n) {
+  long double factorial(unsigned n) const {
     return std::tgamma(n+1);
   }
 

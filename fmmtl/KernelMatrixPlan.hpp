@@ -57,7 +57,9 @@ struct Plan
 
   virtual void execute(const std::vector<charge_type>& charges,
                        std::vector<result_type>& results) {
-    return context.execute(charges, results, executor);
+    fmmtl_logger.clear();
+    context.execute(charges, results, executor);
+    FMMTL_PRINT_LOG(std::cout);
   }
 
   virtual std::vector<target_type> targets() const {
@@ -109,7 +111,7 @@ make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
 
   // Source and target sets are unique
 #if defined(FMMTL_DEBUG)
-      std::cout << "Using dual tree context." << std::endl;
+  std::cout << "Using dual tree context." << std::endl;
 #endif
   typedef DualTreeContext<source_tree_type, target_tree_type> tree_context_type;
   typedef DataContext<KernelMatrix, tree_context_type> context_type;

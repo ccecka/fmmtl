@@ -71,14 +71,15 @@ class M2L_Batch {
   //std::vector<box_pair> m2l_list;
 
  public:
-  M2L_Batch(const Context& c)
-      : source_boxes(c.target_tree().boxes()) {
-  }
 
   /** Insert a source-target box interaction to the interaction list */
   void insert(const source_box_type& s, const target_box_type& t) {
-    if (source_boxes[t.index()].empty())
+    if (source_boxes.size() <= t.index()) {
+      source_boxes.resize(t.index() + 1);
       target_box_list.push_back(t);
+    } else if (source_boxes[t.index()].empty()) {
+      target_box_list.push_back(t);
+    }
 
     source_boxes[t.index()].push_back(s);
 
@@ -87,6 +88,7 @@ class M2L_Batch {
 
   /** Compute all interations in the interaction list */
   void execute(Context& c) {
+    FMMTL_LOG("M2L Batch");
 #pragma omp parallel for
     for (auto ti = target_box_list.begin(); ti < target_box_list.end(); ++ti) {
       target_box_type& tb = *ti;

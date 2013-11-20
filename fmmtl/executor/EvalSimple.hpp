@@ -54,8 +54,7 @@ class EvalSimple
 
  public:
 
-  EvalSimple(Context& c)
-      : m2l_(c) {
+  EvalSimple(Context& c) {
     // Construct functors for dispatched near and far operators
     auto far_batcher = [&c,this](const source_box& s, const target_box& t) {
       if (MAC::eval(c,s,t)) {
