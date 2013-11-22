@@ -88,12 +88,11 @@ make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
   typedef typename KernelMatrix::expansion_type expansion_type;
 
   // The source and target tree types
-  typedef typename expansion_type::point_type point_type;
-  typedef NDTree<fmmtl::dimension<point_type>::value> source_tree_type;
-  typedef NDTree<fmmtl::dimension<point_type>::value> target_tree_type;
+  typedef NDTree<ExpansionTraits<expansion_type>::dimension> source_tree_type;
+  typedef NDTree<ExpansionTraits<expansion_type>::dimension> target_tree_type;
 
-  typedef typename expansion_type::source_type source_type;
-  typedef typename expansion_type::target_type target_type;
+  typedef typename ExpansionTraits<expansion_type>::source_type source_type;
+  typedef typename ExpansionTraits<expansion_type>::target_type target_type;
 
   // Check if source and target sets are the same
   if (std::is_same<source_type, target_type>::value) {

@@ -78,7 +78,7 @@ struct KernelTraits {
 };
 
 
-
+#include "fmmtl/meta/dimension.hpp"
 
 template <typename Expansion>
 struct ExpansionTraits
@@ -99,9 +99,8 @@ struct ExpansionTraits
   typedef typename super_type::target_iterator    target_iterator;
   typedef typename super_type::result_iterator    result_iterator;
 
-  static constexpr unsigned dimension = expansion_type::dimension;
   typedef typename expansion_type::point_type     point_type;
-  // TODO: Check point_type = Vec<dimension,double> or generalize
+  static constexpr unsigned dimension = fmmtl::dimension<point_type>::value;
 
   typedef typename expansion_type::multipole_type multipole_type;
   typedef typename expansion_type::local_type     local_type;
