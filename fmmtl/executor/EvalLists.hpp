@@ -10,7 +10,7 @@
 
 
 template <class Context>
-class EvalSimple
+class EvalLists
     : public EvaluatorBase<Context>
 {
   typedef typename Context::source_box_type source_box;
@@ -54,7 +54,7 @@ class EvalSimple
 
  public:
 
-  EvalSimple(Context& c) {
+  EvalLists(Context& c) {
     // Construct functors for dispatched near and far operators
     auto far_batcher = [&c,this](const source_box& s, const target_box& t) {
       if (MAC::eval(c,s,t)) {
@@ -96,6 +96,6 @@ class EvalSimple
 
 
 template <class Context, class Options>
-EvaluatorBase<Context>* make_eval_simple(Context& c, Options&) {
-  return new EvalSimple<Context>(c);
+EvaluatorBase<Context>* make_eval_lists(Context& c, Options&) {
+  return new EvalLists<Context>(c);
 }
