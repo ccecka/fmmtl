@@ -30,7 +30,7 @@ struct ExpPotential
   }
   FMMTL_INLINE
   kernel_value_type transpose(const kernel_value_type& kts) const {
-    return 1.0 / kts;
+    return kernel_value_type(1.0) / kts;
   }
 };
 FMMTL_KERNEL_EXTRAS(ExpPotential);

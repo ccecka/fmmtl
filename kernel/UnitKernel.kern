@@ -50,15 +50,6 @@ struct UnitExpansion
   //! Local expansion type
   typedef double local_type;
 
-  /** Initialize a multipole expansion with the size of a box at this level */
-  void init_multipole(multipole_type& M, const point_type&, unsigned) const {
-    M = 0;
-  }
-  /** Initialize a local expansion with the size of a box at this level */
-  void init_local(local_type& L, const point_type&, unsigned) const {
-    L = 0;
-  }
-
   /** Kernel P2M operation
    * M += Op(s) * c where M is the multipole and s is the source
    *

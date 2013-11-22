@@ -194,7 +194,7 @@ struct ExpansionSkeleton
   //! Constructor
   ExpansionSkeleton() : Expansion() {}
 
-  /** Initialize a multipole expansion to zero
+  /** Initialize a multipole expansion to algebraic zero
    * using the size and level number of the box containing it
    * (Optional: If not implemented, default constructor for multipole_type used)
    *
@@ -208,7 +208,7 @@ struct ExpansionSkeleton
     (void) extents;
     (void) level;
   }
-  /** Initialize a local expansion to zero
+  /** Initialize a local expansion to algebraic zero
    * using the size and level number of the box containing it
    * (Optional: If not implemented, default constructor for local_type used)
    *
@@ -377,6 +377,24 @@ struct ExpansionSkeleton
   /*******************************************************************/
   /************************* Optional ********************************/
   /*******************************************************************/
+
+  /** Optional Dynamic Multipole Acceptance Criteria
+   * Some MACs depend on the data other than box descriptors. Extra data regarding
+   * source or target distributions may be stored in multipole and local expansions
+   * and used by this function as an interaction criteria.
+   * WARNING: Implementing this function may prevent some optimizations.
+   *
+   * @param[in]  M  The multipole of the source box being considered
+   * @param[in]  L  The local expansion of the target box being considered
+   * @pre @a M includes the influence of all sources within its box
+   * @pre @a L has been initialized with init_local or with default initialization
+   */
+  bool MAC(const multipole_type& M,
+           const local_type& L) {
+    (void) M;
+    (void) L;
+    return true;
+  }
 
   /** Optional Kernel vectorized P2M operation
    * M = sum_j Op(s_j) * c_j where M is the multipole,
