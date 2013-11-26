@@ -520,7 +520,7 @@ class NDTree {
       }
 
       // Record the child end idx
-      box_data_[k].end_   = box_data_.size();
+      box_data_[k].end_ = box_data_.size();
     }
 
     level_offset_.push_back(box_data_.size());

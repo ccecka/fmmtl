@@ -36,16 +36,19 @@ struct Vec {
     for_i elem[i] = b;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1) {
-    FMMTL_STATIC_ASSERT(N == 2);
+    FMMTL_STATIC_ASSERT(N >= 2);
     elem[0] = b0; elem[1] = b1;
+    for(std::size_t i = 2; i != N; ++i) elem[i] = 0;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2) {
-    FMMTL_STATIC_ASSERT(N == 3);
+    FMMTL_STATIC_ASSERT(N >= 3);
     elem[0] = b0; elem[1] = b1; elem[2] = b2;
+    for(std::size_t i = 3; i != N; ++i) elem[i] = 0;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2, value_type b3) {
-    FMMTL_STATIC_ASSERT(N == 4);
+    FMMTL_STATIC_ASSERT(N >= 4);
     elem[0] = b0; elem[1] = b1; elem[2] = b2; elem[3] = b3;
+    for(std::size_t i = 4; i != N; ++i) elem[i] = 0;
   }
 
   // COMPARATORS
