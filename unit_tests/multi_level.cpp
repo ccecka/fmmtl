@@ -25,7 +25,7 @@ void two_level_test(const Expansion& K) {
 
   // init source
   std::vector<source_type> s(1);
-  s[0] = source_type(0,0,0);
+  s[0] = source_type(0, 0, 0);
 
   // init charge
   std::vector<charge_type> c(1);
@@ -33,17 +33,18 @@ void two_level_test(const Expansion& K) {
 
   // init target
   std::vector<target_type> t(1);
-  t[0] = target_type(0.98,0.98,0.98);
+  t[0] = target_type(0.98, 0.98, 0.98);
 
   // init results vectors for exact, FMM
   std::vector<result_type> rexact(1);
-  result_type rm2p;
-  result_type rfmm;
+  rexact[0] = result_type(0);
+  result_type rm2p = result_type(0);
+  result_type rfmm = result_type(0);
 
   // test direct
   Direct::matvec(K, s, c, t, rexact);
 
-  // setup intial multipole expansion
+  // setup initial multipole expansion
   multipole_type M;
   point_type M_center(0.05, 0.05, 0.05);
   point_type M_extent(0.1, 0.1, 0.1);

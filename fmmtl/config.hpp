@@ -1,5 +1,8 @@
 #pragma once
 
+// Whole suite of system configuration flags
+#include <boost/config.hpp>
+
 
 #if defined(FMMTL_NO_CUDA)    // Disable CUDA/Thrust acceleration
 
