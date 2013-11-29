@@ -1,7 +1,7 @@
 
 #include "fmmtl/Kernel.hpp"
 
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 /** Stokeslet Green's function:
  *

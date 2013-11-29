@@ -1,4 +1,4 @@
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 #include <iostream>
 

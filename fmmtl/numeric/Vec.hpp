@@ -7,7 +7,7 @@
 #include <iostream>
 #include <cmath>
 
-#include "config.hpp"
+#include "fmmtl/config.hpp"
 
 #define for_i for(std::size_t i = 0; i != N; ++i)
 
@@ -28,7 +28,8 @@ struct Vec {
 
   // CONSTRUCTORS
 
-  FMMTL_INLINE Vec() : elem() {
+  FMMTL_INLINE Vec() {
+    for_i elem[i] = value_type();
   }
   // TODO: Force 0-initialization to get POD and trivial semantics?
   //FMMTL_INLINE Vec() = default;
@@ -36,19 +37,19 @@ struct Vec {
     for_i elem[i] = b;
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1) {
-    FMMTL_STATIC_ASSERT(N >= 2);
+    FMMTL_STATIC_ASSERT(N >= 2, "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1;
-    for(std::size_t i = 2; i != N; ++i) elem[i] = 0;
+    for(std::size_t i = 2; i != N; ++i) elem[i] = value_type();
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2) {
-    FMMTL_STATIC_ASSERT(N >= 3);
+    FMMTL_STATIC_ASSERT(N >= 3,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2;
-    for(std::size_t i = 3; i != N; ++i) elem[i] = 0;
+    for(std::size_t i = 3; i != N; ++i) elem[i] = value_type();
   }
   FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2, value_type b3) {
-    FMMTL_STATIC_ASSERT(N >= 4);
+    FMMTL_STATIC_ASSERT(N >= 4,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2; elem[3] = b3;
-    for(std::size_t i = 4; i != N; ++i) elem[i] = 0;
+    for(std::size_t i = 4; i != N; ++i) elem[i] = value_type();
   }
 
   // COMPARATORS
@@ -107,12 +108,6 @@ struct Vec {
     for_i elem[i] /= b[i];
     return *this;
   }
-  /** Compute the dot product of this Vec with another Vec */
-  FMMTL_INLINE value_type dot(const Vec& b) const {
-    value_type d = value_type();
-    for_i d += elem[i]*b[i];
-    return d;
-  }
 
   // ACCESSORS
 
@@ -157,57 +152,12 @@ inline std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
   return s;
 }
 
-/** Compute the dot product of two Vecs */
-template <std::size_t N, typename P>
-FMMTL_INLINE typename Vec<N,P>::value_type dot(const Vec<N,P>& a,
-                                               const Vec<N,P>& b) {
-  return a.dot(b);
-}
-/** Compute the dot product of two Vecs */
-template <std::size_t N, typename P>
-FMMTL_INLINE typename Vec<N,P>::value_type inner_prod(const Vec<N,P>& a,
-                                                      const Vec<N,P>& b) {
-  return a.dot(b);
-}
 /** Compute cross product of two 3D Vecs */
 template <typename P>
 FMMTL_INLINE Vec<3,P> cross(const Vec<3,P>& a, const Vec<3,P>& b) {
   return Vec<3,P>(a[1]*b[2] - a[2]*b[1],
                   a[2]*b[0] - a[0]*b[2],
                   a[0]*b[1] - a[1]*b[0]);
-}
-/** Compute the squared L2 norm */
-template <std::size_t N, typename P>
-FMMTL_INLINE typename Vec<N,P>::value_type normSq(const Vec<N,P>& a) {
-  return a.dot(a);
-}
-/** Compute the L2 norm */
-template <std::size_t N, typename P>
-FMMTL_INLINE typename Vec<N,P>::value_type norm(const Vec<N,P>& a) {
-  using std::sqrt;
-  return sqrt(normSq(a));
-}
-/** Compute the L2 norm */
-template <std::size_t N, typename P>
-FMMTL_INLINE typename Vec<N,P>::value_type norm_2(const Vec<N,P>& a) {
-  return norm(a);
-}
-/** Compute the L1 norm */
-template <std::size_t N, typename P>
-FMMTL_INLINE typename Vec<N,P>::value_type norm_1(const Vec<N,P>& a) {
-  using std::abs;
-  typename Vec<N,P>::value_type r = typename Vec<N,P>::value_type();
-  for_i r += abs(a[i]);
-  return r;
-}
-/** Compute the L-infinity norm */
-template <std::size_t N, typename P>
-FMMTL_INLINE typename Vec<N,P>::value_type norm_inf(const Vec<N,P>& a) {
-  using std::abs;
-  using std::max;
-  typename Vec<N,P>::value_type a_max = typename Vec<N,P>::value_type();
-  for_i a_max = max(a_max, abs(a[i]));
-  return a_max;
 }
 
 // ARITHMETIC OPERATORS
@@ -309,5 +259,7 @@ struct random<Vec<N,P> > {
 
 }  // end namespace fmmtl
 
-
 #undef for_i
+
+
+#include "fmmtl/numeric/Norm.hpp"

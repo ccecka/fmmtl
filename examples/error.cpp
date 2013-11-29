@@ -12,8 +12,6 @@
 #include "LaplaceSpherical.hpp"
 #include "YukawaCartesian.hpp"
 
-#include "Math.hpp"
-
 int main(int argc, char **argv)
 {
   int N = 10000;

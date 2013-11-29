@@ -1,6 +1,6 @@
 #include <thrust/device_vector.h>
 
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 #include <iostream>
 

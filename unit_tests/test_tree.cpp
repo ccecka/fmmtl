@@ -1,5 +1,5 @@
 #include "fmmtl/tree/NDTree.hpp"
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 #include <iostream>
 #include <string>

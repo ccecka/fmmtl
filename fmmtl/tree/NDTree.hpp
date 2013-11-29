@@ -3,7 +3,7 @@
  * @brief General class representing a {1D,2D,3D,4D}-Tree.
  */
 
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 #include "BoundingBox.hpp"
 #include "MortonCoder.hpp"
 

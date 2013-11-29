@@ -14,7 +14,7 @@
 
 #include "fmmtl/Expansion.hpp"
 // Use a library-defined Vector class that supports multiple architectures
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 class LaplaceSpherical
     : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical> {

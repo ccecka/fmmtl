@@ -1,7 +1,7 @@
 #include "fmmtl/Kernel.hpp"
 
-#include "fmmtl/Vec.hpp"
-#include "fmmtl/Complex.hpp"
+#include "fmmtl/numeric/Vec.hpp"
+#include "fmmtl/numeric/Complex.hpp"
 
 struct HelmholtzPotential
     : public fmmtl::Kernel<HelmholtzPotential> {
@@ -16,9 +16,9 @@ struct HelmholtzPotential
   double kappa;
 
   FMMTL_INLINE
-  HelmholtzPotential(double _kappa)
-      : kappa(_kappa) {
-  }
+  HelmholtzPotential() : kappa(1) {}
+  FMMTL_INLINE
+  HelmholtzPotential(double _kappa) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  exp(ikR)/R  if R >= 1e-10
@@ -55,9 +55,9 @@ struct HelmholtzKernel
   double kappa;
 
   FMMTL_INLINE
-  HelmholtzKernel(double _kappa)
-      : kappa(_kappa) {
-  }
+  HelmholtzKernel() : kappa(1) {}
+  FMMTL_INLINE
+  HelmholtzKernel(double _kappa) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  {exp(ikR)/R, (s-t)(1-ikR)exp(ikR)/R^3}  if R >= 1e-10

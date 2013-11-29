@@ -13,7 +13,7 @@
 #include "Yukawa.kern"
 
 #include "fmmtl/Expansion.hpp"
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 class YukawaCartesian
     : public fmmtl::Expansion<YukawaKernel, YukawaCartesian> {

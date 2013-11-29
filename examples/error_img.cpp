@@ -3,6 +3,8 @@
  * of the kernel matrix-vector product and yielding statistics.
  */
 
+#include <limits>       // std::numeric_limits
+
 #include "fmmtl/KernelMatrix.hpp"
 #include "fmmtl/Direct.hpp"
 
@@ -11,9 +13,6 @@
 
 #include "LaplaceSpherical.hpp"
 #include "YukawaCartesian.hpp"
-
-#include "Math.hpp"
-#include <limits>       // std::numeric_limits
 
 #define png_infopp_NULL (png_infopp)NULL
 #define int_p_NULL (int*)NULL

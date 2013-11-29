@@ -3,11 +3,6 @@
 
 #include "fmmtl/Logger.hpp"
 
-// Random number in [0,1)
-inline double drand() {
-  return ::drand48();
-}
-
 int main() {
   typedef LaplaceSpherical expansion_type;
   expansion_type K(5);

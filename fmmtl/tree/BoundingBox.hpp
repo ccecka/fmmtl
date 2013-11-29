@@ -2,7 +2,7 @@
 /** @file BoundingBox.hpp
  * @brief Define the BoundingBox class for ND bounding boxes. */
 
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 #include <iostream>
 #include <algorithm>

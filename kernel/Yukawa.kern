@@ -1,6 +1,6 @@
 #include "fmmtl/Kernel.hpp"
 
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 struct YukawaPotential
     : public fmmtl::Kernel<YukawaPotential> {

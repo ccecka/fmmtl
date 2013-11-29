@@ -4,7 +4,7 @@
  *   codes.
  */
 
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 #include "BoundingBox.hpp"
 
 /** @class MortonCoder
