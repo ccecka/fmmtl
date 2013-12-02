@@ -75,9 +75,7 @@ class YukawaCartesian
   IndexCache index_cache;
 
  public:
-  //! The dimension of the spacial interpretation of the source/target_type.
-  static const unsigned dimension = 3;
-  //! Point type
+  //! Point type to use for the trees
   typedef Vec<3,real> point_type;
 
   //! Multipole expansion type

@@ -178,7 +178,8 @@ FMMTL_KERNEL_EXTRAS(KernelSkeleton);
 struct ExpansionSkeleton
     : public fmmtl::Expansion<KernelSkeleton, ExpansionSkeleton>
 {
-  /** @brief Spacial type to build the tree. Restricted to fmmtl/numeric/Vec.hpp for now.
+  /** @brief Spacial type to build the tree.
+   * Restricted to fmmtl/numeric/Vec.hpp for now.
    * @note source_type and target_type must be convertible to point_type:
    *    static_cast<point_type>(source_type)
    *    static_cast<point_type>(target_type)

@@ -32,9 +32,9 @@ class kernel_matrix {
   typedef typename expansion_type::kernel_type        kernel_type;
 
   typedef typename expansion_type::source_type        source_type;
-	typedef typename expansion_type::target_type        target_type;
-	typedef typename expansion_type::charge_type        charge_type;
-	typedef typename expansion_type::result_type        result_type;
+  typedef typename expansion_type::target_type        target_type;
+  typedef typename expansion_type::charge_type        charge_type;
+  typedef typename expansion_type::result_type        result_type;
   typedef typename expansion_type::kernel_value_type  kernel_value_type;
 
   typedef std::vector<target_type> target_array;

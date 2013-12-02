@@ -6,6 +6,9 @@
 
 #include <limits>
 
+#include "fmmtl/numeric/Complex.hpp"
+#include "fmmtl/numeric/Vec.hpp"
+
 namespace fmmtl {
 
 static boost::random::mt19937 default_genenerator;
@@ -58,3 +61,36 @@ struct random<int> {
 };
 
 } // end namepsace fmmtl
+
+
+#include "fmmtl/numeric/Complex.hpp"
+
+namespace fmmtl {
+template <typename T>
+struct random<complex<T> > {
+  static complex<T> get(T a, T b) {
+    return complex<T>(random<T>::get(a,b), random<T>::get(a,b));
+  }
+  static complex<T> get() {
+    return get(T(0), T(1));
+  }
+};
+} // end namespace fmmtl
+
+
+#include "fmmtl/numeric/Vec.hpp"
+
+namespace fmmtl {
+template <std::size_t N, typename T>
+struct random<Vec<N,T> > {
+  static Vec<N,T> get(T a, T b) {
+    Vec<N,T> v;
+    for (std::size_t i = 0; i != N; ++i)
+      v[i] = fmmtl::random<T>::get(a, b);
+    return v;
+  }
+  static Vec<N,T> get() {
+    return get(T(0), T(1));
+  }
+};
+} // end namespace fmmtl

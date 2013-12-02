@@ -16,7 +16,9 @@ EXEC += test_vec
 EXEC += boost_version
 EXEC += thrust_version
 
+
 include ../Makefile.inc
+
 
 # Extra dependencies for executables
 # TODO: Automatically detect a .kern file in the dependencies?

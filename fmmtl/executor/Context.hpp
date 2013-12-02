@@ -12,8 +12,6 @@
 
 #include <boost/iterator/transform_iterator.hpp>
 
-#include "fmmtl/meta/dimension.hpp"
-
 // General TreeContext declarations
 template <typename TreeType>
 class SingleTreeContext;
