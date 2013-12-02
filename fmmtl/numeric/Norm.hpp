@@ -90,7 +90,7 @@ typename norm_type<complex<T> >::type dot(const complex<T>& a,
 template <typename T>
 FMMTL_INLINE
 typename norm_type<complex<T> >::type normSq(const complex<T>& a) {
-  return inner_prod(a.real(),a.real()) + inner_prod(a.imag(),a.imag());
+  return normSq(a.real()) + normSq(a.imag());
 }
 /** Compute the L2 norm of a complex */
 template <typename T>
@@ -120,65 +120,65 @@ typename norm_type<complex<T> >::type norm_inf(const complex<T>& a) {
 
 #include "fmmtl/numeric/Vec.hpp"
 
-template <std::size_t N, typename P>
-struct norm_type<Vec<N,P> > {
-  typedef typename norm_type<P>::type type;
+template <std::size_t N, typename T>
+struct norm_type<Vec<N,T> > {
+  typedef typename norm_type<T>::type type;
 };
 
 /** Compute the inner product of two Vecs */
-template <std::size_t N, typename P>
+template <std::size_t N, typename T>
 FMMTL_INLINE
-typename norm_type<Vec<N,P> >::type inner_prod(const Vec<N,P>& a,
-                                               const Vec<N,P>& b) {
-  typename norm_type<Vec<N,P> >::type v = typename norm_type<Vec<N,P> >::type();
-  for (std::size_t i = 0; i != N; ++i)
+typename norm_type<Vec<N,T> >::type inner_prod(const Vec<N,T>& a,
+                                               const Vec<N,T>& b) {
+  typename norm_type<Vec<N,T> >::type v = inner_prod(a[0],b[0]);
+  for (std::size_t i = 1; i != N; ++i)
     v += inner_prod(a[i],b[i]);
   return v;
 }
-template <std::size_t N, typename P>
+template <std::size_t N, typename T>
 FMMTL_INLINE
-typename norm_type<Vec<N,P> >::type dot(const Vec<N,P>& a,
-                                        const Vec<N,P>& b) {
+typename norm_type<Vec<N,T> >::type dot(const Vec<N,T>& a,
+                                        const Vec<N,T>& b) {
   return inner_prod(a,b);
 }
 
 /** Compute the squared L2 norm of a Vec */
-template <std::size_t N, typename P>
+template <std::size_t N, typename T>
 FMMTL_INLINE
-typename norm_type<Vec<N,P> >::type normSq(const Vec<N,P>& a) {
-  typename norm_type<Vec<N,P> >::type v = typename norm_type<Vec<N,P> >::type();
-  for (std::size_t i = 0; i != N; ++i)
+typename norm_type<Vec<N,T> >::type normSq(const Vec<N,T>& a) {
+  typename norm_type<Vec<N,T> >::type v = normSq(a[0]);
+  for (std::size_t i = 1; i != N; ++i)
     v += normSq(a[i]);
   return v;
 }
 /** Compute the L2 norm of a Vec */
-template <std::size_t N, typename P>
+template <std::size_t N, typename T>
 FMMTL_INLINE
-typename norm_type<Vec<N,P> >::type norm(const Vec<N,P>& a) {
+typename norm_type<Vec<N,T> >::type norm(const Vec<N,T>& a) {
   using std::sqrt;
   return sqrt(normSq(a));
 }
-template <std::size_t N, typename P>
+template <std::size_t N, typename T>
 FMMTL_INLINE
-typename norm_type<Vec<N,P> >::type norm_2(const Vec<N,P>& a) {
+typename norm_type<Vec<N,T> >::type norm_2(const Vec<N,T>& a) {
   return norm(a);
 }
 /** Compute the L1 norm of a Vec */
-template <std::size_t N, typename P>
+template <std::size_t N, typename T>
 FMMTL_INLINE
-typename norm_type<Vec<N,P> >::type norm_1(const Vec<N,P>& a) {
-  typename norm_type<Vec<N,P> >::type v = typename norm_type<Vec<N,P> >::type();
-  for (std::size_t i = 0; i != N; ++i)
+typename norm_type<Vec<N,T> >::type norm_1(const Vec<N,T>& a) {
+  typename norm_type<Vec<N,T> >::type v = norm_1(a[0]);
+  for (std::size_t i = 1; i != N; ++i)
     v += norm_1(a[i]);
   return v;
 }
 /** Compute the L-infinity norm of a Vec */
-template <std::size_t N, typename P>
+template <std::size_t N, typename T>
 FMMTL_INLINE
-typename norm_type<Vec<N,P> >::type norm_inf(const Vec<N,P>& a) {
+typename norm_type<Vec<N,T> >::type norm_inf(const Vec<N,T>& a) {
   using std::max;
-  typename norm_type<Vec<N,P> >::type v = typename norm_type<Vec<N,P> >::type();
-  for (std::size_t i = 0; i != N; ++i)
+  typename norm_type<Vec<N,T> >::type v = norm_inf(a[0]);
+  for (std::size_t i = 1; i != N; ++i)
     v = max(v, norm_inf(a[i]));
   return v;
 }

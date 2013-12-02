@@ -1,7 +1,6 @@
 #pragma once
 /** @file Vec.hpp
- * @brief A wrapper class to provide simple vector operations for
- * primitive types and classes that only require op[].
+ * @brief A small N-dimensional numerical vector type that works on CPU and GPU.
  */
 
 #include <iostream>
@@ -16,6 +15,8 @@
  */
 template <std::size_t N, typename T = double>
 struct Vec {
+  FMMTL_STATIC_ASSERT(N > 0, "Vec<N,T> needs N >= 1");
+
   T elem[N];
 
   typedef T               value_type;
@@ -140,22 +141,22 @@ struct Vec {
 // OPERATORS
 
 /** Write a Vec to an output stream */
-template <std::size_t N, typename P>
-inline std::ostream& operator<<(std::ostream& s, const Vec<N,P>& a) {
+template <std::size_t N, typename T>
+inline std::ostream& operator<<(std::ostream& s, const Vec<N,T>& a) {
   for_i s << a[i] << " ";
   return s;
 }
 /** Read a Vec from an input stream */
-template <std::size_t N, typename P>
-inline std::istream& operator>>(std::istream& s, Vec<N,P>& a) {
+template <std::size_t N, typename T>
+inline std::istream& operator>>(std::istream& s, Vec<N,T>& a) {
   for_i s >> a[i];
   return s;
 }
 
 /** Compute cross product of two 3D Vecs */
-template <typename P>
-FMMTL_INLINE Vec<3,P> cross(const Vec<3,P>& a, const Vec<3,P>& b) {
-  return Vec<3,P>(a[1]*b[2] - a[2]*b[1],
+template <typename T>
+FMMTL_INLINE Vec<3,T> cross(const Vec<3,T>& a, const Vec<3,T>& b) {
+  return Vec<3,T>(a[1]*b[2] - a[2]*b[1],
                   a[2]*b[0] - a[0]*b[2],
                   a[0]*b[1] - a[1]*b[0]);
 }
@@ -163,71 +164,71 @@ FMMTL_INLINE Vec<3,P> cross(const Vec<3,P>& a, const Vec<3,P>& b) {
 // ARITHMETIC OPERATORS
 
 /** Unary negation: Return -@a a */
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> operator-(Vec<N,P> a) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> operator-(Vec<N,T> a) {
   for_i a[i] = -a[i];
   return a;
 }
 /** Unary plus: Return @a a. ("+a" should work if "-a" works.) */
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> operator+(const Vec<N,P>& a) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> operator+(const Vec<N,T>& a) {
   return a;
 }
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> operator+(Vec<N,P> a, const Vec<N,P>& b) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> operator+(Vec<N,T> a, const Vec<N,T>& b) {
   return a += b;
 }
-template <std::size_t N, typename P, typename D>
-FMMTL_INLINE Vec<N,P> operator+(Vec<N,P> a, const D& b) {
+template <std::size_t N, typename T, typename D>
+FMMTL_INLINE Vec<N,T> operator+(Vec<N,T> a, const D& b) {
   return a += b;
 }
-template <std::size_t N, typename P, typename D>
-FMMTL_INLINE Vec<N,P> operator+(const D& b, Vec<N,P> a) {
+template <std::size_t N, typename T, typename D>
+FMMTL_INLINE Vec<N,T> operator+(const D& b, Vec<N,T> a) {
   return a += b;
 }
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> operator-(Vec<N,P> a, const Vec<N,P>& b) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> operator-(Vec<N,T> a, const Vec<N,T>& b) {
   return a -= b;
 }
-template <std::size_t N, typename P, typename D>
-FMMTL_INLINE Vec<N,P> operator-(Vec<N,P> a, const D& b) {
+template <std::size_t N, typename T, typename D>
+FMMTL_INLINE Vec<N,T> operator-(Vec<N,T> a, const D& b) {
   return a -= b;
 }
-template <std::size_t N, typename P, typename D>
-FMMTL_INLINE Vec<N,P> operator-(const D& b, const Vec<N,P>& a) {
+template <std::size_t N, typename T, typename D>
+FMMTL_INLINE Vec<N,T> operator-(const D& b, const Vec<N,T>& a) {
   return (-a) += b;
 }
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> operator*(Vec<N,P> a, const Vec<N,P>& b) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> operator*(Vec<N,T> a, const Vec<N,T>& b) {
   return a *= b;
 }
-template <std::size_t N, typename P, typename D>
-FMMTL_INLINE Vec<N,P> operator*(Vec<N,P> a, const D& b) {
+template <std::size_t N, typename T, typename D>
+FMMTL_INLINE Vec<N,T> operator*(Vec<N,T> a, const D& b) {
   return a *= b;
 }
-template <std::size_t N, typename P, typename D>
-FMMTL_INLINE Vec<N,P> operator*(const D& b, Vec<N,P> a) {
+template <std::size_t N, typename T, typename D>
+FMMTL_INLINE Vec<N,T> operator*(const D& b, Vec<N,T> a) {
   return a *= b;
 }
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> operator/(Vec<N,P> a, const Vec<N,P>& b) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> operator/(Vec<N,T> a, const Vec<N,T>& b) {
   return a /= b;
 }
-template <std::size_t N, typename P, typename D>
-FMMTL_INLINE Vec<N,P> operator/(Vec<N,P> a, const D& b) {
+template <std::size_t N, typename T, typename D>
+FMMTL_INLINE Vec<N,T> operator/(Vec<N,T> a, const D& b) {
   return a /= b;
 }
 
 // ELEMENTWISE OPERATORS
 
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> abs(Vec<N,P> a) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> abs(Vec<N,T> a) {
   using std::abs;
   for_i a[i] = abs(a[i]);
   return a;
 }
-template <std::size_t N, typename P>
-FMMTL_INLINE Vec<N,P> sqrt(Vec<N,P> a) {
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> sqrt(Vec<N,T> a) {
   using std::sqrt;
   for_i a[i] = sqrt(a[i]);
   return a;
@@ -240,20 +241,20 @@ FMMTL_INLINE Vec<N,P> sqrt(Vec<N,P> a) {
 
 namespace fmmtl {
 
-template <std::size_t N, typename P>
-struct dimension<Vec<N,P> > {
+template <std::size_t N, typename T>
+struct dimension<Vec<N,T> > {
   const static std::size_t value = N;
 };
 
-template <std::size_t N, typename P>
-struct random<Vec<N,P> > {
-  static Vec<N,P> get(P a, P b) {
-    Vec<N,P> v;
-    for_i v[i] = fmmtl::random<P>::get(a, b);
+template <std::size_t N, typename T>
+struct random<Vec<N,T> > {
+  static Vec<N,T> get(T a, T b) {
+    Vec<N,T> v;
+    for_i v[i] = fmmtl::random<T>::get(a, b);
     return v;
   }
-  static Vec<N,P> get() {
-    return get(P(0), P(1));
+  static Vec<N,T> get() {
+    return get(T(0), T(1));
   }
 };
 
