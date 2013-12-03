@@ -11,9 +11,9 @@ include ../Makefile.inc
 
 # List the Kernel dependency (.kern) for each executable
 scaling:  $(KERNEL_DIR)/Laplace.o
-error:    $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/Yukawa.o
+error:    $(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
 
 error_img: LDLIBS += -lpng
-error_img: $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o $(KERNEL_DIR)/Laplace.o
+error_img: $(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
 
 

@@ -61,7 +61,7 @@ struct MortonCoder {
   MortonCoder(const BoundingBox<DIM>& bb)
       : pmin_(bb.min()),
         cell_size_((bb.max() - bb.min()) / cells_per_side()) {
-    cell_size_ *= (1.0 + 1e-12);  // Inclusive bounding box by small extension
+    cell_size_ *= (1.0 + 1e-14);  // Inclusive bounding box by small extension
     FMMTL_ASSERT(!bb.empty());
   }
 

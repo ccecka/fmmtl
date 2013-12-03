@@ -1,3 +1,4 @@
+#pragma once
 /** @file KernelSkeleton
  * @brief An example Kernel implementation that explains the required and
  * optional methods and types that define a Kernel class.

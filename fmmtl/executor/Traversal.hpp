@@ -8,7 +8,7 @@
  * concept box {
  *   int index() const;
  *   bool is_leaf() const;
- *   double side_length() const;  // Maybe level()? or normSq(extents())?
+ *   double volume() const;
  *   box_iterator child_begin() const;
  *   box_iterator child_end() const;
  * }
@@ -65,7 +65,7 @@ struct Traversal {
 
         case 0: {    // sbox and tbox are not leaves
           // Split the larger of the two into children and interact
-          if (sbox.side_length() > tbox.side_length())
+          if (sbox.volume() > tbox.volume())
             split_source(sbox, tbox, far_eval, pairQ);
           else
             split_target(sbox, tbox, far_eval, pairQ);

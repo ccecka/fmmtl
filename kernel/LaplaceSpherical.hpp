@@ -110,7 +110,7 @@ class LaplaceSpherical
                       const point_type& extents, unsigned) const {
     M.M = std::vector<complex>(P*(P+1)/2, 0);
     M.RMAX = 0;
-    M.RCRIT = extents[0] / 2;
+    M.RCRIT = norm(extents) / 2;
   }
   /** Initialize a local expansion with the size of a box at this level */
   void init_local(local_type& L,
@@ -129,9 +129,9 @@ class LaplaceSpherical
   void P2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
     complex Ynm[4*P*P], YnmTheta[4*P*P];
-    point_type dist = source - center;
+    point_type r = source - center;
     real rho, alpha, beta;
-    cart2sph(rho,alpha,beta,dist);
+    cart2sph(rho,alpha,beta,r);
     evalMultipole(rho,alpha,-beta,Ynm,YnmTheta);
     for (int n = 0; n != P; ++n) {
       for (int m = 0; m <= n; ++m) {
@@ -140,7 +140,7 @@ class LaplaceSpherical
         M[nms] += charge * Ynm[nm];
       }
     }
-    M.RMAX = std::max(M.RMAX, norm(dist));
+    M.RMAX = std::max(M.RMAX, norm(r));
     M.RCRIT = std::min(M.RCRIT, M.RMAX);
   }
 
@@ -156,25 +156,22 @@ class LaplaceSpherical
            multipole_type& Mtarget,
            const point_type& translation) const {
     complex Ynm[4*P*P], YnmTheta[4*P*P];
-    real Rmax = Mtarget.RMAX;
-    real R = norm(translation) + Msource.RCRIT;
-    if (R > Rmax) Rmax = R;
     real rho, alpha, beta;
     cart2sph(rho,alpha,beta,translation);
     evalMultipole(rho,alpha,-beta,Ynm,YnmTheta);
-    for( int j=0; j!=P; ++j ) {
-      for( int k=0; k<=j; ++k ) {
-        const int jk = j*(j+1)    + k;
+    for (int j = 0; j != P; ++j) {
+      for (int k = 0; k <= j; ++k) {
+        const int jk =  j*(j+1)   + k;
         const int jks = j*(j+1)/2 + k;
         complex M = 0;
-        for( int n=0; n<=j; ++n ) {
-          for( int m=-n; m<=std::min(k-1,n); ++m ) {
-            if( j-n >= k-m ) {
+        for (int n = 0; n <= j; ++n) {
+          for (int m = -n; m <= std::min(k-1,n); ++m) {
+            if (j-n >= k-m) {
               const int jnkm  = (j-n)*(j-n+1)   + (k-m);
               const int jnkms = (j-n)*(j-n+1)/2 + (k-m);
               const int nm    = n*(n+1) + m;
               M += Msource[jnkms] * ipow(m-abs(m)) * Ynm[nm]
-              * real(neg1pow(n) * Anm[nm] * Anm[jnkm] / Anm[jk]);
+                  * real(neg1pow(n) * Anm[nm] * Anm[jnkm] / Anm[jk]);
             }
           }
           for( int m=k; m<=n; ++m ) {
@@ -183,14 +180,14 @@ class LaplaceSpherical
               const int jnkms = (j-n)*(j-n+1)/2 - (k-m);
               const int nm    = n*(n+1) + m;
               M += std::conj(Msource[jnkms]) * Ynm[nm]
-              * real(neg1pow(k+n+m) * Anm[nm] * Anm[jnkm] / Anm[jk]);
+                  * real(neg1pow(k+n+m) * Anm[nm] * Anm[jnkm] / Anm[jk]);
             }
           }
         }
         Mtarget[jks] += M;
       }
     }
-    Mtarget.RMAX = Rmax;
+    Mtarget.RMAX = std::max(Mtarget.RMAX, norm(translation) + Msource.RCRIT);
     Mtarget.RCRIT = std::min(Mtarget.RCRIT, Mtarget.RMAX);
   }
 
@@ -204,7 +201,7 @@ class LaplaceSpherical
    * @pre Msource includes the influence of all points within its box
    */
   void M2L(const multipole_type& Msource,
-                 local_type& Ltarget,
+           local_type& Ltarget,
            const point_type& translation) const {
     complex Ynm[4*P*P], YnmTheta[4*P*P];
 
@@ -437,8 +434,8 @@ class LaplaceSpherical
   /** Cartesian to spherical coordinates */
   inline void cart2sph(real& r, real& theta, real& phi,
                        const point_type& x) const {
-    r = std::sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]);
-    theta = std::acos(x[2] / (r + 1e-100));
+    r = norm(x);
+    theta = std::acos(x[2] / (r + 1e-200));
     phi = std::atan2(x[1], x[0]);
   }
 };

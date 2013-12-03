@@ -69,6 +69,8 @@ class NDTree {
   typedef NDTree<DIM> tree_type;
 
  private:
+  // Morton coder to use for the points
+  MortonCoder<DIM> coder_;
   // Code type
   typedef typename MortonCoder<DIM>::code_type code_type;
 
@@ -104,9 +106,6 @@ class NDTree {
       return level_ & ~leaf_bit;
     }
   };
-
-  // Morton coder to use for the points
-  MortonCoder<DIM> coder_;
 
   // Morton coded objects this Tree holds.
   //std::vector<point_type> point_;
@@ -176,14 +175,15 @@ class NDTree {
     unsigned level() const {
       return data().level();
     }
-    double side_length() const {
-      return tree_->coder_.bounding_box().dimensions()[0] / (1 << level());
-    }
     point_type extents() const {
       return tree_->coder_.bounding_box().dimensions() / (1 << level());
     }
+    double volume() const {
+      point_type e = extents();
+      return std::accumulate(e.begin(), e.end(), double(1), std::multiplies<double>());
+    }
     double radius() const {
-      return side_length() / 2.0;
+      return norm(extents()) / 2.0;
     }
     unsigned num_children() const {
       return std::distance(child_begin(), child_end());
@@ -252,7 +252,7 @@ class NDTree {
       unsigned last_body = first_body + num_bodies - 1;
 
       return s << "Box " << b.index()
-               << " (Level " << b.level() << ", Parent " << b.parent().index()
+               << " (L" << b.level() << ", P" << b.parent().index()
                << ", " << num_bodies << (num_bodies == 1 ? " body " : " bodies ")
                << first_body << "-" << last_body
                << "): " << b.center();
@@ -335,16 +335,11 @@ class NDTree {
     }
   };
 
-  /** Construct an octree encompassing a bounding box */
-  NDTree(const BoundingBox<DIM>& bb)
-      : coder_(bb) {
-  }
-
-  /** Construct an octree encompassing a bounding box
+  /** Construct an tree encompassing a bounding box
    * and insert a range of points */
   template <typename PointIter>
-  NDTree(PointIter first, PointIter last, unsigned n_crit = 64)
-      : coder_(BoundingBox<DIM>(first, last)) {
+  NDTree(PointIter first, PointIter last, unsigned n_crit = 256)
+      : coder_(get_boundingbox(first, last)) {
     insert(first, last, n_crit);
   }
 
@@ -535,6 +530,17 @@ class NDTree {
       permute_.push_back(c.second);
       //point_.push_back(points[permute_.back()]);
     }
+  }
+
+  template <typename PointIter>
+  BoundingBox<DIM> get_boundingbox(PointIter first, PointIter last) {
+    // Construct a bounding box
+    BoundingBox<DIM> bb(first, last);
+    // Determine the size of the maximum side
+    point_type extents = bb.dimensions();
+    double max_side = *std::max_element(extents.begin(), extents.end());
+    // Make it square and add some wiggle room   TODO: Generalize on square
+    return BoundingBox<DIM>(bb.center(), (1.0+1e-6) * max_side / 2.0);
   }
 
   // Just making sure for now

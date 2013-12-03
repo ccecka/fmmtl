@@ -1,3 +1,4 @@
+#pragma once
 /** @file UnitKernel
  * @brief Implements the unit kernel defined by
  * K(t,s) = 1  if t != s

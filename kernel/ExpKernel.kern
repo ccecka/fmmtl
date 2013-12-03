@@ -1,3 +1,4 @@
+#pragma once
 /** @file ExpKernel
  * @brief Implements the separable exponential kernel defined by
  * K(t,s) = exp(sum_i t_i - s_i)

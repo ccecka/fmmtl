@@ -30,17 +30,17 @@ int main(int argc, char **argv)
   FMMOptions opts = get_options(argc, argv);
   //typedef UnitExpansion kernel_type;
   //typedef ExpExpansion kernel_type;
-  //typedef LaplaceSpherical kernel_type;
-  typedef YukawaCartesian kernel_type;
+  typedef LaplaceSpherical kernel_type;
+  //typedef YukawaCartesian kernel_type;
+
+  // Init kernel
+  kernel_type K;
 
   typedef kernel_type::point_type point_type;
   typedef kernel_type::source_type source_type;
   typedef kernel_type::target_type target_type;
   typedef kernel_type::charge_type charge_type;
   typedef kernel_type::result_type result_type;
-
-  // Init kernel
-  kernel_type K;
 
   // Init points and charges
   std::vector<source_type> points(N);
