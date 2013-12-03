@@ -37,8 +37,8 @@ class P2P_Compressed {
 	P2P_Compressed(std::vector<std::pair<unsigned,unsigned> >& target_ranges,
                  std::vector<unsigned>& target_ptrs,
                  std::vector<std::pair<unsigned,unsigned> >& source_ranges,
-                 std::vector<source_type>& sources,
-                 std::vector<target_type>& targets);
+                 const std::vector<source_type>& sources,
+                 const std::vector<target_type>& targets);
 
   ~P2P_Compressed();
 
@@ -73,7 +73,22 @@ class P2P_Compressed {
                       const std::vector<target_type>& t,
                       std::vector<result_type>& r);
 
-  /*
+  /** Construct a P2P_Compressed object by taking
+   * associated source ranges and target ranges and constructing a compressed
+   * representation.
+   *
+   * @param srfirst,srlast  A range of source ranges
+   * @param trfirst         A range of target ranges
+   *                          The source/target ranges are associated
+   * @param sources         The sources that the source ranges map into
+   * @param targets         The targets that the target ranges map into
+   *
+   * @pre Target ranges are disjoint. No two target ranges overlap.
+   *
+   * @note Creates a CSR-like compressed representation of the blocked matrix
+   *
+   * TODO: Clean up...
+   */
   template <class SourceRangeIter, class TargetRangeIter>
   static
   P2P_Compressed<Kernel>*
@@ -81,9 +96,9 @@ class P2P_Compressed {
        TargetRangeIter trfirst,
        const std::vector<typename Kernel::source_type>& sources,
        const std::vector<typename Kernel::target_type>& targets) {
-    unsigned num_targets = targets.size()
+    unsigned num_targets = targets.size();
     //unsigned num_sources = sources.size();
-    unsigned num_box_pairs = last - first;
+    unsigned num_box_pairs = srlast - srfirst;
 
     // Interaction list for each target box
     // (target_first,target_last) -> {(source_first, source_last), ...}
@@ -103,10 +118,11 @@ class P2P_Compressed {
       unsigned j_begin = s_range.first;
       unsigned j_end   = s_range.second;
 
-      // If this is the first time we've seen this target range
+      // If this is the first time we've seen this target range, record it
       if (target2sources[i_begin].empty())
         target_ranges.push_back(upair(i_begin, i_end));
 
+      // Record this source range with this target range
       target2sources[i_begin].push_back(upair(j_begin,j_end));
     }
 
@@ -130,8 +146,6 @@ class P2P_Compressed {
       target_ptr[k+1] = source_ranges_curr - source_ranges.begin();
     }
 
-    std::cout << "Here" << std::endl;
-
     // Sanity checking
     FMMTL_ASSERT(target_ptr.back() == source_ranges.size());
     FMMTL_ASSERT(source_ranges_curr == source_ranges.end());
@@ -142,7 +156,7 @@ class P2P_Compressed {
                                       sources,
                                       targets);
   }
-  */
+
 
   template <class Context>
   static
