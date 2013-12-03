@@ -10,20 +10,22 @@
 class MAC
 {
   /** If no other MAC dispatcher matches */
-  template <typename Expansion, typename... Args>
-  inline static bool eval(const Expansion&, Args...) {
-    std::cerr << "Expansion does not have a correct dynamic MAC!\n";
-    std::cerr << ExpansionTraits<Expansion>() << std::endl;
-    exit(1);
+  template <typename Context>
+  inline static
+  typename std::enable_if<!ExpansionTraits<typename Context::expansion_type>::has_dynamic_MAC, bool>::type
+  eval_mac(const Context& c,
+           const typename Context::source_box_type& sbox,
+           const typename Context::target_box_type& tbox) {
+    return c.mac(sbox,tbox);
   }
 
-  template <typename Expansion>
+  template <typename Context>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_dynamic_MAC,bool>::type
-  eval(const Expansion& K,
-       const typename Expansion::multipole_type& M,
-       const typename Expansion::local_type& L) {
-    return K.MAC(M, L);
+  typename std::enable_if<ExpansionTraits<typename Context::expansion_type>::has_dynamic_MAC, bool>::type
+  eval_mac(const Context& c,
+           const typename Context::source_box_type& sbox,
+           const typename Context::target_box_type& tbox) {
+    return c.mac(sbox,tbox) && c.expansion().MAC(c.multipole(sbox), c.local(tbox));
   }
 
  public:
@@ -42,14 +44,6 @@ class MAC
 #endif
     FMMTL_LOG("MAC");
 
-    bool dyn_mac = true;
-    // Avoid asking for the multipole/local if we don't need them
-    if (ExpansionTraits<typename Context::expansion_type>::has_dynamic_MAC) {
-      dyn_mac = MAC::eval(c.expansion(),
-                          c.multipole(sbox),
-                          c.local(tbox));
-    }
-
-    return dyn_mac && c.mac(sbox,tbox);
+    return MAC::eval_mac(c, sbox, tbox);
   }
 };
