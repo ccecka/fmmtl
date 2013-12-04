@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FMMTL_YUKAWA_KERN
+#define FMMTL_YUKAWA_KERN
 
 #include "fmmtl/Kernel.hpp"
 
@@ -78,3 +79,5 @@ struct YukawaKernel
   }
 };
 FMMTL_KERNEL_EXTRAS(YukawaKernel);
+
+#endif

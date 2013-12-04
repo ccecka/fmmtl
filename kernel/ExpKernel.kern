@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FMMTL_EXPKERNEL_KERN
+#define FMMTL_EXPKERNEL_KERN
 /** @file ExpKernel
  * @brief Implements the separable exponential kernel defined by
  * K(t,s) = exp(sum_i t_i - s_i)
@@ -99,3 +100,5 @@ struct ExpExpansion
                   - center[0] - center[1] - center[2]) * L;
   }
 };
+
+#endif

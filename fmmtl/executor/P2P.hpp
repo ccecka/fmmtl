@@ -372,8 +372,9 @@ class P2P_Batch
   void execute(Context& c) {
     FMMTL_LOG("P2P Batch");
 #if FMMTL_NO_CUDA
+    auto t_end = target_box_list.end();
 #pragma omp parallel for
-    for (auto ti = target_box_list.begin(); ti < target_box_list.end(); ++ti) {
+    for (auto ti = target_box_list.begin(); ti < t_end; ++ti) {
       target_box_type& tb = *ti;
       auto s_end = source_boxes[tb.index()].end();
       for (auto si = source_boxes[tb.index()].begin(); si != s_end; ++si) {

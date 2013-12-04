@@ -11,8 +11,8 @@ P2P_Compressed<Kernel>::P2P_Compressed(
     std::vector<std::pair<unsigned,unsigned> >&,
     std::vector<unsigned>&,
     std::vector<std::pair<unsigned,unsigned> >&,
-    std::vector<typename Kernel::source_type>&,
-    std::vector<typename Kernel::target_type>&) {
+    const std::vector<typename Kernel::source_type>&,
+    const std::vector<typename Kernel::target_type>&) {
 }
 
 template <typename Kernel>

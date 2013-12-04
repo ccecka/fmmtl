@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FMMTL_KERNELSKELETON_KERN
+#define FMMTL_KERNELSKELETON_KERN
 /** @file KernelSkeleton
  * @brief An example Kernel implementation that explains the required and
  * optional methods and types that define a Kernel class.
@@ -486,3 +487,5 @@ struct ExpansionSkeleton
 
 
 // For simple examples, see UnitKernel.kern and ExpKernel.kern
+
+#endif

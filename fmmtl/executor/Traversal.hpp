@@ -100,7 +100,7 @@ struct Traversal {
   inline static void interact(source_box& sbox, target_box& tbox,
                               FarEvaluator& far_eval, box_queue& pairQ) {
     if (!far_eval(sbox, tbox))
-      pairQ.push(box_pair(sbox, tbox));
+      pairQ.emplace(sbox, tbox);
   }
 };
 

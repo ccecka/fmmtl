@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FMMTL_LAPLACE_KERN
+#define FMMTL_LAPLACE_KERN
 
 #include "fmmtl/Kernel.hpp"
 
@@ -62,3 +63,5 @@ struct LaplaceKernel
   }
 };
 FMMTL_KERNEL_EXTRAS(LaplaceKernel);
+
+#endif

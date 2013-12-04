@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FMMTL_HELMHOLTZ_KERN
+#define FMMTL_HELMHOLTZ_KERN
 
 #include "fmmtl/Kernel.hpp"
 
@@ -86,3 +87,5 @@ struct HelmholtzKernel
   }
 };
 FMMTL_KERNEL_EXTRAS(HelmholtzKernel);
+
+#endif
