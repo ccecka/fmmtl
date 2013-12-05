@@ -6,22 +6,17 @@
 
 /** TODO: Write Context and Tree concepts */
 
-#include "fmmtl/KernelTraits.hpp"
-#include "fmmtl/TreeTraits.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
+#include "fmmtl/meta/tree_traits.hpp"
 #include "fmmtl/FMMOptions.hpp"
 
 #include <boost/iterator/transform_iterator.hpp>
 
-#include "fmmtl/meta/dimension.hpp"
-
 // General TreeContext declarations
-template <typename SourceType,
-          typename TreeType>
+template <typename TreeType>
 class SingleTreeContext;
 
-template <typename SourceType,
-          typename TargetType,
-          typename SourceTreeType,
+template <typename SourceTreeType,
           typename TargetTreeType>
 class DualTreeContext;
 
@@ -29,15 +24,11 @@ class DualTreeContext;
 /** @struct SingleTreeContext
  * Single tree context specialized for an NDTree
  */
-template <typename SourceType>
-class SingleTreeContext<SourceType,
-                        NDTree<fmmtl::dimension<SourceType>::value> > {
+template <unsigned DIM>
+class SingleTreeContext<NDTree<DIM> > {
  public:
-  typedef SourceType source_type;
-  typedef SourceType target_type;
-
-  typedef NDTree<fmmtl::dimension<SourceType>::value> source_tree_type;
-  typedef NDTree<fmmtl::dimension<SourceType>::value> target_tree_type;
+  typedef NDTree<DIM> source_tree_type;
+  typedef NDTree<DIM> target_tree_type;
   FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:
@@ -87,19 +78,14 @@ class SingleTreeContext<SourceType,
 
 
 /** @struct DualTreeContext
- * Dual tree context specialized for NDTree trees
+ * Dual tree context specialized for two NDTree trees
  */
-template <typename SourceType, typename TargetType>
-class DualTreeContext<SourceType,
-                      TargetType,
-                      NDTree<fmmtl::dimension<SourceType>::value>,
-                      NDTree<fmmtl::dimension<TargetType>::value> > {
+template <unsigned SOURCEDIM, unsigned TARGETDIM>
+class DualTreeContext<NDTree<SOURCEDIM>,
+                      NDTree<TARGETDIM> > {
  public:
-  typedef SourceType source_type;
-  typedef TargetType target_type;
-
-  typedef NDTree<fmmtl::dimension<SourceType>::value> source_tree_type;
-  typedef NDTree<fmmtl::dimension<TargetType>::value> target_tree_type;
+  typedef NDTree<SOURCEDIM> source_tree_type;
+  typedef NDTree<TARGETDIM> target_tree_type;
   FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:
@@ -165,16 +151,12 @@ class DataContext
   //! The kernel matrix this context is built for
   const kernel_matrix_type& mat_;
 
-  //! Multipole expansions corresponding to Box indices in Tree
-  typedef std::vector<multipole_type> multipole_container;
-  multipole_container M_;
-  //! Local expansions corresponding to Box indices in Tree
-  typedef std::vector<local_type> local_container;
-  local_container L_;
-
-  //!
+  //! Source and target iterator types in the kernel_matrix
   typedef typename kernel_matrix_type::source_array::const_iterator source_container_iterator;
   typedef typename kernel_matrix_type::target_array::const_iterator target_container_iterator;
+
+  //! The "multipole acceptance criteria" to decide which boxes to interact
+  std::function<bool(const source_box_type&, const target_box_type&)> mac_;
 
   //! Iterator to the start of the charge vector
   typedef std::vector<charge_type> charge_container;
@@ -185,11 +167,19 @@ class DataContext
   typedef typename result_container::iterator result_container_iterator;
   result_container_iterator r_;
 
+  //! Multipole expansions corresponding to Box indices in Tree
+  typedef std::vector<multipole_type> multipole_container;
+  multipole_container M_;
+  //! Local expansions corresponding to Box indices in Tree
+  typedef std::vector<local_type> local_container;
+  local_container L_;
+
  public:
   template <class Options>
   DataContext(const kernel_matrix_type& mat, Options& opts)
       : TreeContext(mat, opts),
         mat_(mat),
+        mac_(opts.MAC()),
         // TODO: only allocate if used...
         M_(this->source_tree().boxes()),
         L_(this->target_tree().boxes()) {
@@ -225,6 +215,12 @@ class DataContext
   }
   inline const local_type& local(const target_box_type& box) const {
     return L_[box.index()];
+  }
+
+  // Accept or reject the interaction of this source-target box pair
+  inline bool mac(const source_box_type& sbox,
+                  const target_box_type& tbox) const {
+    return mac_(sbox, tbox);
   }
 
   // Define the body data iterators

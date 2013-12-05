@@ -1,6 +1,7 @@
+#include <thrust/device_ptr.h>
 #include <thrust/device_malloc.h>
 #include <thrust/device_vector.h>
-#include <thrust/uninitialized_copy.h>
+#include <thrust/copy.h>
 
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -20,7 +21,8 @@ inline typename Container::value_type* gpu_copy(const Container& c) {
   // Allocate
   thrust::device_ptr<c_value> dptr = thrust::device_malloc<c_value>(c.size());
   // Copy
-  thrust::uninitialized_copy(c.begin(), c.end(), dptr);
+  //thrust::uninitialized_copy(c.begin(), c.end(), dptr);
+  thrust::copy(c.begin(), c.end(), dptr);
   // Return
   return thrust::raw_pointer_cast(dptr);
 }
@@ -66,8 +68,9 @@ blocked_p2p(Kernel K,  // The Kernel to apply
     const target_type t = target[t_first];
     result_type r = result_type();
 
-    // For each source range
-    for (; sr_first < sr_last; ++sr_first) {
+    // For each source range (there must be at least one)
+    do {
+      // Get the range
       const thrust::pair<unsigned,unsigned> s_range = *sr_first;
       unsigned s_first = s_range.first;
       const unsigned s_last  = s_range.second;
@@ -79,13 +82,14 @@ blocked_p2p(Kernel K,  // The Kernel to apply
         const charge_type c = charge[s_first];
         r += K(t,s) * c;
       }
-    }
+
+      ++sr_first;
+    } while(sr_first < sr_last);
 
     // Assign the result
     result[t_first] += r;
   }
 }
-
 
 struct Data {
   unsigned num_sources;
@@ -110,8 +114,8 @@ P2P_Compressed<Kernel>::P2P_Compressed(
     std::vector<std::pair<unsigned,unsigned> >& target_ranges,
     std::vector<unsigned>& source_range_ptrs,
     std::vector<std::pair<unsigned,unsigned> >& source_ranges,
-    std::vector<typename Kernel::source_type>& sources,
-    std::vector<typename Kernel::target_type>& targets)
+    const std::vector<source_type>& sources,
+    const std::vector<target_type>& targets)
     : data_(new Data(sources.size(), targets.size(), target_ranges.size())),
       target_ranges_(gpu_copy(target_ranges)),
       source_range_ptrs_(gpu_copy(source_range_ptrs)),
@@ -133,24 +137,26 @@ P2P_Compressed<Kernel>::~P2P_Compressed() {
 template <typename Kernel>
 void P2P_Compressed<Kernel>::execute(
     const Kernel& K,
-    const std::vector<typename Kernel::charge_type>& charges,
-    std::vector<typename Kernel::result_type>& results) {
+    const std::vector<charge_type>& charges,
+    std::vector<result_type>& results) {
   typedef Kernel kernel_type;
   typedef typename kernel_type::source_type source_type;
   typedef typename kernel_type::target_type target_type;
   typedef typename kernel_type::charge_type charge_type;
   typedef typename kernel_type::result_type result_type;
 
-  thrust::device_vector<charge_type> d_charges(charges);
-  thrust::device_vector<result_type> d_results(results);
-  // XXX: This causes a "floating point exception"?
-  //thrust::device_vector<result_type> d_results(results.size());
+  // XXX: Using a device_vector here was giving "floating point exceptions"...
+  // XXX: device_vector doesn't like the Vec?
+  charge_type* d_charges = gpu_copy(charges);
+  result_type* d_results = gpu_copy(results);
 
   Data* data = reinterpret_cast<Data*>(data_);
   const unsigned num_tpb    = data->num_threads_per_block;
   const unsigned num_blocks = data->num_blocks;
 
-  std::cerr << "Launching GPU Kernel" << std::endl;
+#if defined(FMMTL_DEBUG)
+  std::cout << "Launching GPU Kernel" << std::endl;
+#endif
 
   // Launch kernel <<<grid_size, block_size>>>
   blocked_p2p<<<num_blocks,num_tpb>>>(
@@ -159,19 +165,19 @@ void P2P_Compressed<Kernel>::execute(
       source_range_ptrs_,
       source_ranges_,
       sources_,
-      thrust::raw_pointer_cast(d_charges.data()),
+      //thrust::raw_pointer_cast(d_charges.data()),
+      d_charges,
       targets_,
-      thrust::raw_pointer_cast(d_results.data()));
+      d_results);
+      //thrust::raw_pointer_cast(d_results.data()));
   FMMTL_CUDA_CHECK;
 
   // Copy results back
-  thrust::copy(d_results.begin(), d_results.end(), results.begin());
+  thrust::device_ptr<result_type> d_results_ptr = thrust::device_pointer_cast(d_results);
+  thrust::copy(d_results_ptr, d_results_ptr + results.size(), results.begin());
 
-  // XXX:
-  // Accumulate back
-  //thrust::host_vector<result_type> h_results = d_results;
-  //for (unsigned k = 0; k < h_results.size(); ++k)
-  //  results[k] += h_results[k];
+  gpu_free(d_results);
+  gpu_free(d_charges);
 }
 
 
@@ -192,7 +198,6 @@ class block_range
   }
 };
 
-
 template <typename Kernel>
 void
 P2P_Compressed<Kernel>::execute(const Kernel& K,
@@ -206,13 +211,24 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
   typedef typename kernel_type::charge_type charge_type;
   typedef typename kernel_type::result_type result_type;
 
-  thrust::device_vector<source_type> d_sources(s);
-  thrust::device_vector<charge_type> d_charges(c);
-  thrust::device_vector<target_type> d_targets(t);
-  thrust::device_vector<result_type> d_results(r);
+  source_type* d_sources = gpu_copy(s);
+  charge_type* d_charges = gpu_copy(c);
+  target_type* d_targets = gpu_copy(t);
+  result_type* d_results = gpu_copy(r);
+
+  // XXX: device_vector doesn't like our vector?
+  //thrust::device_vector<source_type> d_sources(s);
+  //thrust::device_vector<charge_type> d_charges(c);
+  //thrust::device_vector<target_type> d_targets(t);
+  //thrust::device_vector<result_type> d_results(r);
 
   const unsigned num_tpb    = 256;
   const unsigned num_blocks = (t.size() + num_tpb - 1) / num_tpb;
+
+#if defined(FMMTL_DEBUG)
+  std::cout << "Launching GPU Kernel: (blocks, threads/block) = ("
+            << num_blocks << ", " << num_tpb << ")" << std::endl;
+#endif
 
   // Launch kernel <<<grid_size, block_size>>>
   blocked_p2p<<<num_blocks, num_tpb>>>(
@@ -221,15 +237,22 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
                                       block_range<num_tpb>(t.size())),
       thrust::make_constant_iterator(0),
       thrust::make_constant_iterator(thrust::make_pair(0,s.size())),
-      thrust::raw_pointer_cast(d_sources.data()),
-      thrust::raw_pointer_cast(d_charges.data()),
-      thrust::raw_pointer_cast(d_targets.data()),
-      thrust::raw_pointer_cast(d_results.data()));
+      d_sources,
+      d_charges,
+      d_targets,
+      d_results);
+      //thrust::raw_pointer_cast(d_sources.data()),
+      //thrust::raw_pointer_cast(d_charges.data()),
+      //thrust::raw_pointer_cast(d_targets.data()),
+      //thrust::raw_pointer_cast(d_results.data()));
   FMMTL_CUDA_CHECK;
 
-  // Copy results back and add
-  thrust::host_vector<result_type> h_results = d_results;
+  // Copy results back and assign
+  thrust::device_ptr<result_type> d_results_ptr = thrust::device_pointer_cast(d_results);
+  thrust::copy(d_results_ptr, d_results_ptr + r.size(), r.begin());
 
-  for (unsigned k = 0; k < h_results.size(); ++k)
-    r[k] += h_results[k];
+  gpu_free(d_sources);
+  gpu_free(d_charges);
+  gpu_free(d_targets);
+  gpu_free(d_results);
 }

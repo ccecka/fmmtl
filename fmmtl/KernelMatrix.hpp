@@ -1,13 +1,15 @@
 #pragma once
 
-#include "config.hpp"
+#include "fmmtl/config.hpp"
 
 //! Global logging
-#include "Logger.hpp"
+#include "fmmtl/Logger.hpp"
 static Logger fmm_global_log;
 
-#include "FMMOptions.hpp"
-#include "KernelMatrixPlan.hpp"
+#include "fmmtl/FMMOptions.hpp"
+#include "fmmtl/KernelMatrixPlan.hpp"
+
+#include "fmmtl/meta/kernel_traits.hpp"
 
 #include <vector>
 
@@ -28,14 +30,7 @@ template <class E>
 class kernel_matrix {
   typedef kernel_matrix<E>  this_type;
  public:
-  typedef  E                                          expansion_type;
-  typedef typename expansion_type::kernel_type        kernel_type;
-
-  typedef typename expansion_type::source_type        source_type;
-	typedef typename expansion_type::target_type        target_type;
-	typedef typename expansion_type::charge_type        charge_type;
-	typedef typename expansion_type::result_type        result_type;
-  typedef typename expansion_type::kernel_value_type  kernel_value_type;
+  FMMTL_IMPORT_EXPANSION_TRAITS(E);
 
   typedef std::vector<target_type> target_array;
   typedef std::vector<source_type> source_array;
@@ -125,14 +120,14 @@ class kernel_matrix {
   inline const target_array& permuted_sources() const { return plan->sources(); }
 
   /** @brief Returns the matrix element K(i,j) */
-  inline const_reference operator()(size_type i, size_type j) const {
+  inline value_type operator()(size_type i, size_type j) const {
     FMMTL_ASSERT(i < rows());
     FMMTL_ASSERT(j < cols());
     return expansion()(target(i), source(j));
   }
   /** @brief Syntactic sugar for matrix-vector multiplication
    * TODO: Replace with expression template library */
-  inline std::vector<result_type> operator*(const std::vector<charge_type>& c) {
+  inline std::vector<result_type> operator*(const std::vector<charge_type>& c) const {
     std::vector<result_type> result(rows());
     this->prod_impl(c, result);
     return result;

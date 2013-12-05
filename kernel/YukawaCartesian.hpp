@@ -13,7 +13,7 @@
 #include "Yukawa.kern"
 
 #include "fmmtl/Expansion.hpp"
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 class YukawaCartesian
     : public fmmtl::Expansion<YukawaKernel, YukawaCartesian> {
@@ -75,9 +75,7 @@ class YukawaCartesian
   IndexCache index_cache;
 
  public:
-  //! The dimension of the spacial interpretation of the source/target_type.
-  static const unsigned dimension = 3;
-  //! Point type
+  //! Point type to use for the trees
   typedef Vec<3,real> point_type;
 
   //! Multipole expansion type
@@ -85,7 +83,7 @@ class YukawaCartesian
   //! Local expansion type
   typedef std::vector<real> local_type;
 
-  //! default constructor - use delegating constructor
+  //! Default constructor - use delegating constructor
   YukawaCartesian()
       : YukawaCartesian(4,0.125) {
   }

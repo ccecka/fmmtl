@@ -1,5 +1,8 @@
 #pragma once
 
+// Whole suite of system configuration flags
+#include <boost/version.hpp>
+#include <boost/config.hpp>
 
 #if defined(FMMTL_NO_CUDA)    // Disable CUDA/Thrust acceleration
 
@@ -24,7 +27,7 @@
 
 // FMMTL_INLINE
 #if defined(__CUDACC__)        // Compiling with nvcc
-# define FMMTL_INLINE inline __host__ __device__   // Provide CUDA methods
+# define FMMTL_INLINE __host__ __device__ inline   // Provide CUDA methods
 #else
 # define FMMTL_INLINE inline
 #endif
@@ -49,6 +52,9 @@
 # include <cassert>
 # define FMMTL_ASSERT(expr) assert(expr)
 #endif
+// FMMTL_STATIC_ASSERT (for C++03 regions)
+#include <boost/static_assert.hpp>
+#define FMMTL_STATIC_ASSERT BOOST_STATIC_ASSERT_MSG
 
 // FMMTL_CUDA_CHECK
 #undef FMMTL_CUDA_CHECK
@@ -58,7 +64,7 @@
 #include <cstdlib>
 #include <cstdio>
 inline void cuda_check(char* file, int line) {
-  cudaError_t code = cudaThreadSynchronize();
+  cudaError_t code = cudaDeviceSynchronize();
   if (code != cudaSuccess) {
     fprintf(stderr,"CUDA assert: %s %s %d\n",cudaGetErrorString(code),file,line);
     exit(code);

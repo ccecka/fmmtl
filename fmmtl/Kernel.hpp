@@ -10,16 +10,16 @@
  * At the moment, these may not be fully necessary and are subject to change.
  */
 
-#include "config.hpp"
+#include "fmmtl/config.hpp"
 
 #if defined(FMMTL_KERNEL)   // If compiling the .kern, include implementations
 # if defined(__CUDACC__)    // If compiling the .kern with nvcc
-#  include "executor/P2P_Compressed.cu"
+#  include "fmmtl/executor/P2P_Compressed.cu"
 # else                      // If not compiling the .kern with nvcc
-#  include "executor/P2P_Compressed.cpp"
+#  include "fmmtl/executor/P2P_Compressed.cpp"
 # endif
 #else                       // If !compiling the .kern, include headers and C++11
-# include "executor/P2P_Compressed.hpp"
+# include "fmmtl/executor/P2P_Compressed.hpp"
 #endif
 
 namespace fmmtl

@@ -3,16 +3,12 @@
 
 #include "fmmtl/Logger.hpp"
 
-// Random number in [0,1)
-inline double drand() {
-  return ::drand48();
-}
-
 int main() {
   typedef LaplaceSpherical expansion_type;
   expansion_type K(5);
-  typedef expansion_type::point_type point_type;
+  typedef expansion_type::source_type source_type;
   typedef expansion_type::charge_type charge_type;
+  typedef expansion_type::target_type target_type;
   typedef expansion_type::result_type result_type;
 
   FMMOptions opts;
@@ -20,16 +16,20 @@ int main() {
   for (double n = 4; n <= 6; n += 0.125) {
     int N = int(pow(10,n));
 
-    std::vector<point_type> points(N);
+    std::vector<source_type> points(N);
     for (unsigned k = 0; k < points.size(); ++k)
-      points[k] = point_type(drand(),drand(),drand());
+      points[k] = fmmtl::random<source_type>::get();
 
     std::vector<charge_type> charges(N);
     for (unsigned k = 0; k < charges.size(); ++k)
-      charges[k] = drand();
+      charges[k] = fmmtl::random<charge_type>::get();
 
     // Initialize matrix
-    kernel_matrix<expansion_type> A = make_kernel_matrix(K, points, opts);
+    fmmtl::kernel_matrix<expansion_type> A = K(points, points);
+    A.set_options(opts);
+
+    // Warm up
+    std::vector<result_type> r = A * charges;
 
     // Compute the product
     Ticker tick;

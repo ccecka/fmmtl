@@ -1,3 +1,5 @@
+#ifndef FMMTL_UNITKERNEL_KERN
+#define FMMTL_UNITKERNEL_KERN
 /** @file UnitKernel
  * @brief Implements the unit kernel defined by
  * K(t,s) = 1  if t != s
@@ -8,7 +10,7 @@
 
 #include "fmmtl/Kernel.hpp"
 // Use a library-defined Vector class that supports multiple architectures
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 struct UnitPotential
     : public fmmtl::Kernel<UnitPotential> {
@@ -40,9 +42,7 @@ FMMTL_KERNEL_EXTRAS(UnitPotential);
 struct UnitExpansion
     : public fmmtl::Expansion<UnitPotential, UnitExpansion>
 {
-  //! The dimension of the spacial interpretation of the source/target_type.
-  static const unsigned dimension = 3;
-  //! Point type to use for the tree
+  //! Point type to use for the trees
   typedef Vec<3,double> point_type;
 
   //! Multipole expansion type
@@ -50,111 +50,50 @@ struct UnitExpansion
   //! Local expansion type
   typedef double local_type;
 
-  /** Initialize a multipole expansion with the size of a box at this level */
-  void init_multipole(multipole_type& M, const point_type&, unsigned) const {
-    M = 0;
-  }
-  /** Initialize a local expansion with the size of a box at this level */
-  void init_local(local_type& L, const point_type&, unsigned) const {
-    L = 0;
-  }
-
-  /** Kernel P2M operation
-   * M += Op(s) * c where M is the multipole and s is the source
-   *
-   * @param[in] source The point source
-   * @param[in] charge The source's corresponding charge
-   * @param[in] center The center of the box containing the multipole expansion
-   * @param[in,out] M The multipole expansion to accumulate into
-   */
+  /** Kernel P2M operation */
   void P2M(const point_type&, const charge_type& charge,
            const point_type&, multipole_type& M) const {
     M += charge;
   }
 
-  /** Kernel P2L operation
-   * L += c * Op(s) where L is the local expansion,
-   *                      s is the source,
-   *                  and c is the charge.
-   *
-   * @param[in] source  The source to accumulate into the local expansion
-   * @param[in] charge  The source's corresponding charge
-   * @param[in] center  The center of the box containing the local expansion
-   * @param[in,out] L   The local expansion to accumulate into
-   */
+  /** Kernel P2L operation */
   void P2L(const source_type&, const charge_type& charge,
            const point_type&, local_type& L) const {
     L += charge;
   }
 
-  /** Kernel M2M operator
-   * M_t += Op(M_s) where M_t is the target and M_s is the source
-   *
-   * @param[in] source The multipole source at the child level
-   * @param[in,out] target The multipole target to accumulate into
-   * @param[in] translation The vector from source to target
-   * @pre source includes the influence of all points within its box
-   */
+  /** Kernel M2M operator */
   void M2M(const multipole_type& source,
                  multipole_type& target,
            const point_type&) const {
     target += source;
   }
 
-  /** Kernel M2L operation
-   * L += Op(M)
-   *
-   * @param[in] source The multpole expansion source
-   * @param[in,out] target The local expansion target
-   * @param[in] translation The vector from source to target
-   * @pre translation obeys the multipole-acceptance criteria
-   * @pre source includes the influence of all points within its box
-   */
+  /** Kernel M2L operation */
   void M2L(const multipole_type& source,
                  local_type& target,
            const point_type&) const {
     target += source;
   }
 
-  /** Kernel M2P operation
-   * r += Op(M) where M is the multipole and r is the result
-   *
-   * @param[in] M The multpole expansion
-   * @param[in] center The center of the box with the multipole expansion
-   * @param[in] target The target point position
-   * @param[in,out] result The target's corresponding result to accumulate into
-   * @pre M includes the influence of all points within its box
-   */
+  /** Kernel M2P operation */
   void M2P(const multipole_type& M, const point_type&,
            const target_type&, result_type& result) const {
     result += M;
   }
 
-  /** Kernel L2L operator
-   * L_t += Op(L_s) where L_t is the target and L_s is the source
-   *
-   * @param[in] source The local source at the parent level
-   * @param[in,out] target The local target to accumulate into
-   * @param[in] translation The vector from source to target
-   * @pre source includes the influence of all points outside its box
-   */
+  /** Kernel L2L operator */
   void L2L(const local_type& source,
                  local_type& target,
            const point_type&) const {
     target += source;
   }
 
-  /** Kernel L2P operation
-   * r += Op(L) where L is the local expansion and r is the result
-   *
-   * @param[in] L The local expansion
-   * @param[in] center The center of the box with the local expansion
-   * @param[in] t_begin,t_end Iterator pair to the target points
-   * @param[in] r_begin Iterator to the result accumulator
-   * @pre L includes the influence of all points outside its box
-   */
+  /** Kernel L2P operation */
   void L2P(const local_type& L, const point_type&,
            const target_type&, result_type& result) const {
     result += L;
   }
 };
+
+#endif

@@ -1,6 +1,6 @@
-/** @file correctness.cpp
- * @brief Test the tree and tree traversal by running an instance
- * of the UnitKernel or ExpKernel with random points and charges
+#/** @file error.cpp
+ * @brief Test the kernel and expansions by running an instance
+ * of the kernel matrix-vector product and yielding statistics.
  */
 
 #include "fmmtl/KernelMatrix.hpp"
@@ -8,6 +8,9 @@
 
 #include "UnitKernel.kern"
 #include "ExpKernel.kern"
+
+#include "LaplaceSpherical.hpp"
+#include "YukawaCartesian.hpp"
 
 int main(int argc, char **argv)
 {
@@ -26,7 +29,11 @@ int main(int argc, char **argv)
   // Init the FMM Kernel and options
   FMMOptions opts = get_options(argc, argv);
   //typedef UnitExpansion kernel_type;
-  typedef ExpExpansion kernel_type;
+  //typedef ExpExpansion kernel_type;
+  typedef LaplaceSpherical kernel_type;
+  //typedef YukawaCartesian kernel_type;
+
+  // Init kernel
   kernel_type K;
 
   typedef kernel_type::point_type point_type;
@@ -60,16 +67,27 @@ int main(int argc, char **argv)
     // Compute the result with a direct matrix-vector multiplication
     Direct::matvec(K, points, charges, exact);
 
-    int wrong_results = 0;
+    double tot_error_sq = 0;
+    double tot_norm_sq = 0;
+    double tot_ind_rel_err = 0;
+    double max_ind_rel_err = 0;
     for (unsigned k = 0; k < result.size(); ++k) {
-      if ((exact[k] - result[k]) / (exact[k]) > 1e-13) {
-        std::cout << "[" << std::setw(log10(N)+1) << k << "]"
-                  << " Exact: " << exact[k]
-                  << ", FMM: " << result[k] << std::endl;
-        std::cout << (exact[k] - result[k]) / (exact[k]) << std::endl;
-        ++wrong_results;
-      }
+      // Individual relative error
+      double rel_error = norm(exact[k] - result[k]) / norm(exact[k]);
+      tot_ind_rel_err += rel_error;
+      // Maximum relative error
+      max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
+
+      // Total relative error
+      tot_error_sq += normSq(exact[k] - result[k]);
+      tot_norm_sq  += normSq(exact[k]);
     }
-    std::cout << "Wrong counts: " << wrong_results << " of " << N << std::endl;
+    double tot_rel_err = sqrt(tot_error_sq/tot_norm_sq);
+    std::cout << "Vector  relative error: " << tot_rel_err << std::endl;
+
+    double ave_rel_err = tot_ind_rel_err / result.size();
+    std::cout << "Average relative error: " << ave_rel_err << std::endl;
+
+    std::cout << "Maximum relative error: " << max_ind_rel_err << std::endl;
   }
 }

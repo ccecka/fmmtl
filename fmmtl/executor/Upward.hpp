@@ -1,24 +1,25 @@
 #pragma once
 
-
-/** Helper for performing a full upward pass
- */
-/**
+/** @brief Process the boxes from bottom to top
+ * concept Tree {
+ *   unsigned levels();                       // Levels in the tree, root:0
+ *   box_iterator box_begin(unsigned level);  // Iterator range to boxes of level
+ *   box_iterator box_end(unsigned level);
+ * }
  * concept Evaluator {
- *   void up_process(box_type& b)
+ *   void operator()(typename Tree::box_type& b);   // Process box b
  * }
  */
 struct UpwardPass {
   template <typename Tree, class Evaluator>
-	inline static void eval(Tree& tree, Evaluator e) {
+	inline static void eval(Tree& tree, Evaluator& eval) {
 		// For the lowest level up to the highest level
 		for (int l = tree.levels()-1; l >= 0; --l) {
 			// For all boxes at this level
 			auto b_end = tree.box_end(l);
       for (auto bit = tree.box_begin(l); bit != b_end; ++bit) {
         auto box = *bit;
-
-        e.up_process(box);
+        eval(box);
 			}
 		}
 	}

@@ -1,3 +1,5 @@
+#ifndef FMMTL_KERNELSKELETON_KERN
+#define FMMTL_KERNELSKELETON_KERN
 /** @file KernelSkeleton
  * @brief An example Kernel implementation that explains the required and
  * optional methods and types that define a Kernel class.
@@ -28,7 +30,7 @@
 #include "fmmtl/Kernel.hpp"
 
 // Use a library-defined Vector class that supports multiple architectures
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 
 /** @struct KernelSkeleton
@@ -46,13 +48,15 @@ struct KernelSkeleton
   //! Source type
   typedef Vec<3,double> source_type;
   //! Charge type associated with each source
-  //! The primitive type of the vector in the  matvec
+  //! The primitive type of the vector in the matvec
+  // TODO: Accept anything algebraically compatable with kernel_value_type?
   typedef double charge_type;
 
   //! Target type
   typedef Vec<3,double> target_type;
   //! Result type associated with each target
   //! The product of the kernel_value_type and the charge_type
+  // TODO: Infer from std::result_of<charge_type * kernel_value_type>::type?
   typedef double result_type;
 
   /** Kernel evaluation
@@ -176,24 +180,24 @@ FMMTL_KERNEL_EXTRAS(KernelSkeleton);
 struct ExpansionSkeleton
     : public fmmtl::Expansion<KernelSkeleton, ExpansionSkeleton>
 {
-  //! The dimension of the spacial interpretation of the source/target_type.
-  static const unsigned dimension = 3;
-  //! Point type to use for the tree -- Restricted to include/Vec.hpp.
-  //! source_type and target_type must be convertible to point_type:
-  //!    static_cast<point_type>(source_type)
-  //!    static_cast<point_type>(target_type)
-  //! TODO: Generalize? Use any type with op[]/size() or begin()/end()?
-  typedef Vec<dimension,double> point_type;
+  /** @brief Spacial type to build the tree.
+   * Restricted to fmmtl/numeric/Vec.hpp for now.
+   * @note source_type and target_type must be convertible to point_type:
+   *    static_cast<point_type>(source_type)
+   *    static_cast<point_type>(target_type)
+   * @note Also defines the spacial dimension of the problem: [1-4] available.
+   * TODO: Generalize? Use any type with op[]/size() or begin()/end()? */
+  typedef Vec<3,double> point_type;
 
   //! Multipole expansion type
   typedef std::vector<double> multipole_type;
   //! Local expansion type
   typedef std::vector<double> local_type;
 
-  // Constructor
+  //! Constructor
   ExpansionSkeleton() : Expansion() {}
 
-  /** Initialize a multipole expansion to zero
+  /** Initialize a multipole expansion to algebraic zero
    * using the size and level number of the box containing it
    * (Optional: If not implemented, default constructor for multipole_type used)
    *
@@ -207,7 +211,7 @@ struct ExpansionSkeleton
     (void) extents;
     (void) level;
   }
-  /** Initialize a local expansion to zero
+  /** Initialize a local expansion to algebraic zero
    * using the size and level number of the box containing it
    * (Optional: If not implemented, default constructor for local_type used)
    *
@@ -377,6 +381,24 @@ struct ExpansionSkeleton
   /************************* Optional ********************************/
   /*******************************************************************/
 
+  /** Optional Dynamic Multipole Acceptance Criteria
+   * Some MACs depend on the data other than box descriptors. Extra data regarding
+   * source or target distributions may be stored in multipole and local expansions
+   * and used by this function as an interaction criteria.
+   * WARNING: Implementing this function may prevent some optimizations.
+   *
+   * @param[in]  M  The multipole of the source box being considered
+   * @param[in]  L  The local expansion of the target box being considered
+   * @pre @a M includes the influence of all sources within its box
+   * @pre @a L has been initialized with init_local or with default initialization
+   */
+  bool MAC(const multipole_type& M,
+           const local_type& L) {
+    (void) M;
+    (void) L;
+    return true;
+  }
+
   /** Optional Kernel vectorized P2M operation
    * M = sum_j Op(s_j) * c_j where M is the multipole,
    *                               s_j are the sources,
@@ -465,3 +487,5 @@ struct ExpansionSkeleton
 
 
 // For simple examples, see UnitKernel.kern and ExpKernel.kern
+
+#endif

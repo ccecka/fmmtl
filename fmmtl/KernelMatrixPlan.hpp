@@ -1,19 +1,15 @@
 #pragma once
 
-#include "KernelTraits.hpp"
-#include "executor/make_executor.hpp"
-#include "tree/NDTree.hpp"
-#include "executor/Context.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
+#include "fmmtl/executor/make_executor.hpp"
+#include "fmmtl/tree/NDTree.hpp"
+#include "fmmtl/executor/Context.hpp"
 
 /** Abstract PlanBase class */
 template <class Expansion>
 class PlanBase {
  public:
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
+  FMMTL_IMPORT_KERNEL_TRAITS(Expansion);
 
   /** Virtual destructor */
   virtual ~PlanBase() {};
@@ -35,11 +31,7 @@ class PlanBase {
 template <typename Expansion, typename Context>
 struct Plan
     : public PlanBase<Expansion> {
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
+  FMMTL_IMPORT_KERNEL_TRAITS(Expansion);
 
   template <typename KernelMatrix, typename Options>
   Plan(const KernelMatrix& mat, Options& opts)
@@ -57,7 +49,9 @@ struct Plan
 
   virtual void execute(const std::vector<charge_type>& charges,
                        std::vector<result_type>& results) {
-    return context.execute(charges, results, executor);
+    fmmtl_logger.clear();
+    context.execute(charges, results, executor);
+    FMMTL_PRINT_LOG(std::cout);
   }
 
   virtual std::vector<target_type> targets() const {
@@ -81,18 +75,24 @@ struct Plan
 template <class KernelMatrix, class Options>
 PlanBase<typename KernelMatrix::expansion_type>*
 make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
+  // Statically compute the plan type, potentially from Option types
+
   typedef typename KernelMatrix::expansion_type expansion_type;
-  typedef typename KernelMatrix::source_type    source_type;
-  typedef typename KernelMatrix::target_type    target_type;
 
-  // Statically compute the context type, potentially from Option types
-  typedef NDTree<fmmtl::dimension<source_type>::value> source_tree_type;
-  typedef NDTree<fmmtl::dimension<target_type>::value> target_tree_type;
+  // The source and target tree types
+  typedef NDTree<ExpansionTraits<expansion_type>::dimension> source_tree_type;
+  typedef NDTree<ExpansionTraits<expansion_type>::dimension> target_tree_type;
 
+  typedef typename ExpansionTraits<expansion_type>::source_type source_type;
+  typedef typename ExpansionTraits<expansion_type>::target_type target_type;
+
+  // Check if source and target sets are the same
   if (std::is_same<source_type, target_type>::value) {
     if (mat.sources() == mat.targets()) {    // TODO: fix O(N) with aliased test
-      std::cerr << "Using single tree context" << std::endl;
-      typedef SingleTreeContext<source_type, source_tree_type> tree_context_type;
+#if defined(FMMTL_DEBUG)
+      std::cout << "Using single tree context." << std::endl;
+#endif
+      typedef SingleTreeContext<source_tree_type> tree_context_type;
       typedef DataContext<KernelMatrix, tree_context_type> context_type;
 
       typedef Plan<expansion_type, context_type> plan_type;
@@ -100,8 +100,11 @@ make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
     }
   }
 
-  std::cerr << "Using dual tree context" << std::endl;
-  typedef DualTreeContext<source_type, target_type, source_tree_type, target_tree_type> tree_context_type;
+  // Source and target sets are unique
+#if defined(FMMTL_DEBUG)
+  std::cout << "Using dual tree context." << std::endl;
+#endif
+  typedef DualTreeContext<source_tree_type, target_tree_type> tree_context_type;
   typedef DataContext<KernelMatrix, tree_context_type> context_type;
 
   typedef Plan<expansion_type, context_type> plan_type;

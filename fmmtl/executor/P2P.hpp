@@ -5,7 +5,7 @@
  */
 
 #include "fmmtl/Logger.hpp"
-#include "fmmtl/KernelTraits.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
 #include <iterator>
 #include <type_traits>
 
@@ -47,8 +47,7 @@ struct P2P
 
     kernel_value_type k12 = K(p1,p2);
     r1 += k12 * c2;
-    kernel_value_type k21 = K.transpose(k12);
-    r2 += k21 * c1;
+    r2 += K.transpose(k12) * c1;
   }
 
 	/** Asymmetric block P2P dispatch
@@ -85,10 +84,6 @@ struct P2P
     typedef typename Kernel::charge_type charge_type;
     typedef typename Kernel::target_type target_type;
     typedef typename Kernel::result_type result_type;
-
-    // TODO?
-    // Optimize on if(std::iterator_traits<All Iters>::iterator_category == random_access_iterator)
-    // to eliminate multiple increments
 
     static_assert(std::is_same<source_type,
                   typename std::iterator_traits<SourceIter>::value_type
@@ -168,9 +163,6 @@ struct P2P
                   typename std::iterator_traits<ResultIter>::value_type
                   >::value, "ResultIter::value_type != Kernel::result_type");
 
-    // TODO
-    // Optimize on random_access_iterator?
-
     for ( ; p1_first != p1_last; ++p1_first, ++c1_first, ++r1_first) {
       const source_type& p1 = *p1_first;
       const charge_type& c1 = *c1_first;
@@ -213,9 +205,6 @@ struct P2P
     static_assert(std::is_same<result_type,
                                typename ResultIter::value_type>::value,
                   "ResultIter::value_type != Kernel::result_type");
-
-    // TODO
-    // Optimize on random_access_iterator?
 
     SourceIter pi = p_first;
     ChargeIter ci = c_first;
@@ -345,55 +334,73 @@ class P2P_Batch
   typedef typename Context::source_box_type source_box_type;
   typedef typename Context::target_box_type target_box_type;
 
-  //! Box list for P2P interactions    TODO: could further compress these...
-  typedef std::pair<source_box_type, target_box_type> box_pair;
+  std::vector<target_box_type> target_box_list;
+  std::vector<std::vector<source_box_type>> source_boxes;
+  unsigned box_pair_count;
 
-  typedef std::vector<box_pair> p2p_container;
-  p2p_container p2p_list;
+  //! Box list for P2P interactions    TODO: could further compress these...
+  //typedef std::pair<source_box_type, target_box_type> box_pair;
+  //std::vector<box_pair> p2p_list;
 
   // For now, only use for GPU...
   P2P_Compressed<kernel_type>* p2p_compressed;
 
  public:
-  P2P_Batch() : p2p_compressed(nullptr) {}
+  P2P_Batch()
+      : box_pair_count(0), p2p_compressed(nullptr) {
+  }
   ~P2P_Batch() {
     delete p2p_compressed;
   }
 
   /** Insert a source-target box interaction to the interaction list */
   void insert(const source_box_type& s, const target_box_type& t) {
-    p2p_list.push_back(std::make_pair(s,t));
+    if (source_boxes.size() <= t.index()) {
+      source_boxes.resize(t.index() + 1);
+      target_box_list.push_back(t);
+    } else if (source_boxes[t.index()].empty()) {
+      target_box_list.push_back(t);
+    }
+
+    source_boxes[t.index()].push_back(s);
+    ++box_pair_count;
+
+    //p2p_list.push_back(std::make_pair(s,t));
   }
 
   /** Compute all interations in the interaction list */
   void execute(Context& c) {
-    FMMTL_LOG("P2P");
+    FMMTL_LOG("P2P Batch");
 #if FMMTL_NO_CUDA
-    auto b_end = p2p_list.end();
-    //#pragma omp parallel for//   TODO: Make thread safe!
-    for (auto bi = p2p_list.begin(); bi < b_end; ++bi) {
-      auto& b2b = *bi;
-      P2P::eval(c, b2b.first, b2b.second, P2P::ONE_SIDED());
+    auto t_end = target_box_list.end();
+#pragma omp parallel for
+    for (auto ti = target_box_list.begin(); ti < t_end; ++ti) {
+      target_box_type& tb = *ti;
+      auto s_end = source_boxes[tb.index()].end();
+      for (auto si = source_boxes[tb.index()].begin(); si != s_end; ++si) {
+        P2P::eval(c, *si, tb, P2P::ONE_SIDED());
+      }
     }
 #else
     if (p2p_compressed == nullptr)
       p2p_compressed =
-          P2P_Compressed<kernel_type>::make(c, p2p_list.begin(), p2p_list.end());
+          P2P_Compressed<kernel_type>::make(c, target_box_list, source_boxes, box_pair_count);
     p2p_compressed->execute(c);
 #endif
   }
 
+  /*
   class P2P_Matrix
       : public EvaluatorBase<Context> {
     ublas::compressed_matrix<kernel_value_type> A;
 
    public:
-    virtual void execute(Context& bc) {
+    virtual void execute(Context& c) {
       // printf("EvalLocalSparse::execute(Context&)\n");
 
       typedef typename Context::charge_type charge_type;
-      ublas::vector<charge_type> charges(bc.source_tree().bodies());
-      std::copy(bc.charge_begin(), bc.charge_end(), charges.begin());
+      ublas::vector<charge_type> charges(c.source_tree().bodies());
+      std::copy(c.charge_begin(), c.charge_end(), charges.begin());
 
       // Call the matvec
       typedef typename Context::result_type result_type;
@@ -401,15 +408,17 @@ class P2P_Batch
 
       // Accumulate results
       std::transform(results.begin(), results.end(),
-                     bc.result_begin(), bc.result_begin(),
+                     c.result_begin(), c.result_begin(),
                      std::plus<result_type>());
     }
   };
+  */
 
 
   /** Convert the interaction list to an interaction matrix
    * by evaluating all of the elements.
    */
+  /*
   ublas::compressed_matrix<kernel_value_type> to_matrix(Context& bc) {
     auto first_source = bc.source_begin();
     auto first_target = bc.target_begin();
@@ -462,4 +471,5 @@ class P2P_Batch
 
     return m;
   }
+  */
 };

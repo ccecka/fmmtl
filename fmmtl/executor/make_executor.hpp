@@ -1,6 +1,9 @@
 #pragma once
 
-#include "fmmtl/executor/EvalSimple.hpp"
+#include "fmmtl/executor/EvalLists.hpp"
+#include "fmmtl/executor/EvalTraverse.hpp"
+
+#include "fmmtl/meta/kernel_traits.hpp"
 
 template <typename Context, typename Options>
 EvaluatorBase<Context>* make_evaluator(Context& c, Options& opts) {
@@ -9,5 +12,8 @@ EvaluatorBase<Context>* make_evaluator(Context& c, Options& opts) {
   // Dynamically from the Options input
 
   // For now
-  return make_eval_simple(c, opts);
+  if (ExpansionTraits<typename Context::expansion_type>::has_dynamic_MAC)
+    return make_eval_traverse(c, opts);
+  else
+    return make_eval_lists(c, opts);
 }

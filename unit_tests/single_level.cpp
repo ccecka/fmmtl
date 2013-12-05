@@ -23,7 +23,7 @@ void single_level_test(const Expansion& K) {
 
   // init source
   std::vector<source_type> s(1);
-  s[0] = source_type(0,0,0);
+  s[0] = source_type(0, 0, 0);
 
   // init charge
   std::vector<charge_type> c(1);
@@ -31,22 +31,21 @@ void single_level_test(const Expansion& K) {
 
   // init target
   std::vector<target_type> t(1);
-  t[0] = target_type(0.9,0,0);
-  // target_type t = target_type(0.9,0,0); // 1,1);
+  t[0] = target_type(0.98, 0.98, 0.98);
 
   // init results vectors for exact, FMM
   std::vector<result_type> rexact(1);
-  // result_type rexact;
-  result_type rm2p;
-  result_type rfmm;
+  rexact[0] = result_type(0);
+  result_type rm2p = result_type(0);
+  result_type rfmm = result_type(0);
 
   // test direct
   Direct::matvec(K, s, c, t, rexact);
 
-  // setup intial multipole expansion
+  // setup initial multipole expansion
   multipole_type M;
-  point_type M_center(0.125,0,0); // 0.125,0.125);
-  point_type M_extent(0.25,0.25,0.25);
+  point_type M_center(0.1, 0.1, 0.1);
+  point_type M_extent(0.2, 0.2, 0.2);
   INITM::eval(K, M, M_extent, 1u);
   K.P2M(s[0], c[0], M_center, M);
 
@@ -55,11 +54,10 @@ void single_level_test(const Expansion& K) {
 
   // test M2L, L2P
   local_type L;
-  point_type L_center(0.875,0,0); // 0.875,0.875);
-  point_type L_extent(0.25,0.25,0.25);
+  point_type L_center(0.9, 0.9, 0.9);
+  point_type L_extent(0.2, 0.2, 0.2);
   auto d = L_center - M_center;
   printf("DIST: (%lg, %lg, %lg) : %lg\n",d[0],d[1],d[2],norm(d));
-  // L_center = point_type(t);
   INITL::eval(K, L, L_extent, 1u);
   K.M2L(M, L, L_center - M_center);
   K.L2P(L, L_center, t[0], rfmm);

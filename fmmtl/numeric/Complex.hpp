@@ -1,3 +1,4 @@
+#pragma once
 /*
  *  Copyright 2008-2009 NVIDIA Corporation
  *
@@ -58,9 +59,7 @@
  *  \brief Complex numbers that work on host (CPU) and device (GPU)
  */
 
-#pragma once
-
-#include "config.hpp"
+#include "fmmtl/config.hpp"
 
 #if (defined THRUST_DEVICE_BACKEND && THRUST_DEVICE_BACKEND == THRUST_DEVICE_BACKEND_CUDA) || (defined THRUST_DEVICE_SYSTEM && THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA)
 
@@ -280,16 +279,6 @@ template<typename ValueType> complex<ValueType> asinh(const complex<ValueType>& 
 // Returns the complex hyperbolic arc tangent of z.
 template<typename ValueType> complex<ValueType> atanh(const complex<ValueType>& z);
 
-
-
-// Stream operators:
-template<typename ValueType,class charT, class traits>
-std::basic_ostream<charT, traits>& operator<<(std::basic_ostream<charT, traits>& os, const complex<ValueType>& z);
-template<typename ValueType, typename charT, class traits>
-std::basic_istream<charT, traits>&
-operator>>(std::basic_istream<charT, traits>& is, complex<ValueType>& z);
-
-
 // Stream operators
 template<typename ValueType,class charT, class traits>
 std::basic_ostream<charT, traits>& operator<<(std::basic_ostream<charT, traits>& os, const complex<ValueType>& z)
@@ -307,47 +296,27 @@ operator>>(std::basic_istream<charT, traits>& is, complex<ValueType>& z)
   charT ch;
   is >> ch;
 
-  if(ch == '(')
-  {
+  if(ch == '(') {
     is >> re >> ch;
-    if (ch == ',')
-    {
+    if (ch == ',') {
       is >> im >> ch;
-      if (ch == ')')
-      {
+      if (ch == ')') {
         z = complex<ValueType>(re, im);
-      }
-      else
-      {
+      } else {
         is.setstate(std::ios_base::failbit);
       }
-    }
-    else if (ch == ')')
-    {
+    } else if (ch == ')') {
       z = re;
-    }
-    else
-    {
+    } else {
       is.setstate(std::ios_base::failbit);
     }
-  }
-  else
-  {
+  } else {
     is.putback(ch);
     is >> re;
     z = re;
   }
   return is;
 }
-
-template <typename T>
-struct norm_type {
-  typedef T type;
-};
-template <typename T>
-struct norm_type< complex<T> > {
-  typedef T type;
-};
 
 template <typename ValueType>
 struct complex
@@ -1148,7 +1117,7 @@ using std::complex;
 using std::conj;
 using std::abs;
 using std::arg;
-using std::norm;
+using std::norm;  // XXX
 using std::polar;
 using std::cos;
 using std::cosh;
@@ -1165,57 +1134,12 @@ using std::tanh;
 using std::acos;
 using std::asin;
 using std::atan;
-#if __cplusplus >= 201103L
 using std::acosh;
 using std::asinh;
 using std::atanh;
-#else
-template <typename ValueType>
-inline complex<ValueType> acosh(const complex<ValueType>& z){
-  fmmtl::complex<ValueType> ret((z.real() - z.imag()) * (z.real() + z.imag()) - ValueType(1.0),
-                              ValueType(2.0) * z.real() * z.imag());
-  ret = sqrt(ret);
-  if (z.real() < ValueType(0.0)){
-    ret = -ret;
-  }
-  ret += z;
-  ret = log(ret);
-  if (ret.real() < ValueType(0.0)){
-    ret = -ret;
-  }
-  return ret;
-}
-template <typename ValueType>
-inline complex<ValueType> asinh(const complex<ValueType>& z){
-  return log(sqrt(z*z+ValueType(1))+z);
-}
-
-template <typename ValueType>
-inline complex<ValueType> atanh(const complex<ValueType>& z){
-  ValueType imag2 = z.imag() *  z.imag();
-  ValueType n = ValueType(1.0) + z.real();
-  n = imag2 + n * n;
-
-  ValueType d = ValueType(1.0) - z.real();
-  d = imag2 + d * d;
-  complex<ValueType> ret(ValueType(0.25) * (::log(n) - ::log(d)),0);
-
-  d = ValueType(1.0) -  z.real() * z.real() - imag2;
-
-  ret.imag(ValueType(0.5) * ::atan2(ValueType(2.0) * z.imag(), d));
-  return ret;
 }
 #endif
 
 
-template <typename T>
-struct norm_type {
-  typedef T type;
-};
-
-template <typename T>
-struct norm_type< complex<T> > {
-  typedef T type;
-};
-}
-#endif
+#include "fmmtl/numeric/norm.hpp"
+#include "fmmtl/numeric/random.hpp"

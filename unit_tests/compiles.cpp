@@ -2,11 +2,6 @@
 
 #include "KernelSkeleton.kern"
 
-// Random number in [0,1)
-inline double drand() {
-  return ::drand48();
-}
-
 int main(int argc, char** argv) {
   int N = 100;
   int M = 100;
@@ -27,15 +22,14 @@ int main(int argc, char** argv) {
 
   expansion_type K;
   FMMOptions opts = get_options(argc, argv);
-  (void) opts; // TODO: Work into sugar interface
 
   std::vector<source_type> sources(N);
   for (source_type& s : sources)
-    s = source_type(drand(), drand(), drand());
+    s = fmmtl::random<source_type>::get();
 
   std::vector<target_type> targets(M);
   for (target_type& t : targets)
-    t = target_type(drand(), drand(), drand());
+    t = fmmtl::random<target_type>::get();
 
   std::vector<charge_type> charges(N);
   std::vector<result_type> result;

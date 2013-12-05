@@ -9,8 +9,8 @@
 #include <chrono>
 #include <atomic>
 
-#include "common.hpp"
-#include "config.hpp"
+#include "fmmtl/common.hpp"
+#include "fmmtl/config.hpp"
 
 /** An RAII class
  * Updates a listener with the amount of time the Ticker was alive.
@@ -107,7 +107,8 @@ class Timer {
     return s << t.seconds() << "secs";
   }
  private:
-  std::atomic<tick_type> ticks_;
+  //std::atomic<tick_type> ticks_;
+  tick_type ticks_;
 };
 
 
@@ -184,7 +185,8 @@ class Logger {
     }
    private:
     Timer total_;
-    std::atomic<unsigned> call_;
+    //std::atomic<unsigned> call_; // Not required if threads have unique event strings
+    unsigned call_;
   };
 
   // A map of pointers to (total_time, #calls) with string identifiers

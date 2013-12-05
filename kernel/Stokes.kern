@@ -1,7 +1,9 @@
+#ifndef FMMTL_STOKES_KERN
+#define FMMTL_STOKES_KERN
 
 #include "fmmtl/Kernel.hpp"
 
-#include "fmmtl/Vec.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 /** Stokeslet Green's function:
  *
@@ -49,3 +51,5 @@ struct Stokeslet
   }
 };
 FMMTL_KERNEL_EXTRAS(Stokeslet);
+
+#endif

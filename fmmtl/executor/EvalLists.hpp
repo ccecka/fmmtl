@@ -10,22 +10,20 @@
 
 
 template <class Context>
-class EvalSimple
+class EvalLists
     : public EvaluatorBase<Context>
 {
   typedef typename Context::source_box_type source_box;
   typedef typename Context::target_box_type target_box;
 
-  P2P_Batch<Context> p2p_batch;
-  M2L_Batch<Context> m2l_batch;
+  P2P_Batch<Context> p2p_;
+  M2L_Batch<Context> m2l_;
 
-  std::function<bool(source_box, target_box)> mac_;
-
-  struct Dispatch {
+  struct UpDispatch {
     Context& c_;
-    Dispatch(Context& c) : c_(c) {}
+    UpDispatch(Context& c) : c_(c) {}
 
-    void up_process(typename Context::source_box_type& box) {
+    inline void operator()(const source_box& box) {
       if (box.is_leaf()) {
         // If leaf, make P2M calls
         P2M::eval(c_, box);
@@ -36,7 +34,12 @@ class EvalSimple
           M2M::eval(c_, *cit, box);
       }
     }
-    void down_process(typename Context::target_box_type& box) {
+  };
+  struct DownDispatch {
+    Context& c_;
+    DownDispatch(Context& c) : c_(c) {}
+
+    inline void operator()(const target_box& box) {
       if (box.is_leaf()) {
         // If leaf, make L2P calls
         L2P::eval(c_, box);
@@ -51,12 +54,21 @@ class EvalSimple
 
  public:
 
-  template <class MAC>
-  EvalSimple(Context& c, const MAC& mac)
-      : m2l_batch(c),
-        mac_(mac) {
+  EvalLists(Context& c) {
+    // Construct functors for dispatched near and far operators
+    auto far_batcher = [&c,this](const source_box& s, const target_box& t) {
+      if (MAC::eval(c,s,t)) {
+        m2l_.insert(s,t);
+        return true;
+      }
+      return false;
+    };
+    auto near_batcher = [this](const source_box& s, const target_box& t) {
+      p2p_.insert(s,t);
+    };
     // Determine the box interactions
-    Traverse::eval(c.source_tree().root(), c.target_tree().root(), *this);
+    Traverse::eval(c.source_tree().root(), c.target_tree().root(),
+                   near_batcher, far_batcher);
   }
 
   void execute(Context& c) {
@@ -69,36 +81,21 @@ class EvalSimple
       INITL::eval(c, *bi);
 
     // Perform the upward pass (not all may be needed)
-    Dispatch updown(c);
-    UpwardPass::eval(c.source_tree(), updown);
+    UpDispatch up(c);
+    UpwardPass::eval(c.source_tree(), up);
 
-    m2l_batch.execute(c);
+    // Perform the source-target box interactions
+    m2l_.execute(c);
+    p2p_.execute(c);
 
-    // Perform the box interactions (not all may be needed)
-    DownwardPass::eval(c.target_tree(), updown);
-
-    p2p_batch.execute(c);
-  }
-
-  /*******************/
-  /** Functions called by the Traverse algorithm */
-  /*******************/
-
-  void near_field(const source_box& s, const target_box& t) {
-    p2p_batch.insert(s,t);
-  }
-
-  bool far_field(const source_box& s, const target_box& t) {
-    if (mac_(s,t)) {
-      m2l_batch.insert(s,t);
-      return true;
-    }
-    return false;
+    // Perform the downward pass (not all may be needed)
+    DownDispatch down(c);
+    DownwardPass::eval(c.target_tree(), down);
   }
 };
 
 
 template <class Context, class Options>
-EvaluatorBase<Context>* make_eval_simple(Context& c, Options& opts) {
-  return new EvalSimple<Context>(c, opts.MAC());
+EvaluatorBase<Context>* make_eval_lists(Context& c, Options&) {
+  return new EvalLists<Context>(c);
 }

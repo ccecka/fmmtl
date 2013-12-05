@@ -9,17 +9,6 @@
 #include "UnitKernel.kern"
 #include "ExpKernel.kern"
 
-// Random number in [0,1)
-inline double drand() {
-  return ::drand48();
-}
-
-// Random number in [A,B)
-inline double drand(double A, double B) {
-  return (B-A) * drand() + A;
-}
-
-
 int main(int argc, char **argv)
 {
   int N = 10000;  // num sources
@@ -52,16 +41,16 @@ int main(int argc, char **argv)
   // Init sources
   std::vector<source_type> sources(N);
   for (unsigned k = 0; k < sources.size(); ++k)
-    sources[k] = source_type(drand(), drand(), drand());
+    sources[k] = fmmtl::random<source_type>::get();
   // Init charges
   std::vector<charge_type> charges(N);
   for (unsigned k = 0; k < charges.size(); ++k)
-    charges[k] = drand();
+    charges[k] = fmmtl::random<charge_type>::get();
 
   // Init targets
   std::vector<target_type> targets(M);
   for (unsigned k = 0; k < targets.size(); ++k)
-    targets[k] = target_type(drand(), drand(), drand());
+    targets[k] = fmmtl::random<target_type>::get();
 
   // Build the FMM
   fmmtl::kernel_matrix<kernel_type> A = K(targets, sources);
@@ -81,7 +70,7 @@ int main(int argc, char **argv)
 
     int wrong_results = 0;
     for (unsigned k = 0; k < result.size(); ++k) {
-      if ((exact[k] - result[k]) / exact[k] > 1e-10) {
+      if ((exact[k] - result[k]) / exact[k] > 1e-13) {
         std::cout << "[" << std::setw(log10(M)+1) << k << "]"
                   << " Exact: " << exact[k]
                   << ", FMM: " << result[k] << std::endl;
