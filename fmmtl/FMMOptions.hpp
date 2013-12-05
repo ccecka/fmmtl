@@ -6,7 +6,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "config.hpp"
+#include "fmmtl/config.hpp"
 
 /** Class to define compile-time and run-time FMM options */
 class FMMOptions {

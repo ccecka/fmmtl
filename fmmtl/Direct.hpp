@@ -4,8 +4,8 @@
  *
  */
 
-#include "KernelTraits.hpp"
-#include "executor/P2P.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
+#include "fmmtl/executor/P2P.hpp"
 
 #include <type_traits>
 

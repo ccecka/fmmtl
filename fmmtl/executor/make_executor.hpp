@@ -3,7 +3,7 @@
 #include "fmmtl/executor/EvalLists.hpp"
 #include "fmmtl/executor/EvalTraverse.hpp"
 
-#include "fmmtl/KernelTraits.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
 
 template <typename Context, typename Options>
 EvaluatorBase<Context>* make_evaluator(Context& c, Options& opts) {

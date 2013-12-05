@@ -9,16 +9,12 @@
 
 #include <iostream>
 
+#include "fmmtl/meta/kernel_traits.hpp"
+
 template <typename Kernel>
 class P2P_Compressed {
  public:
-  typedef Kernel kernel_type;
-
-  // No KernelTraits here... only C++03
-  typedef typename kernel_type::source_type source_type;
-  typedef typename kernel_type::target_type target_type;
-  typedef typename kernel_type::charge_type charge_type;
-  typedef typename kernel_type::result_type result_type;
+  FMMTL_IMPORT_KERNEL_TRAITS(Kernel);
 
   // Supporting data
   void* data_;
@@ -94,8 +90,8 @@ class P2P_Compressed {
   P2P_Compressed<Kernel>*
   make(SourceRangeIter srfirst, SourceRangeIter srlast,
        TargetRangeIter trfirst,
-       const std::vector<typename Kernel::source_type>& sources,
-       const std::vector<typename Kernel::target_type>& targets) {
+       const std::vector<source_type>& sources,
+       const std::vector<target_type>& targets) {
     unsigned num_targets = targets.size();
     //unsigned num_sources = sources.size();
     unsigned num_box_pairs = srlast - srfirst;

@@ -114,8 +114,8 @@ P2P_Compressed<Kernel>::P2P_Compressed(
     std::vector<std::pair<unsigned,unsigned> >& target_ranges,
     std::vector<unsigned>& source_range_ptrs,
     std::vector<std::pair<unsigned,unsigned> >& source_ranges,
-    const std::vector<typename Kernel::source_type>& sources,
-    const std::vector<typename Kernel::target_type>& targets)
+    const std::vector<source_type>& sources,
+    const std::vector<target_type>& targets)
     : data_(new Data(sources.size(), targets.size(), target_ranges.size())),
       target_ranges_(gpu_copy(target_ranges)),
       source_range_ptrs_(gpu_copy(source_range_ptrs)),
@@ -137,8 +137,8 @@ P2P_Compressed<Kernel>::~P2P_Compressed() {
 template <typename Kernel>
 void P2P_Compressed<Kernel>::execute(
     const Kernel& K,
-    const std::vector<typename Kernel::charge_type>& charges,
-    std::vector<typename Kernel::result_type>& results) {
+    const std::vector<charge_type>& charges,
+    std::vector<result_type>& results) {
   typedef Kernel kernel_type;
   typedef typename kernel_type::source_type source_type;
   typedef typename kernel_type::target_type target_type;

@@ -1,19 +1,15 @@
 #pragma once
 
-#include "KernelTraits.hpp"
-#include "executor/make_executor.hpp"
-#include "tree/NDTree.hpp"
-#include "executor/Context.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
+#include "fmmtl/executor/make_executor.hpp"
+#include "fmmtl/tree/NDTree.hpp"
+#include "fmmtl/executor/Context.hpp"
 
 /** Abstract PlanBase class */
 template <class Expansion>
 class PlanBase {
  public:
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
+  FMMTL_IMPORT_KERNEL_TRAITS(Expansion);
 
   /** Virtual destructor */
   virtual ~PlanBase() {};
@@ -35,11 +31,7 @@ class PlanBase {
 template <typename Expansion, typename Context>
 struct Plan
     : public PlanBase<Expansion> {
-  typedef typename ExpansionTraits<Expansion>::expansion_type expansion_type;
-	typedef typename ExpansionTraits<Expansion>::source_type    source_type;
-	typedef typename ExpansionTraits<Expansion>::target_type    target_type;
-	typedef typename ExpansionTraits<Expansion>::charge_type    charge_type;
-	typedef typename ExpansionTraits<Expansion>::result_type    result_type;
+  FMMTL_IMPORT_KERNEL_TRAITS(Expansion);
 
   template <typename KernelMatrix, typename Options>
   Plan(const KernelMatrix& mat, Options& opts)

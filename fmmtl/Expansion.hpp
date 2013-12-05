@@ -10,11 +10,11 @@
  * At the moment, these may not be fully necessary and are subject to change.
  */
 
-#include "config.hpp"
+#include "fmmtl/config.hpp"
 
 // Protect against Expansions defined within .kern files
 #if !defined(FMMTL_KERNEL)
-# include "KernelMatrix.hpp"
+# include "fmmtl/KernelMatrix.hpp"
 #endif
 
 namespace fmmtl

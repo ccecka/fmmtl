@@ -4,7 +4,7 @@
  */
 
 #include "fmmtl/Logger.hpp"
-#include "fmmtl/KernelTraits.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
 #include <type_traits>
 
 class MAC

@@ -3,25 +3,8 @@
 #include <boost/iterator/iterator_adaptor.hpp>
 
 #include <iostream>
-#include <type_traits>
-#include <utility>
 
-// TODO: Make C++03 compatable?
-#define SFINAE_TEMPLATE(NAME, KERNEL, OP)                               \
-  template <typename ReturnType, typename... Arg>                       \
-  struct NAME {                                                         \
-    template <class A, class S = void>                                  \
-    struct has_op : std::false_type {};                                 \
-    template <class A>                                                  \
-    struct has_op<A,                                                    \
-      typename std::enable_if<                                          \
-        std::is_same<                                                   \
-          ReturnType,                                                   \
-          decltype(std::declval<const A&>().OP(std::declval<Arg>()...)) \
-        >::value                                                        \
-      >::type> : std::true_type {};                                     \
-    static constexpr bool value = has_op<KERNEL>::value;                \
-  }
+#include "fmmtl/meta/func_traits.hpp"
 
 
 template <typename Kernel>
@@ -36,15 +19,16 @@ struct KernelTraits {
   typedef typename kernel_type::kernel_value_type kernel_value_type;
   typedef typename kernel_type::result_type       result_type;
 
-  // Kernel Evaluations and P2P
-  SFINAE_TEMPLATE(HasEvalOp,kernel_type,operator());
-  static constexpr bool has_eval_op =
-      HasEvalOp<kernel_value_type,
-                const target_type&, const source_type&>::value;
-  SFINAE_TEMPLATE(HasTranspose,kernel_type,transpose);
-  static constexpr bool has_transpose =
-      HasTranspose<kernel_value_type,
-                   const kernel_value_type&>::value;
+  // Kernel evaluation operator, K(t,s)
+  HAS_MEM_FUNC(HasEvalOp,
+               kernel_value_type, operator(),
+               const target_type&, const source_type&);
+  static const bool has_eval_op = HasEvalOp<Kernel>::value;
+  // Kernel transpose, K.transpose(K(t,s))
+  HAS_MEM_FUNC(HasTranspose,
+               kernel_value_type, transpose,
+               const kernel_value_type&);
+  static const bool has_transpose = HasTranspose<Kernel>::value;
 
  protected:
     // A dummy iterator adaptor to check for templated vectorized methods
@@ -57,16 +41,17 @@ struct KernelTraits {
   typedef dumb_iterator<result_type> result_iterator;
 
  public:
-  SFINAE_TEMPLATE(HasP2P,kernel_type,P2P);
-  static constexpr bool has_vector_P2P_symm =
-      HasP2P<void,
-             source_iterator, source_iterator, charge_iterator,
-             target_iterator, target_iterator, charge_iterator,
-             result_iterator, result_iterator>::value;
-  static constexpr bool has_vector_P2P_asymm =
-      HasP2P<void,
-             source_iterator, source_iterator, charge_iterator,
-             target_iterator, target_iterator, result_iterator>::value;
+  HAS_MEM_FUNC(HasP2Psymm,
+               void, P2P,
+               source_iterator, source_iterator, charge_iterator,
+               target_iterator, target_iterator, charge_iterator,
+               result_iterator, result_iterator);
+  static const bool has_vector_P2P_symm = HasP2Psymm<Kernel>::value;
+  HAS_MEM_FUNC(HasP2Pasymm,
+               void, P2P,
+               source_iterator, source_iterator, charge_iterator,
+               target_iterator, target_iterator, result_iterator);
+  static const bool has_vector_P2P_asymm = HasP2Pasymm<Kernel>::value;
 
   friend std::ostream& operator<<(std::ostream& s, const self_type& traits) {
     s << "has_eval_op: "           << traits.has_eval_op           << std::endl;
@@ -100,96 +85,106 @@ struct ExpansionTraits
   typedef typename super_type::result_iterator    result_iterator;
 
   typedef typename expansion_type::point_type     point_type;
-  static constexpr unsigned dimension = fmmtl::dimension<point_type>::value;
+  static const std::size_t dimension = fmmtl::dimension<point_type>::value;
 
   typedef typename expansion_type::multipole_type multipole_type;
   typedef typename expansion_type::local_type     local_type;
 
+  // Converters
+  HAS_MEM_FUNC(HasSourcePoint,
+               point_type, source_point,
+               const source_type&);
+  static const bool has_source_point = HasSourcePoint<Expansion>::value;
+  HAS_MEM_FUNC(HasTargetPoint,
+               point_type, target_point,
+               const target_type&);
+  static const bool has_target_point = HasTargetPoint<Expansion>::value;
+
   // Initializers
-  SFINAE_TEMPLATE(HasInitMultipole,expansion_type,init_multipole);
-  static constexpr bool has_init_multipole =
-      HasInitMultipole<void,
-                       multipole_type&, const point_type&, unsigned>::value;
-  SFINAE_TEMPLATE(HasInitLocal,expansion_type,init_local);
-  static constexpr bool has_init_local =
-      HasInitLocal<void,
-                   local_type&, const point_type&, unsigned>::value;
+  HAS_MEM_FUNC(HasInitMultipole,
+               void, init_multipole,
+               multipole_type&, const point_type&, unsigned);
+  static const bool has_init_multipole = HasInitMultipole<Expansion>::value;
+  HAS_MEM_FUNC(HasInitLocal,
+               void, init_local,
+               local_type&, const point_type&, unsigned);
+  static const bool has_init_local = HasInitLocal<Expansion>::value;
 
   // P2M
-  SFINAE_TEMPLATE(HasP2M,expansion_type,P2M);
-  static constexpr bool has_scalar_P2M =
-      HasP2M<void,
-             const source_type&, const charge_type&,
-             const point_type&, multipole_type&>::value;
-  static constexpr bool has_vector_P2M =
-      HasP2M<void,
-             source_iterator, source_iterator, charge_iterator,
-             const point_type&, multipole_type&>::value;
-  static constexpr bool has_P2M =
-      (has_scalar_P2M || has_vector_P2M);
+  HAS_MEM_FUNC(HasScalarP2M,
+               void, P2M,
+               const source_type&, const charge_type&,
+               const point_type&, multipole_type&);
+  static const bool has_scalar_P2M = HasScalarP2M<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorP2M,
+               void, P2M,
+               source_iterator, source_iterator, charge_iterator,
+               const point_type&, multipole_type&);
+  static const bool has_vector_P2M = HasVectorP2M<Expansion>::value;
+  static const bool has_P2M = (has_scalar_P2M || has_vector_P2M);
 
   // P2L
-  SFINAE_TEMPLATE(HasP2L,expansion_type,P2M);
-  static constexpr bool has_scalar_P2L =
-      HasP2L<void,
-             const source_type&, const charge_type&,
-             const point_type&, local_type&>::value;
-  static constexpr bool has_vector_P2L =
-      HasP2L<void,
-             source_iterator, source_iterator, charge_iterator,
-             const point_type&, local_type&>::value;
-  static constexpr bool has_P2L =
-      (has_scalar_P2L || has_vector_P2L);
+  HAS_MEM_FUNC(HasScalarP2L,
+               void, P2L,
+               const source_type&, const charge_type&,
+               const point_type&, local_type&);
+  static const bool has_scalar_P2L = HasScalarP2L<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorP2L,
+               void, P2L,
+               source_iterator, source_iterator, charge_iterator,
+               const point_type&, local_type&);
+  static const bool has_vector_P2L = HasVectorP2L<Expansion>::value;
+  static const bool has_P2L = (has_scalar_P2L || has_vector_P2L);
 
   // M2M
-  SFINAE_TEMPLATE(HasM2M,expansion_type,M2M);
-  static constexpr bool has_M2M =
-      HasM2M<void,
-             const multipole_type&, multipole_type&, const point_type&>::value;
+  HAS_MEM_FUNC(HasM2M,
+               void, M2M,
+               const multipole_type&, multipole_type&, const point_type&);
+  static const bool has_M2M = HasM2M<Expansion>::value;
 
   // M2L
-  SFINAE_TEMPLATE(HasM2L,expansion_type,M2L);
-  static constexpr bool has_M2L =
-      HasM2L<void,
-             const multipole_type&, local_type&, const point_type&>::value;
+  HAS_MEM_FUNC(HasM2L,
+               void, M2L,
+               const multipole_type&, local_type&, const point_type&);
+  static const bool has_M2L = HasM2L<Expansion>::value;
 
   // MAC
-  SFINAE_TEMPLATE(HasDynMAC,expansion_type,MAC);
-  static constexpr bool has_dynamic_MAC =
-      HasDynMAC<bool,
-                const multipole_type&, const local_type&>::value;
+  HAS_MEM_FUNC(HasDynMAC,
+               bool, MAC,
+               const multipole_type&, const local_type&);
+  static const bool has_dynamic_MAC = HasDynMAC<Expansion>::value;
 
   // L2L
-  SFINAE_TEMPLATE(HasL2L,expansion_type,L2L);
-  static constexpr bool has_L2L =
-      HasL2L<void,
-             const local_type&, local_type&, const point_type&>::value;
+  HAS_MEM_FUNC(HasL2L,
+               void, L2L,
+               const local_type&, local_type&, const point_type&);
+  static const bool has_L2L = HasL2L<Expansion>::value;
 
   // M2P
-  SFINAE_TEMPLATE(HasM2P,expansion_type,M2P);
-  static constexpr bool has_scalar_M2P =
-      HasM2P<void,
-             const multipole_type&, const point_type&,
-             const target_type&, result_type&>::value;
-  static constexpr bool has_vector_M2P =
-      HasM2P<void,
-             const multipole_type&, const point_type&,
-             target_iterator, target_iterator, result_iterator>::value;
-  static constexpr bool has_M2P =
-      (has_scalar_M2P || has_vector_M2P);
+  HAS_MEM_FUNC(HasScalarM2P,
+               void, M2P,
+               const multipole_type&, const point_type&,
+               const target_type&, result_type&);
+  static const bool has_scalar_M2P = HasScalarM2P<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorM2P,
+               void, M2P,
+               const multipole_type&, const point_type&,
+               target_iterator, target_iterator, result_iterator);
+  static const bool has_vector_M2P = HasVectorM2P<Expansion>::value;
+  static const bool has_M2P = (has_scalar_M2P || has_vector_M2P);
 
   // L2P
-  SFINAE_TEMPLATE(HasL2P,expansion_type,L2P);
-  static constexpr bool has_scalar_L2P =
-      HasL2P<void,
-             const local_type&, const point_type&,
-             const target_type&, result_type&>::value;
-  static constexpr bool has_vector_L2P =
-      HasL2P<void,
-             const local_type&, const point_type&,
-             target_iterator, target_iterator, result_iterator>::value;
-  static constexpr bool has_L2P =
-      (has_scalar_L2P || has_vector_L2P);
+  HAS_MEM_FUNC(HasScalarL2P,
+               void, L2P,
+               const local_type&, const point_type&,
+               const target_type&, result_type&);
+  static const bool has_scalar_L2P = HasScalarL2P<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorL2P,
+               void, L2P,
+               const local_type&, const point_type&,
+               target_iterator, target_iterator, result_iterator);
+  static const bool has_vector_L2P = HasVectorL2P<Expansion>::value;
+  static const bool has_L2P = (has_scalar_L2P || has_vector_L2P);
 
   friend std::ostream& operator<<(std::ostream& s, const self_type& traits) {
     s << static_cast<super_type>(traits)                     << std::endl;
@@ -215,8 +210,6 @@ struct ExpansionTraits
   }
 };
 
-#undef SFINAE_TEMPLATE
-
 #define FMMTL_IMPORT_KERNEL_TRAITS(K)                                     \
   typedef typename KernelTraits<K>::kernel_type        kernel_type;       \
   typedef typename KernelTraits<K>::kernel_value_type  kernel_value_type; \
@@ -231,4 +224,3 @@ struct ExpansionTraits
   typedef typename ExpansionTraits<E>::multipole_type     multipole_type; \
   typedef typename ExpansionTraits<E>::local_type         local_type;     \
   typedef typename ExpansionTraits<E>::point_type         point_type
-

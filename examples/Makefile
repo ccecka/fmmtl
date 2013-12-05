@@ -10,10 +10,13 @@ include ../Makefile.inc
 # TODO: Automatically detect a .kern file in the dependencies?
 
 # List the Kernel dependency (.kern) for each executable
-scaling:  $(KERNEL_DIR)/Laplace.o
-error:    $(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
+## A kernel dependency should be listed if a full kernel-matrix vector product
+## is executed with that kernel
 
-error_img: LDLIBS += -lpng
-error_img: $(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
+scaling:  $(KERNEL_DIR)/Laplace.o
+error:    $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/Yukawa.o $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
+
+error_img: LDLIBS += -lpng  # Extra png dependency for making images
+error_img: $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/Yukawa.o $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
 
 

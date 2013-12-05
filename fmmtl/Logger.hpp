@@ -9,8 +9,8 @@
 #include <chrono>
 #include <atomic>
 
-#include "common.hpp"
-#include "config.hpp"
+#include "fmmtl/common.hpp"
+#include "fmmtl/config.hpp"
 
 /** An RAII class
  * Updates a listener with the amount of time the Ticker was alive.
