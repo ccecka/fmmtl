@@ -44,7 +44,7 @@ INCLUDES += -I. -I$(FMMTL_DIR) -I$(KERNEL_DIR)
 INCLUDES += -I$(BOOST_DIR)
 
 # Define any compile flags
-CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra
+CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra -Wfatal-errors
 
 # Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
 NVCCFLAGS := --compiler-options "$(CXXFLAGS)" -w -arch=sm_20

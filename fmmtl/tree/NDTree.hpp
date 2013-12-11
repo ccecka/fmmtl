@@ -43,14 +43,13 @@ std::vector<Iterator> bucket_sort(Iterator first, Iterator last,
   // Copy the buckets back to the range and keep each offset iterator
   std::vector<Iterator> bucket_off(num_buckets+1);
   auto offset = bucket_off.begin();
-  (*offset++) = first;
+  *offset = first;
   std::accumulate(buckets.begin(), buckets.end(), first,
                   [&offset](Iterator out, const std::vector<value_type>& bucket)
-                  { return (*offset++) =
+                  { ++offset;
+                    return *offset =
                         std::copy(bucket.begin(), bucket.end(), out); });
 
-  FMMTL_ASSERT(bucket_off.front() == first);
-  FMMTL_ASSERT(bucket_off.back()  == last);
   return bucket_off;
 }
 
@@ -366,12 +365,15 @@ class NDTree {
   inline unsigned levels() const {
     return level_offset_.size() - 1;
   }
+  /** The maximum possible level of any box in this tree */
+  inline static unsigned max_level() {
+    return MortonCoder<DIM>::levels() - 1;
+  }
 
   /** Returns true if the box is contained in this tree, false otherwise */
   inline bool contains(const box_type& box) const {
     return this == box.tree_;
   }
-
   /** Returns true if the body is contained in this tree, false otherwise */
   inline bool contains(const body_type& body) const {
     return this == body.tree_;
@@ -457,6 +459,7 @@ class NDTree {
     // Create a code-idx pair vector
     typedef std::pair<code_type, unsigned> code_pair;
     std::vector<code_pair> codes;
+    codes.reserve(std::distance(p_first, p_last));
     //std::vector<point_type> points;
 
     unsigned idx = 0;
@@ -465,11 +468,11 @@ class NDTree {
       FMMTL_ASSERT(coder_.bounding_box().contains(p));
 
       //points.push_back(p);
-      codes.push_back(std::make_pair(coder_.code(p), idx));
+      codes.emplace_back(coder_.code(p), idx);
     }
 
     // Push the root box which contains all points
-    box_data_.push_back(box_data(0, 0, 0, codes.size()));
+    box_data_.emplace_back(0, 0, 0, codes.size());
     level_offset_.push_back(0);
 
     // For every box that is created
@@ -484,33 +487,32 @@ class NDTree {
       }
       // Else, split this box
 
+      // If the children will start a new level, record it
+      if (box_data_[k].level() + 1 > levels())
+        level_offset_.push_back(box_data_.size());
+
       // Get the box data
       auto code_begin = codes.begin() + box_data_[k].begin_;
       auto code_end   = codes.begin() + box_data_[k].end_;
-      unsigned shift = DIM*(MortonCoder<DIM>::levels()-box_data_[k].level()-1);
+      const unsigned shift = DIM * (max_level() - box_data_[k].level());
 
       // Sort the points in this box into the "bucket" children
       auto off = bucket_sort(code_begin, code_end, max_children,
-                             [shift] (const code_pair& v)
+                             [=] (const code_pair& v)
                              { return (v.first >> shift) & (max_children-1); });
-
-      // If the children are starting a new level, record it
-      if (box_data_[k].level() + 1 > levels())
-        level_offset_.push_back(box_data_.size());
 
       // Record the child begin idx
       box_data_[k].begin_ = box_data_.size();
 
       // For each bucket
       for (unsigned c = 0; c < max_children; ++c) {
-        // If this child contains points, add this child box
+        // If this child contains points
         if (off[c+1] - off[c] > 0) {
-          // Construct and add the child
-          box_data_.push_back(
-              box_data(box_data_[k].level() + 1,   // Level
-                       k,                          // Parent idx
-                       off[c]   - codes.begin(),   // Body begin idx
-                       off[c+1] - codes.begin())); // Body end idx
+          // Add the child
+          box_data_.emplace_back(box_data_[k].level() + 1,   // Level
+                                 k,                          // Parent idx
+                                 off[c]   - codes.begin(),   // Body begin idx
+                                 off[c+1] - codes.begin());  // Body end idx
         }
       }
 
@@ -518,14 +520,14 @@ class NDTree {
       box_data_[k].end_ = box_data_.size();
     }
 
+    // Record the end of the last level
     level_offset_.push_back(box_data_.size());
 
     // Allocate
     mc_.reserve(codes.size());
     permute_.reserve(codes.size());
     // Extract the code, permutation vector, and sorted point
-    for (auto it = codes.begin(); it != codes.end(); ++it) {
-      auto& c = *it;
+    for (auto& c : codes) {
       mc_.push_back(c.first);
       permute_.push_back(c.second);
       //point_.push_back(points[permute_.back()]);

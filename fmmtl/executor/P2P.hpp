@@ -209,7 +209,10 @@ struct P2P
     SourceIter pi = p_first;
     ChargeIter ci = c_first;
     ResultIter ri = r_first;
-    for ( ; pi != p_last; ++pi, ++ci, ++ri) {
+    // The first diagonal element
+    *ri += K(*pi, *pi) * (*ci);
+
+    for (++pi, ++ci, ++ri; pi != p_last; ++pi, ++ci, ++ri) {
       const source_type& p = *pi;
       const charge_type& c = *ci;
       result_type& r       = *ri;
