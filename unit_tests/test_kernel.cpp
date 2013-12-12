@@ -6,6 +6,7 @@
 #include "Yukawa.kern"
 #include "Helmholtz.kern"
 #include "Stokes.kern"
+#include "Gaussian.kern"
 
 #include "fmmtl/Direct.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
@@ -42,4 +43,7 @@ int main() {
   test_kernel(HelmholtzKernel());    // Helmholtz
 
   test_kernel(Stokeslet()); // Stokes
+
+  test_kernel(Gaussian<1>()); // Gaussian
+  test_kernel(Gaussian<4>()); // Gaussian
 }
