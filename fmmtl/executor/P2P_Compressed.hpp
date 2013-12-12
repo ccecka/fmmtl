@@ -9,6 +9,7 @@
 
 #include <iostream>
 
+#include "fmmtl/config.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
 
 template <typename Kernel>
@@ -293,3 +294,12 @@ class P2P_Compressed {
   }
   */
 };
+
+
+#if defined(FMMTL_KERNEL)   // If compiling the .kern, include implementations
+#  if defined(__CUDACC__)    // If compiling the .kern with nvcc
+#    include "fmmtl/executor/P2P_Compressed.cu"
+#  else                      // If not compiling the .kern with nvcc
+#    include "fmmtl/executor/P2P_Compressed.cpp"
+#  endif
+#endif

@@ -78,11 +78,11 @@ NVCC :=
 endif
 # Set up for CUDA if available
 ifeq ($(NVCC),)    # NVCC is not available
-CXXFLAGS += -DFMMTL_NO_CUDA
 else               # NVCC is available
+CXXFLAGS += -DFMMTL_WITH_CUDA
 INCLUDES += -I$(CUDA_DIR)/include
-LDFLAGS += -L$(CUDA_DIR)/lib64
-LDLIBS  += -lcudart
+LDFLAGS  += -L$(CUDA_DIR)/lib64
+LDLIBS   += -lcudart
 endif
 
 ####################

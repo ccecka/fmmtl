@@ -374,7 +374,12 @@ class P2P_Batch
   /** Compute all interations in the interaction list */
   void execute(Context& c) {
     FMMTL_LOG("P2P Batch");
-#if FMMTL_NO_CUDA
+#if defined(FMMTL_WITH_CUDA)        // XXX: Dispatch this
+    if (p2p_compressed == nullptr)
+      p2p_compressed =
+          P2P_Compressed<kernel_type>::make(c, target_box_list, source_boxes, box_pair_count);
+    p2p_compressed->execute(c);
+#else
     auto t_end = target_box_list.end();
 #pragma omp parallel for
     for (auto ti = target_box_list.begin(); ti < t_end; ++ti) {
@@ -384,11 +389,6 @@ class P2P_Batch
         P2P::eval(c, *si, tb, P2P::ONE_SIDED());
       }
     }
-#else
-    if (p2p_compressed == nullptr)
-      p2p_compressed =
-          P2P_Compressed<kernel_type>::make(c, target_box_list, source_boxes, box_pair_count);
-    p2p_compressed->execute(c);
 #endif
   }
 

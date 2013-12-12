@@ -2,9 +2,7 @@
 
 #include "fmmtl/config.hpp"
 
-//! Global logging
 #include "fmmtl/Logger.hpp"
-static Logger fmm_global_log;
 
 #include "fmmtl/FMMOptions.hpp"
 #include "fmmtl/KernelMatrixPlan.hpp"
