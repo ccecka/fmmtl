@@ -3,12 +3,24 @@
 #include <thrust/device_vector.h>
 #include <thrust/copy.h>
 
-#include <thrust/iterator/constant_iterator.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
-
 #include "P2P_Compressed.hpp"
 #include "fmmtl/config.hpp"
+
+#include "fmmtl/executor/p2p/p2p_blocked_csr.cu"
+
+struct Data {
+  unsigned num_sources;
+  unsigned num_targets;
+  unsigned num_threads_per_block;
+  unsigned num_blocks;
+  Data(unsigned s, unsigned t, unsigned b)
+      : num_sources(s),
+        num_targets(t),
+        num_threads_per_block(256),
+        num_blocks(b) {
+  }
+};
+
 
 template <typename T>
 inline T* gpu_new(unsigned n) {
@@ -31,78 +43,6 @@ template <typename T>
 inline void gpu_free(T* p) {
   thrust::device_free(thrust::device_pointer_cast<void>(p));
 }
-
-template <typename Kernel,
-          typename RandomAccessIterator1,  // pair<uint,uint>
-          typename RandomAccessIterator2,  // Chained uint
-          typename RandomAccessIterator3>  // pair<uint,uint>
-__global__ void
-blocked_p2p(Kernel K,  // The Kernel to apply
-            // BlockIdx -> pair<uint,uint> target range
-            RandomAccessIterator1 target_range,
-            // BlockIdx,BlockIdx+1 -> pair<uint,uint> into source_range
-            RandomAccessIterator2 source_range_ptr,
-            // Idx -> pair<uint,uint> source range
-            RandomAccessIterator3 source_range,
-            const typename Kernel::source_type* source,
-            const typename Kernel::charge_type* charge,
-            const typename Kernel::target_type* target,
-            typename Kernel::result_type* result) {
-  typedef Kernel kernel_type;
-  typedef typename kernel_type::source_type source_type;
-  typedef typename kernel_type::charge_type charge_type;
-  typedef typename kernel_type::target_type target_type;
-  typedef typename kernel_type::result_type result_type;
-
-  // Get the target range this block is responsible for
-  const thrust::pair<unsigned,unsigned> t_range = target_range[blockIdx.x];
-  unsigned t_first = t_range.first;
-  const unsigned t_last  = t_range.second;
-
-  // Get the range of source ranges this block is responsible for
-  RandomAccessIterator3 sr_first = source_range + source_range_ptr[blockIdx.x+0];
-  RandomAccessIterator3 sr_last  = source_range + source_range_ptr[blockIdx.x+1];
-
-  // Parallel for each target until the last
-  for (t_first += threadIdx.x; t_first < t_last; t_first += blockDim.x) {
-    const target_type t = target[t_first];
-    result_type r = result_type();
-
-    // For each source range (there must be at least one)
-    do {
-      // Get the range
-      const thrust::pair<unsigned,unsigned> s_range = *sr_first;
-      unsigned s_first = s_range.first;
-      const unsigned s_last  = s_range.second;
-      // TODO: Load in shared memory and reuse?
-
-      // For each source in the source range
-      for (; s_first < s_last; ++s_first) {
-        const source_type s = source[s_first];
-        const charge_type c = charge[s_first];
-        r += K(t,s) * c;
-      }
-
-      ++sr_first;
-    } while(sr_first < sr_last);
-
-    // Assign the result
-    result[t_first] += r;
-  }
-}
-
-struct Data {
-  unsigned num_sources;
-  unsigned num_targets;
-  unsigned num_threads_per_block;
-  unsigned num_blocks;
-  Data(unsigned s, unsigned t, unsigned b)
-      : num_sources(s),
-        num_targets(t),
-        num_threads_per_block(256),
-        num_blocks(b) {
-  }
-};
 
 template <typename Kernel>
 P2P_Compressed<Kernel>::P2P_Compressed()
@@ -134,6 +74,19 @@ P2P_Compressed<Kernel>::~P2P_Compressed() {
   gpu_free(targets_);
 }
 
+/** A functor that indexes an array as one type but returns another type */
+template <typename T1, typename T2>
+class tricky_cast {
+  T1* a_;
+ public:
+  __host__ __device__
+  tricky_cast(T1* a) : a_(a) {}
+  __host__ __device__
+  T2 operator[](unsigned blockidx) const {
+    return *((T2*)(a_ + blockidx));
+  }
+};
+
 template <typename Kernel>
 void P2P_Compressed<Kernel>::execute(
     const Kernel& K,
@@ -151,18 +104,21 @@ void P2P_Compressed<Kernel>::execute(
   result_type* d_results = gpu_copy(results);
 
   Data* data = reinterpret_cast<Data*>(data_);
-  const unsigned num_tpb    = data->num_threads_per_block;
+  const unsigned num_tpb    = 256; //data->num_threads_per_block;
   const unsigned num_blocks = data->num_blocks;
 
 #if defined(FMMTL_DEBUG)
-  std::cout << "Launching GPU Kernel" << std::endl;
+  std::cout << "Launching GPU Kernel: (blocks, threads/block) = ("
+            << num_blocks << ", " << num_tpb << ")" << std::endl;
 #endif
 
+  typedef thrust::pair<unsigned,unsigned> upair;
+
   // Launch kernel <<<grid_size, block_size>>>
-  blocked_p2p<<<num_blocks,num_tpb>>>(
+  blocked_p2p<num_tpb><<<num_blocks,num_tpb>>>(
       K,
       target_ranges_,
-      source_range_ptrs_,
+      tricky_cast<unsigned, upair>(source_range_ptrs_),
       source_ranges_,
       sources_,
       //thrust::raw_pointer_cast(d_charges.data()),
@@ -182,19 +138,29 @@ void P2P_Compressed<Kernel>::execute(
 
 
 /** A functor that maps blockidx -> (target_begin,target_end) */
-template <unsigned BLOCKSIZE>
-class block_range
-    : public thrust::unary_function<unsigned,
-                                    thrust::pair<unsigned,unsigned> > {
-  unsigned num_targets_;
+template <unsigned BLOCKDIM>
+class block_range {
+  unsigned N_;
  public:
   __host__ __device__
-  block_range(unsigned num_targets) : num_targets_(num_targets) {}
-  __device__
-  thrust::pair<unsigned,unsigned> operator()(unsigned blockidx) const {
-    unsigned start_block = blockidx * BLOCKSIZE;
-    return thrust::make_pair(start_block,
-                             min(start_block + BLOCKSIZE, num_targets_));
+  block_range(unsigned N) : N_(N) {}
+  __host__ __device__
+  thrust::pair<unsigned,unsigned> operator[](unsigned blockidx) const {
+    return thrust::make_pair(blockidx * BLOCKDIM,
+                             min(blockidx * BLOCKDIM + BLOCKDIM, N_));
+  }
+};
+
+/** A functor that returns a constant */
+template <typename T>
+class constant {
+  T value_;
+ public:
+  __host__ __device__
+  constant(T value) : value_(value) {}
+  __host__ __device__
+  T operator[](unsigned) const {
+    return value_;
   }
 };
 
@@ -230,13 +196,14 @@ P2P_Compressed<Kernel>::execute(const Kernel& K,
             << num_blocks << ", " << num_tpb << ")" << std::endl;
 #endif
 
+  typedef thrust::pair<unsigned,unsigned> upair;
+
   // Launch kernel <<<grid_size, block_size>>>
-  blocked_p2p<<<num_blocks, num_tpb>>>(
+  blocked_p2p<num_tpb><<<num_blocks, num_tpb>>>(
       K,
-      thrust::make_transform_iterator(thrust::make_counting_iterator(0),
-                                      block_range<num_tpb>(t.size())),
-      thrust::make_constant_iterator(0),
-      thrust::make_constant_iterator(thrust::make_pair(0,s.size())),
+      block_range<num_tpb>(t.size()),
+      constant<upair>(upair(0,1)),
+      constant<upair>(upair(0,s.size())),
       d_sources,
       d_charges,
       d_targets,

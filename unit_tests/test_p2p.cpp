@@ -58,6 +58,8 @@ void print_results(const std::vector<T1>& exact, const std::vector<T2>& result) 
   for (unsigned k = 0; k < result.size(); ++k) {
     // Individual relative error
     double rel_error = norm(exact[k] - result[k]) / norm(exact[k]);
+    //if (rel_error > 1e-14) std::cout << k << std::endl;
+
     tot_ind_rel_err += rel_error;
     // Maximum relative error
     max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
@@ -78,13 +80,18 @@ void print_results(const std::vector<T1>& exact, const std::vector<T2>& result) 
 
 
 int main(int argc, char** argv) {
-  // Hush compiler
-  (void) argc;
-  (void) argv;
-
   unsigned N = 10000;           // N rows (# targets)
   unsigned M = 10000;           // M cols (# sources)
   unsigned range_size = 256;    // Maximum block size
+
+  // Parse custom command line args
+  for (int i = 1; i < argc; ++i) {
+    if (strcmp(argv[i],"-N") == 0) {
+      N = atoi(argv[++i]);
+    } else if (strcmp(argv[i],"-M") == 0) {
+      M = atoi(argv[++i]);
+    }
+  }
 
   // Define the Kernel function we'll be testing
   typedef LaplaceKernel kernel_type;
