@@ -46,8 +46,8 @@ blocked_p2p(const Kernel K,
   typedef thrust::pair<unsigned,unsigned> upair;
 
   // Allocate shared memory
-  __shared__ source_type sh_s[BLOCKDIM];
-  __shared__ charge_type sh_c[BLOCKDIM];
+  __shared__ source_type sh_s[BLOCKDIM]; // Warning: Initialization with non-POD
+  __shared__ charge_type sh_c[BLOCKDIM]; // Warning: Initialization with non-POD
 
   // Get the target range this block is responsible for
   upair t_range = target_range[blockIdx.x];
