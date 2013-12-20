@@ -22,7 +22,7 @@ Primary Authors:
 Contributors:
 * Christopher Cooper
 * Aparna Chandramowlishwaran
-
+* Esmail Fadae, Brian Bresnahan
 
 Dependencies:
 * [g++ 4.7](http://gcc.gnu.org/) or higher.
