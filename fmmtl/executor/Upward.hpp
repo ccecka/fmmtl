@@ -1,5 +1,8 @@
 #pragma once
 
+#include "fmmtl/dispatch/Dispatchers.hpp"
+
+
 /** @brief Process the boxes from bottom to top
  * concept Tree {
  *   unsigned levels();                       // Levels in the tree, root:0
@@ -24,11 +27,6 @@ struct UpwardPass {
 		}
 	}
 };
-
-
-#include "INITM.hpp"
-#include "P2M.hpp"
-#include "M2M.hpp"
 
 /** Helper for computing the multipole for a box and all sub-boxes
  */

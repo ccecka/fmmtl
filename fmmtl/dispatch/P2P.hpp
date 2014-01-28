@@ -312,7 +312,6 @@ struct P2P
 
 #include <cmath>
 
-#include "Evaluator.hpp"
 #include "P2P_Compressed.hpp"
 
 #define BOOST_UBLAS_NDEBUG
@@ -326,8 +325,7 @@ namespace ublas = boost::numeric::ublas;
  * That are sent to the P2P dispatcher on demand.
  */
 template <typename Context>
-class P2P_Batch
-	: public EvaluatorBase<Context> {
+class P2P_Batch {
   //! Kernel type
   typedef typename Context::kernel_type kernel_type;
   //! Kernel value type

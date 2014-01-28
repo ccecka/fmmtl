@@ -1,7 +1,6 @@
 /** A useful suite for testing Kernel Expansions */
 
-#include "fmmtl/executor/INITM.hpp"
-#include "fmmtl/executor/INITL.hpp"
+#include "fmmtl/dispatch/Dispatchers.hpp"
 #include "fmmtl/Direct.hpp"
 
 #include "LaplaceSpherical.hpp"

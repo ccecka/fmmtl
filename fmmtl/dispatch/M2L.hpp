@@ -52,8 +52,6 @@ class M2L
 };
 
 
-#include "Evaluator.hpp"
-
 /** A lazy M2L evaluator which saves a list of pairs of boxes
  * That are sent to the M2L dispatcher on demand.
  */

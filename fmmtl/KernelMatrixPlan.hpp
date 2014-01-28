@@ -3,7 +3,7 @@
 #include "fmmtl/meta/kernel_traits.hpp"
 #include "fmmtl/executor/make_executor.hpp"
 #include "fmmtl/tree/NDTree.hpp"
-#include "fmmtl/executor/Context.hpp"
+#include "fmmtl/context/Context.hpp"
 
 /** Abstract PlanBase class */
 template <class Expansion>

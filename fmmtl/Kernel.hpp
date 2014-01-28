@@ -12,7 +12,7 @@
 
 #include "fmmtl/config.hpp"
 
-#include "fmmtl/executor/P2P_Compressed.hpp"
+#include "fmmtl/dispatch/P2P_Compressed.hpp"
 
 namespace fmmtl
 {

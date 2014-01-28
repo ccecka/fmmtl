@@ -7,7 +7,7 @@
 #include "Helmholtz.kern"
 #include "Stokes.kern"
 
-#include "fmmtl/executor/P2P.hpp"
+#include "fmmtl/dispatch/P2P.hpp"
 
 #include <vector>
 #include <set>

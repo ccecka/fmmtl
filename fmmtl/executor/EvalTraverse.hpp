@@ -6,7 +6,7 @@
 #include "Traversal.hpp"
 #include "Downward.hpp"
 
-#include "Dispatchers.hpp"
+#include "fmmtl/dispatch/Dispatchers.hpp"
 
 
 template <class Context>
