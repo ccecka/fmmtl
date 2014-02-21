@@ -6,7 +6,7 @@
 #include "P2P_Compressed.hpp"
 #include "fmmtl/config.hpp"
 
-#include "fmmtl/executor/p2p/p2p_blocked_csr.cu"
+#include "fmmtl/dispatch/p2p/p2p_blocked_csr.cu"
 
 struct Data {
   unsigned num_sources;
