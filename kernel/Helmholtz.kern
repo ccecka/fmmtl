@@ -19,9 +19,7 @@ struct HelmholtzPotential
   double kappa;
 
   FMMTL_INLINE
-  HelmholtzPotential() : kappa(1) {}
-  FMMTL_INLINE
-  HelmholtzPotential(double _kappa) : kappa(_kappa) {}
+  HelmholtzPotential(double _kappa = 1) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  exp(ikR)/R  if R >= 1e-10
@@ -58,9 +56,7 @@ struct HelmholtzKernel
   double kappa;
 
   FMMTL_INLINE
-  HelmholtzKernel() : kappa(1) {}
-  FMMTL_INLINE
-  HelmholtzKernel(double _kappa) : kappa(_kappa) {}
+  HelmholtzKernel(double _kappa = 1) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  {exp(ikR)/R, (s-t)(1-ikR)exp(ikR)/R^3}  if R >= 1e-10
