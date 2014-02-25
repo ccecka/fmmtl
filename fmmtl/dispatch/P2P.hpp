@@ -312,7 +312,7 @@ struct P2P
 
 #include <cmath>
 
-#include "P2P_Compressed.hpp"
+#include "fmmtl/dispatch/P2P_Compressed.hpp"
 
 #define BOOST_UBLAS_NDEBUG
 #include <boost/numeric/ublas/matrix_sparse.hpp>

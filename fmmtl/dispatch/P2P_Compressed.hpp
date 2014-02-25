@@ -1,8 +1,7 @@
 #pragma once
-/** @file EvalP2P_GPU.hpp
- * @brief Header file for the GPU_P2P class.
+/** @brief Header file for the GPU_P2P class.
  *
- * Note: This header file is compiled with nvcc and must use C++03.
+ * Note: This header file may be compiled with nvcc and must use C++03.
  */
 
 #include <vector>

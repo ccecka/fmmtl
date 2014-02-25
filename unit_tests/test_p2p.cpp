@@ -131,8 +131,7 @@ int main(int argc, char** argv) {
 
 #if defined(FMMTL_DEBUG)
   std::cout << "CPU:" << std::endl;
-  for (result_type& ri : r_cpu)
-    std::cout << ri << std::endl;
+  for (result_type& ri : r_cpu) std::cout << ri << std::endl;
 #endif
 
   //**************************************//
@@ -145,8 +144,7 @@ int main(int argc, char** argv) {
 
 #if defined(FMMTL_DEBUG)
   std::cout << "GPU:" << std::endl;
-  for (result_type& ri : r_gpu)
-    std::cout << ri << std::endl;
+  for (result_type& ri : r_gpu) std::cout << ri << std::endl;
 #endif
 
   //**************************************//
@@ -193,8 +191,7 @@ int main(int argc, char** argv) {
 
 #if defined(FMMTL_DEBUG)
   std::cout << "GPU Blocked:" << std::endl;
-  for (result_type& ri : r_gpu_b)
-    std::cout << ri << std::endl;
+  for (result_type& ri : r_gpu_b) std::cout << ri << std::endl;
 #endif
 
   // Print results
