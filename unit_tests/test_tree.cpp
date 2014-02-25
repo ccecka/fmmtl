@@ -13,13 +13,14 @@ int main(int argc, char** argv)
 
   int N = atoi(argv[1]);
 
-  typedef Vec<2,double> point_type;
+  typedef Vec<3,double> point_type;
 
   std::vector<point_type> points(N);
   for (int k = 0; k < N; ++k)
     points[k] = fmmtl::random<point_type>::get();
 
-  NDTree<2> tree(points.begin(), points.end());
+  NDTree<3> tree(points.begin(), points.end());
 
+  std::cout << tree.bounding_box() << std::endl;
   std::cout << tree << "\n";
 }

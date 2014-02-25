@@ -8,6 +8,7 @@
 #include "MortonCoder.hpp"
 
 #include <vector>
+#include <bitset>
 #include <algorithm>
 
 #include <iostream>
@@ -168,9 +169,6 @@ class NDTree {
     unsigned index() const {
       return idx_;
     }
-    code_type morton_index() const {
-      return data().key_;
-    }
     unsigned level() const {
       return data().level();
     }
@@ -195,10 +193,12 @@ class NDTree {
     }
     // TODO: optimize
     point_type center() const {
+      // Mask for boxes of this level
+      code_type mask = code_type(1) << (DIM*(tree_->max_level() - level() + 1));
+      --mask;
+
       // Get the Morton code of the first body
       code_type c = body_begin()->morton_index();
-      // Mask this to get the min and max Morton code
-      code_type mask = code_type(-1) >> (DIM * data().level());
       return tree_->coder_.center(c & ~mask /*cmin*/, c | mask /*cmax*/);
     }
 
@@ -254,7 +254,7 @@ class NDTree {
                << " (L" << b.level() << ", P" << b.parent().index()
                << ", " << num_bodies << (num_bodies == 1 ? " body " : " bodies ")
                << first_body << "-" << last_body
-               << "): " << b.center();
+               << "): " << b.center() << " - " << b.extents();
     }
    private:
     unsigned idx_;

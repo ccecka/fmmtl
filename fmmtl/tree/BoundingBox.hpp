@@ -181,7 +181,7 @@ class BoundingBox {
     if (box.empty())
       return (s << '[' << ']');
     else
-      return (s << '[' << box.min() << ':' << box.max() << "] ("
+      return (s << '[' << box.min() << " : " << box.max() << "] ("
               << box.dimensions() << ')');
   }
 

@@ -143,7 +143,8 @@ struct Vec {
 /** Write a Vec to an output stream */
 template <std::size_t N, typename T>
 inline std::ostream& operator<<(std::ostream& s, const Vec<N,T>& a) {
-  for_i s << a[i] << " ";
+  s << a[0];
+  for (unsigned i = 1; i != a.size(); ++i) s << " " << a[i];
   return s;
 }
 /** Read a Vec from an input stream */
