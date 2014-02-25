@@ -51,28 +51,12 @@ class LaplaceSpherical
     return std::tgamma(n+1);
   }
 
-  //! Custom multipole type
-  struct multipole {
-    std::vector<complex> M;
-    real RCRIT;
-    real RMAX;
-
-    //! Convenience method
-    complex& operator[](const int i) {
-      return M[i];
-    }
-    //! Convenience method
-    const complex& operator[](const int i) const {
-      return M[i];
-    }
-  };
-
  public:
   //! Point type
   typedef Vec<3,real> point_type;
 
   //! Multipole expansion type
-  typedef multipole multipole_type;
+  typedef std::vector<complex> multipole_type;
   //! Local expansion type
   typedef std::vector<complex> local_type;
 
@@ -107,10 +91,8 @@ class LaplaceSpherical
 
   /** Initialize a multipole expansion with the size of a box at this level */
   void init_multipole(multipole_type& M,
-                      const point_type& extents, unsigned) const {
-    M.M = std::vector<complex>(P*(P+1)/2, 0);
-    M.RMAX = 0;
-    M.RCRIT = norm(extents) / 2;
+                      const point_type&, unsigned) const {
+    M = std::vector<complex>(P*(P+1)/2);
   }
   /** Initialize a local expansion with the size of a box at this level */
   void init_local(local_type& L,
@@ -140,8 +122,6 @@ class LaplaceSpherical
         M[nms] += charge * Ynm[nm];
       }
     }
-    M.RMAX = std::max(M.RMAX, norm(r));
-    M.RCRIT = std::min(M.RCRIT, M.RMAX);
   }
 
   /** Kernel M2M operator
@@ -187,8 +167,6 @@ class LaplaceSpherical
         Mtarget[jks] += M;
       }
     }
-    Mtarget.RMAX = std::max(Mtarget.RMAX, norm(translation) + Msource.RCRIT);
-    Mtarget.RCRIT = std::min(Mtarget.RCRIT, Mtarget.RMAX);
   }
 
   /** Kernel M2L operation

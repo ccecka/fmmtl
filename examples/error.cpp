@@ -10,6 +10,8 @@
 #include "ExpKernel.kern"
 
 #include "LaplaceSpherical.hpp"
+#include "LaplaceSpherical2.hpp"
+
 #include "YukawaCartesian.hpp"
 
 int main(int argc, char **argv)
@@ -30,7 +32,7 @@ int main(int argc, char **argv)
   FMMOptions opts = get_options(argc, argv);
   //typedef UnitExpansion kernel_type;
   //typedef ExpExpansion kernel_type;
-  typedef LaplaceSpherical kernel_type;
+  typedef LaplaceSpherical2 kernel_type;
   //typedef YukawaCartesian kernel_type;
 
   // Init kernel

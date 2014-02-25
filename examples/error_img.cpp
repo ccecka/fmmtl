@@ -12,6 +12,8 @@
 #include "ExpKernel.kern"
 
 #include "LaplaceSpherical.hpp"
+#include "LaplaceSpherical2.hpp"
+
 #include "YukawaCartesian.hpp"
 
 #define png_infopp_NULL (png_infopp)NULL
@@ -88,7 +90,7 @@ int main(int argc, char **argv)
   FMMOptions opts = get_options(argc, argv);
   //typedef UnitExpansion kernel_type;
   //typedef ExpExpansion kernel_type;
-  typedef LaplaceSpherical kernel_type;
+  typedef LaplaceSpherical2 kernel_type;
   //typedef YukawaCartesian kernel_type;
 
   // Init kernel
@@ -116,7 +118,8 @@ int main(int argc, char **argv)
                                     ymin + m * (ymax-ymin) / (n_side-1)));
     }
   }
-  int middle = n_side/2 * n_side + n_side/2;
+  //int middle = n_side/2 * n_side + n_side/2;
+  int middle = fmmtl::random<unsigned>::get(0, N);
 
   // Init charges, only the middle source has a charge
   std::vector<charge_type> charges(N);
