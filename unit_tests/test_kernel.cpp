@@ -7,6 +7,7 @@
 #include "Helmholtz.kern"
 #include "Stokes.kern"
 #include "Gaussian.kern"
+#include "BiotSavart.kern"
 
 #include "fmmtl/Direct.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
@@ -46,4 +47,7 @@ int main() {
 
   test_kernel(Gaussian<1>()); // Gaussian
   test_kernel(Gaussian<4>()); // Gaussian
+
+  test_kernel(BiotSavart());      // BiotSavart
+  test_kernel(RosenheadMoore());  // RosenheadMoore
 }
