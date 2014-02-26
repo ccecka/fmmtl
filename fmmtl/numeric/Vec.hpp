@@ -52,6 +52,10 @@ struct Vec {
     elem[0] = b0; elem[1] = b1; elem[2] = b2; elem[3] = b3;
     for(std::size_t i = 4; i != N; ++i) elem[i] = value_type();
   }
+  template <typename D>
+  FMMTL_INLINE explicit Vec(const Vec<N,D>& v) {
+    for_i elem[i] = v[i];
+  }
 
   // COMPARATORS
 
@@ -90,22 +94,26 @@ struct Vec {
     return *this;
   }
   /** Add Vec @a b to this Vec */
-  FMMTL_INLINE Vec& operator+=(const Vec& b) {
+  template <typename D>
+  FMMTL_INLINE Vec& operator+=(const Vec<N,D>& b) {
     for_i elem[i] += b[i];
     return *this;
   }
   /** Subtract Vec @a b from this Vec */
-  FMMTL_INLINE Vec& operator-=(const Vec& b) {
+  template <typename D>
+  FMMTL_INLINE Vec& operator-=(const Vec<N,D>& b) {
     for_i elem[i] -= b[i];
     return *this;
   }
   /** Scale this Vec up by factors in @a b */
-  FMMTL_INLINE Vec& operator*=(const Vec& b) {
+  template <typename D>
+  FMMTL_INLINE Vec& operator*=(const Vec<N,D>& b) {
     for_i elem[i] *= b[i];
     return *this;
   }
   /** Scale this Vec down by factors in @a b */
-  FMMTL_INLINE Vec& operator/=(const Vec& b) {
+  template <typename D>
+  FMMTL_INLINE Vec& operator/=(const Vec<N,D>& b) {
     for_i elem[i] /= b[i];
     return *this;
   }
@@ -235,6 +243,36 @@ FMMTL_INLINE Vec<N,T> sqrt(Vec<N,T> a) {
   return a;
 }
 
+#include "Complex.hpp"
+
+// TODO: Fix and generalize with promote_type
+namespace fmmtl {
+
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> conj(Vec<N,T> a) {
+  using fmmtl::conj;
+  for_i a[i] = conj(a[i]);
+  return a;
+}
+
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> real(const Vec<N,fmmtl::complex<T> >& a) {
+  using fmmtl::real;
+  Vec<N,T> r;
+  for_i r[i] = real(a[i]);
+  return r;
+}
+
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,T> imag(const Vec<N,fmmtl::complex<T> >& a) {
+  using fmmtl::imag;
+  Vec<N,T> r;
+  for_i r[i] = imag(a[i]);
+  return r;
+}
+
+} // end namespace fmmtl
+
 // META OPERATIONS
 
 #include "fmmtl/meta/dimension.hpp"
@@ -246,7 +284,7 @@ struct dimension<Vec<N,T> > {
   const static std::size_t value = N;
 };
 
-}  // end namespace fmmtl
+} // end namespace fmmtl
 
 #undef for_i
 

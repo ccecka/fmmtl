@@ -796,7 +796,16 @@ inline bool operator!=(const complex<ValueType> & lhs, const ValueType& rhs){
   return !(lhs == rhs);
 }
 
-
+template <typename ValueType>
+__host__ __device__
+inline ValueType real(const complex<ValueType>& z){
+  return z.real();
+}
+template <typename ValueType>
+__host__ __device__
+inline ValueType imag(const complex<ValueType>& z){
+  return z.imag();
+}
 template <typename ValueType>
 __host__ __device__
 inline complex<ValueType> conj(const complex<ValueType>& z){
@@ -1114,6 +1123,8 @@ inline complex<float> atanh(const complex<float>& z){
 namespace fmmtl
 {
 using std::complex;
+using std::real;
+using std::imag;
 using std::conj;
 using std::abs;
 using std::arg;
