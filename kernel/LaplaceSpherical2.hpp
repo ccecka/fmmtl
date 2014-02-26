@@ -16,8 +16,6 @@
 // Use a library-defined Vector class that supports multiple architectures
 #include "fmmtl/numeric/Vec.hpp"
 
-#define ODDEVEN(n) ((((n) & 1) == 1) ? -1 : 1)
-#define IPOW2N(n) ((n >= 0) ? 1 : ODDEVEN(n))
 
 class LaplaceSpherical2
     : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical2> {
@@ -28,6 +26,11 @@ class LaplaceSpherical2
   //! Expansion order
   int P;
 
+  //! (-1)^n
+  inline int neg1pow(int n) const {
+    return ((n & 1) ? -1 : 1);
+  }
+
  public:
   //! Point type
   typedef Vec<3,real> point_type;
@@ -37,11 +40,8 @@ class LaplaceSpherical2
   //! Local expansion type
   typedef std::vector<complex> local_type;
 
-  //! Default constructor -- use delegating constructor
-  LaplaceSpherical2() : LaplaceSpherical2(5) {}
-
   //! Constructor
-  LaplaceSpherical2(int _P)
+  LaplaceSpherical2(int _P = 5)
       : P(_P) {
   }
 
@@ -103,12 +103,12 @@ class LaplaceSpherical2
           for (int m = std::max(-n,-j+k+n); m <= std::min(k-1,n); ++m) {
             int jnkms = (j-n)*(j-n+1)/2 + k - m;
             int nm    = n*(n+1) - m;
-            M += Msource[jnkms] * Ynm[nm] * real(IPOW2N(m) * ODDEVEN(n));
+            M += Msource[jnkms] * Ynm[nm] * real(neg1pow(m*(m<0)) * neg1pow(n));
           }
           for (int m=k; m<=std::min(n,j+k-n); m++) {
             int jnkms = (j - n) * (j - n + 1) / 2 - k + m;
             int nm    = n * n + n - m;
-            M += std::conj(Msource[jnkms]) * Ynm[nm] * real(ODDEVEN(k+n+m));
+            M += std::conj(Msource[jnkms]) * Ynm[nm] * real(neg1pow(k+n+m));
           }
         }
         Mtarget[jks] += M;
@@ -133,7 +133,7 @@ class LaplaceSpherical2
     cart2sph(rho, alpha, beta, translation);
     evalLocal(rho, alpha, beta, Ynmi);
     for (int j = 0; j < P; ++j) {
-      real Cnm = ODDEVEN(j);
+      real Cnm = neg1pow(j);
       for (int k = 0; k <= j; k++) {
         int jks = j*(j+1)/2 + k;
         complex L = 0;
@@ -146,7 +146,7 @@ class LaplaceSpherical2
           for (int m = 0; m <= n; ++m) {
             int nms  = n*(n+1)/2 + m;
             int jnkm = (j+n)*(j+n+1) + m - k;
-            real Cnm2 = Cnm * ODDEVEN((k-m)*(k<m)+m);
+            real Cnm2 = Cnm * neg1pow((k-m)*(k<m)+m);
             L += Msource[nms] * Cnm2 * Ynmi[jnkm];
           }
         }
@@ -178,13 +178,13 @@ class LaplaceSpherical2
           for (int m = j+k-n; m < 0; ++m) {
             int jnkm = (n-j)*(n-j+1) + m - k;
             int nms  = n*(n+1)/2 - m;
-            L += std::conj(Lsource[nms]) * Ynm[jnkm] * real(ODDEVEN(k));
+            L += std::conj(Lsource[nms]) * Ynm[jnkm] * real(neg1pow(k));
           }
           for (int m = 0; m <= n; ++m) {
             if (n-j >= abs(m-k)) {
               int jnkm = (n-j)*(n-j+1) + m - k;
               int nms  = n*(n+1)/2 + m;
-              L += Lsource[nms] * Ynm[jnkm] * real(ODDEVEN((m-k)*(m<k)));
+              L += Lsource[nms] * Ynm[jnkm] * real(neg1pow((m-k)*(m<k)));
             }
           }
         }

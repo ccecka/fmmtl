@@ -23,7 +23,7 @@ class LaplaceSpherical
   typedef std::complex<real> complex;
 
   //! Expansion order
-  const int P;
+  int P;
   //! \f$ \sqrt{ \frac{(n - |m|)!}{(n + |m|)!} } \f$
   std::vector<real> prefactor;
   //! \f$ (-1)^n / \sqrt{(n + m)! * (n - m)!} \f$
@@ -34,7 +34,7 @@ class LaplaceSpherical
   //! (-1)^n
   inline int neg1pow(int n) const {
     return ((n & 1) ? -1 : 1);
-  };
+  }
   //! i^n
   inline complex ipow(int n) const {
     switch (n & 3) {
@@ -97,7 +97,7 @@ class LaplaceSpherical
   /** Initialize a local expansion with the size of a box at this level */
   void init_local(local_type& L,
                   const point_type&, unsigned) const {
-    L = std::vector<complex>(P*(P+1)/2, 0);
+    L = std::vector<complex>(P*(P+1)/2);
   }
 
   /** Kernel P2M operation
