@@ -76,7 +76,7 @@ class LaplaceSpherical2
       for (int m = 0; m <= n; ++m) {
         int nm  = n*(n+1)   - m;
         int nms = n*(n+1)/2 + m;
-        M[nms] += charge * Ynm[nm];
+        M[nms] += Ynm[nm] * charge;
       }
     }
   }
@@ -129,10 +129,10 @@ class LaplaceSpherical2
   void M2L(const multipole_type& Msource,
            local_type& Ltarget,
            const point_type& translation) const {
-    complex Ynmi[P*P];
+    complex Ynm[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalLocal(rho, theta, phi, P, Ynmi);
+    evalLocal(rho, theta, phi, P, Ynm);
     for (int j = 0; j < P; ++j) {
       real Cnm = neg1pow(j);
       for (int k = 0; k <= j; k++) {
@@ -142,13 +142,13 @@ class LaplaceSpherical2
           for (int m=-n; m<0; ++m) {
             int nms  = n*(n+1)/2 - m;
             int jnkm = (j+n)*(j+n+1) + m - k;
-            L += std::conj(Msource[nms]) * Cnm * Ynmi[jnkm];
+            L += std::conj(Msource[nms]) * Cnm * Ynm[jnkm];
           }
           for (int m = 0; m <= n; ++m) {
             int nms  = n*(n+1)/2 + m;
             int jnkm = (j+n)*(j+n+1) + m - k;
             real Cnm2 = Cnm * neg1pow((k-m)*(k<m)+m);
-            L += Msource[nms] * Cnm2 * Ynmi[jnkm];
+            L += Msource[nms] * Cnm2 * Ynm[jnkm];
           }
         }
         Ltarget[jks] += L;

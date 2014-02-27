@@ -74,6 +74,55 @@ inline void cart2sph(real_type& r, real_type& theta, real_type& phi,
 }
 
 
+
+
+
+//! Evaluate solid harmonics \f$ r^n Y_{n}^{m} \f$
+/** Computes Ynm[n*(n+1)+m] = rho^n Y_n^m(theta, phi)
+ * with
+ * Y_n^m(theta,phi) = (-1)^m sqrt((n-|m|)!/(n+|m|)!) P_n^|m|(cos theta) exp(i m phi)
+ * PLUS THE PREFACTOR AND AND STUFF
+ */
+template <typename T>
+void evalMultipole(T rho, T theta, T phi, int P,
+                   std::complex<T>* Ynm) {
+  typedef T real_type;
+  typedef std::complex<T> complex_type;
+  real_type x = std::cos(theta);                                   // x = cos(theta)
+  real_type y = std::sin(theta);                                   // y = sin(theta)
+  real_type pn = 1;                                                // Initialize Legendre polynomial Pn
+  real_type rhom = 1;                                              // Initialize rho^m
+  complex_type ei = std::exp(complex_type(0,phi));                   // exp(i * phi)
+  complex_type eim = 1.0;                                          // Initialize exp(i * m * phi)
+  for (int m=0; m<P; m++) {                                     // Loop over m in Ynm
+    real_type p = pn;                                              //  Associated Legendre polynomial Pnm
+    int npn = m * m + 2 * m;                                    //  Index of Ynm for m > 0
+    int nmn = m * m;                                            //  Index of Ynm for m < 0
+    Ynm[npn] = rhom * p * eim;                                  //  rho^m * Ynm for m > 0
+    Ynm[nmn] = std::conj(Ynm[npn]);                             //  Use conjugate relation for m < 0
+    real_type p1 = p;                                              //  Pnm-1
+    p = x * (2 * m + 1) * p1;                                   //  Pnm using recurrence relation
+    rhom *= rho;                                                //  rho^m
+    real_type rhon = rhom;                                         //  rho^n
+    for (int n=m+1; n<P; n++) {                                 //  Loop over n in Ynm
+      int npm = n * n + n + m;                                  //   Index of Ynm for m > 0
+      int nmm = n * n + n - m;                                  //   Index of Ynm for m < 0
+      rhon /= -(n + m);                                         //   Update factorial
+      Ynm[npm] = rhon * p * eim;                                //   rho^n * Ynm
+      Ynm[nmm] = std::conj(Ynm[npm]);                           //   Use conjugate relation for m < 0
+      real_type p2 = p1;                                           //   Pnm-2
+      p1 = p;                                                   //   Pnm-1
+      p = (x * (2 * n + 1) * p1 - (n + m) * p2) / (n - m + 1);  //   Pnm using recurrence relation
+      rhon *= rho;                                              //   Update rho^n
+    }                                                           //  End loop over n in Ynm
+    rhom /= -(2 * m + 2) * (2 * m + 1);                         //  Update factorial
+    pn = -pn * (2*m+1) * y;                                        //  Pn
+    eim *= ei;                                                  //  Update exp(i * m * phi)
+  }                                                             // End loop over m in Ynm
+}
+
+
+
 //! Evaluate solid harmonics \f$ r^n Y_{n}^{m} \f$
 template <typename T>
 void evalMultipole(T rho, T theta, T phi, int P,

@@ -24,7 +24,6 @@ class BiotSpherical
  protected:
   typedef double real;
   typedef std::complex<real> complex;
-  typedef Vec<3,complex> ml_type;
 
   //! Expansion order
   int P;
@@ -39,9 +38,9 @@ class BiotSpherical
   typedef Vec<3,real> point_type;
 
   //! Multipole expansion type
-  typedef std::vector<ml_type> multipole_type;
+  typedef std::vector<Vec<3,complex> > multipole_type;
   //! Local expansion type
-  typedef std::vector<ml_type> local_type;
+  typedef std::vector<Vec<3,complex> > local_type;
 
   //! Constructor
   BiotSpherical(int _P = 5)
@@ -69,15 +68,15 @@ class BiotSpherical
    */
   void P2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
-    complex Ynm[P*P], YnmTheta[P*P];
+    complex Ynm[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, source - center);
-    evalMultipole(rho, theta, phi, P, Ynm, YnmTheta);
+    evalMultipole(rho, theta, phi, P, Ynm);
     for (int n = 0; n < P; ++n) {
       for (int m = 0; m <= n; ++m) {
         int nm  = n*(n+1)   - m;
         int nms = n*(n+1)/2 + m;
-        M[nms] += ml_type(charge) * Ynm[nm];
+        M[nms] += multipole_type::value_type(charge) * Ynm[nm];
       }
     }
   }
@@ -93,14 +92,14 @@ class BiotSpherical
   void M2M(const multipole_type& Msource,
            multipole_type& Mtarget,
            const point_type& translation) const {
-    complex Ynm[P*P], YnmTheta[P*P];
+    complex Ynm[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalMultipole(rho, theta, phi, P, Ynm, YnmTheta);
+    evalMultipole(rho, theta, phi, P, Ynm);
     for (int j = 0; j < P; ++j) {
       for (int k = 0; k <= j; ++k) {
         int jks = j*(j+1)/2 + k;
-        ml_type M = ml_type();
+        multipole_type::value_type M = multipole_type::value_type();
         for (int n = 0; n <= j; ++n) {
           for (int m = std::max(-n,-j+k+n); m <= std::min(k-1,n); ++m) {
             int jnkms = (j-n)*(j-n+1)/2 + k - m;
@@ -130,26 +129,26 @@ class BiotSpherical
   void M2L(const multipole_type& Msource,
            local_type& Ltarget,
            const point_type& translation) const {
-    complex Ynmi[P*P];
+    complex Ynm[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalLocal(rho, theta, phi, P, Ynmi);
+    evalLocal(rho, theta, phi, P, Ynm);
     for (int j = 0; j < P; ++j) {
       real Cnm = neg1pow(j);
       for (int k = 0; k <= j; k++) {
         int jks = j*(j+1)/2 + k;
-        ml_type L = ml_type();
+        local_type::value_type L = local_type::value_type();
         for (int n=0; n<P-j; ++n) {
           for (int m=-n; m<0; ++m) {
             int nms  = n*(n+1)/2 - m;
             int jnkm = (j+n)*(j+n+1) + m - k;
-            L += fmmtl::conj(Msource[nms]) * (Cnm * Ynmi[jnkm]);
+            L += fmmtl::conj(Msource[nms]) * (Cnm * Ynm[jnkm]);
           }
           for (int m = 0; m <= n; ++m) {
             int nms  = n*(n+1)/2 + m;
             int jnkm = (j+n)*(j+n+1) + m - k;
             real Cnm2 = Cnm * neg1pow((k-m)*(k<m)+m);
-            L += Msource[nms] * (Cnm2 * Ynmi[jnkm]);
+            L += Msource[nms] * (Cnm2 * Ynm[jnkm]);
           }
         }
         Ltarget[jks] += L;
@@ -168,14 +167,14 @@ class BiotSpherical
   void L2L(const local_type& Lsource,
            local_type& Ltarget,
            const point_type& translation) const {
-    complex Ynm[P*P], YnmTheta[P*P];
+    complex Ynm[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalMultipole(rho, theta, phi, P, Ynm, YnmTheta);
+    evalMultipole(rho, theta, phi, P, Ynm);
     for (int j = 0; j < P; ++j) {
       for (int k = 0; k <= j; ++k) {
         int jks = j*(j+1)/2 + k;
-        ml_type L = ml_type();
+        local_type::value_type L = local_type::value_type();
         for (int n = j; n < P; ++n) {
           for (int m = j+k-n; m < 0; ++m) {
             int jnkm = (n-j)*(n-j+1) + m - k;
@@ -232,6 +231,8 @@ class BiotSpherical
                              Vec<3,real>(sph[0][1], sph[1][1], sph[2][1]));
     point_type c2 = sph2cart(rho, theta, phi,
                              Vec<3,real>(sph[0][2], sph[1][2], sph[2][2]));
-    result += result_type(c2[1] - c1[2], c0[2] - c2[0], c1[0] - c0[1]);
+    result[0] += c2[1] - c1[2];
+    result[1] += c0[2] - c2[0];
+    result[2] += c1[0] - c0[1];
   }
 };
