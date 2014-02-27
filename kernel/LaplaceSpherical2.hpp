@@ -16,6 +16,7 @@
 // Use a library-defined Vector class that supports multiple architectures
 #include "fmmtl/numeric/Vec.hpp"
 
+#include "kernel/Util/spherical_harmonics.hpp"
 
 class LaplaceSpherical2
     : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical2> {
@@ -68,9 +69,9 @@ class LaplaceSpherical2
            const point_type& center, multipole_type& M) const {
     complex Ynm[P*P], YnmTheta[P*P];
     point_type r = source - center;
-    real rho, alpha, beta;
-    cart2sph(rho, alpha, beta, r);
-    evalMultipole(rho, alpha, beta, Ynm, YnmTheta);
+    real rho, theta, phi;
+    cart2sph(rho, theta, phi, r);
+    evalMultipole(rho, theta, phi, P, Ynm, YnmTheta);
     for (int n = 0; n < P; ++n) {
       for (int m = 0; m <= n; ++m) {
         int nm  = n*(n+1)   - m;
@@ -92,9 +93,9 @@ class LaplaceSpherical2
            multipole_type& Mtarget,
            const point_type& translation) const {
     complex Ynm[P*P], YnmTheta[P*P];
-    real rho, alpha, beta;
-    cart2sph(rho, alpha, beta, translation);
-    evalMultipole(rho, alpha, beta, Ynm, YnmTheta);
+    real rho, theta, phi;
+    cart2sph(rho, theta, phi, translation);
+    evalMultipole(rho, theta, phi, P, Ynm, YnmTheta);
     for (int j = 0; j < P; ++j) {
       for (int k = 0; k <= j; ++k) {
         int jks = j*(j+1)/2 + k;
@@ -129,9 +130,9 @@ class LaplaceSpherical2
            local_type& Ltarget,
            const point_type& translation) const {
     complex Ynmi[P*P];
-    real rho, alpha, beta;
-    cart2sph(rho, alpha, beta, translation);
-    evalLocal(rho, alpha, beta, Ynmi);
+    real rho, theta, phi;
+    cart2sph(rho, theta, phi, translation);
+    evalLocal(rho, theta, phi, P, Ynmi);
     for (int j = 0; j < P; ++j) {
       real Cnm = neg1pow(j);
       for (int k = 0; k <= j; k++) {
@@ -167,9 +168,9 @@ class LaplaceSpherical2
            local_type& Ltarget,
            const point_type& translation) const {
     complex Ynm[P*P], YnmTheta[P*P];
-    real rho, alpha, beta;
-    cart2sph(rho, alpha, beta, translation);
-    evalMultipole(rho, alpha, beta, Ynm, YnmTheta);
+    real rho, theta, phi;
+    cart2sph(rho, theta, phi, translation);
+    evalMultipole(rho, theta, phi, P, Ynm, YnmTheta);
     for (int j = 0; j < P; ++j) {
       for (int k = 0; k <= j; ++k) {
         int jks = j*(j+1)/2 + k;
@@ -205,12 +206,10 @@ class LaplaceSpherical2
   void L2P(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
     complex Ynm[P*P], YnmTheta[P*P];
-    point_type r = target - center;
-    point_type spherical = point_type();
-    point_type cartesian = point_type();
     real rho, theta, phi;
-    cart2sph(rho, theta, phi, r);
-    evalMultipole(rho, theta, phi, Ynm, YnmTheta);
+    cart2sph(rho, theta, phi, target - center);
+    evalMultipole(rho, theta, phi, P, Ynm, YnmTheta);
+    point_type spherical = point_type();
     for (int n = 0; n < P; ++n) {
       int nm  = n*(n+1);
       int nms = n*(n+1)/2;
@@ -226,119 +225,9 @@ class LaplaceSpherical2
         spherical[2] += 2 * std::real(L[nms] * Ynm[nm] * complex(0,1)) * m;
       }
     }
-    sph2cart(rho, theta, phi, spherical, cartesian);
+    point_type cartesian = sph2cart(rho, theta, phi, spherical);
     result[1] += cartesian[0];
     result[2] += cartesian[1];
     result[3] += cartesian[2];
-  }
-
- protected:
-
-  //! Evaluate solid harmonics \f$ r^n Y_{n}^{m} \f$
-  void evalMultipole(real rho, real alpha, real beta,
-                     complex *Ynm, complex *YnmTheta) const {
-    real x = std::cos(alpha);                                   // x = cos(alpha)
-    real y = std::sin(alpha);                                   // y = sin(alpha)
-    real fact = 1;                                              // Initialize 2 * m + 1
-    real pn = 1;                                                // Initialize Legendre polynomial Pn
-    real rhom = 1;                                              // Initialize rho^m
-    complex ei = std::exp(complex(0,beta));                     // exp(i * beta)
-    complex eim = 1.0;                                          // Initialize exp(i * m * beta)
-    for (int m=0; m<P; m++) {                                     // Loop over m in Ynm
-      real p = pn;                                              //  Associated Legendre polynomial Pnm
-      int npn = m * m + 2 * m;                                    //  Index of Ynm for m > 0
-      int nmn = m * m;                                            //  Index of Ynm for m < 0
-      Ynm[npn] = rhom * p * eim;                                  //  rho^m * Ynm for m > 0
-      Ynm[nmn] = std::conj(Ynm[npn]);                             //  Use conjugate relation for m < 0
-      real p1 = p;                                              //  Pnm-1
-      p = x * (2 * m + 1) * p1;                                   //  Pnm using recurrence relation
-      YnmTheta[npn] = rhom * (p - (m + 1) * x * p1) / y * eim;    // theta derivative of r^n * Ynm
-      rhom *= rho;                                                //  rho^m
-      real rhon = rhom;                                         //  rho^n
-      for (int n=m+1; n<P; n++) {                                 //  Loop over n in Ynm
-        int npm = n * n + n + m;                                  //   Index of Ynm for m > 0
-        int nmm = n * n + n - m;                                  //   Index of Ynm for m < 0
-        rhon /= -(n + m);                                         //   Update factorial
-        Ynm[npm] = rhon * p * eim;                                //   rho^n * Ynm
-        Ynm[nmm] = std::conj(Ynm[npm]);                           //   Use conjugate relation for m < 0
-        real p2 = p1;                                           //   Pnm-2
-        p1 = p;                                                   //   Pnm-1
-        p = (x * (2 * n + 1) * p1 - (n + m) * p2) / (n - m + 1);  //   Pnm using recurrence relation
-        YnmTheta[npm] = rhon * ((n - m + 1) * p - (n + 1) * x * p1) / y * eim;// theta derivative
-        rhon *= rho;                                              //   Update rho^n
-      }                                                           //  End loop over n in Ynm
-      rhom /= -(2 * m + 2) * (2 * m + 1);                         //  Update factorial
-      pn = -pn * fact * y;                                        //  Pn
-      fact += 2;                                                  //  2 * m + 1
-      eim *= ei;                                                  //  Update exp(i * m * beta)
-    }                                                             // End loop over m in Ynm
-  }
-
-  //! Evaluate singular harmonics \f$ r^{-n-1} Y_n^m \f$
-  void evalLocal(real rho, real alpha, real beta,
-                 complex *Ynm) const {
-    real x = std::cos(alpha);                                   // x = cos(alpha)
-    real y = std::sin(alpha);                                   // y = sin(alpha)
-    real fact = 1;                                              // Initialize 2 * m + 1
-    real pn = 1;                                                // Initialize Legendre polynomial Pn
-    real invR = -1.0 / rho;                                     // - 1 / rho
-    real rhom = -invR;                                          // Initialize rho^(-m-1)
-    complex ei = std::exp(complex(0,beta));                            // exp(i * beta)
-    complex eim = 1.0;                                          // Initialize exp(i * m * beta)
-    for (int m=0; m<P; m++) {                                     // Loop over m in Ynm
-      real p = pn;                                              //  Associated Legendre polynomial Pnm
-      int npn = m * m + 2 * m;                                    //  Index of Ynm for m > 0
-      int nmn = m * m;                                            //  Index of Ynm for m < 0
-      Ynm[npn] = rhom * p * eim;                                  //  rho^(-m-1) * Ynm for m > 0
-      Ynm[nmn] = std::conj(Ynm[npn]);                             //  Use conjugate relation for m < 0
-      real p1 = p;                                              //  Pnm-1
-      p = x * (2 * m + 1) * p1;                                   //  Pnm using recurrence relation
-      rhom *= invR;                                               //  rho^(-m-1)
-      real rhon = rhom;                                         //  rho^(-n-1)
-      for (int n=m+1; n<P; n++) {                                 //  Loop over n in Ynm
-        int npm = n * n + n + m;                                  //   Index of Ynm for m > 0
-        int nmm = n * n + n - m;                                  //   Index of Ynm for m < 0
-        Ynm[npm] = rhon * p * eim;                                //   rho^n * Ynm for m > 0
-        Ynm[nmm] = std::conj(Ynm[npm]);                           //   Use conjugate relation for m < 0
-        real p2 = p1;                                           //   Pnm-2
-        p1 = p;                                                   //   Pnm-1
-        p = (x * (2 * n + 1) * p1 - (n + m) * p2) / (n - m + 1);  //   Pnm using recurrence relation
-        rhon *= invR * (n - m + 1);                               //   rho^(-n-1)
-      }                                                           //  End loop over n in Ynm
-      pn = -pn * fact * y;                                        //  Pn
-      fact += 2;                                                  //  2 * m + 1
-      eim *= ei;                                                  //  Update exp(i * m * beta)
-    }                                                             // End loop over m in Ynm
-  }
-
- private:
-
-  /** Spherical to cartesian coordinates */
-  inline void sph2cart(real r, real theta, real phi,
-                       const point_type& spherical,
-                       point_type& cartesian) const {
-    real st = std::sin(theta);
-    real ct = std::cos(theta);
-    real sp = std::sin(phi);
-    real cp = std::cos(phi);
-    // x component (not x itself)
-    cartesian[0] = st * cp * spherical[0]
-        + ct * cp / r * spherical[1]
-        - sp / r / st * spherical[2];
-    // y component (not y itself)
-    cartesian[1] = st * sp * spherical[0]
-        + ct * sp / r * spherical[1]
-        + cp / r / st * spherical[2];
-    // z component (not z itself)
-    cartesian[2] = ct * spherical[0]
-        - st / r * spherical[1];
-  }
-
-  /** Cartesian to spherical coordinates */
-  inline void cart2sph(real& r, real& theta, real& phi,
-                       const point_type& x) const {
-    r = norm(x);
-    theta = std::acos(x[2] / (r + 1e-100));
-    phi = std::atan2(x[1], x[0]);
   }
 };
