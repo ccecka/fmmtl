@@ -107,8 +107,8 @@ class BiotSpherical
             M += Msource[jnkms] * (Ynm[nm] * real(neg1pow(m*(m<0))*neg1pow(n)));
           }
           for (int m=k; m<=std::min(n,j+k-n); m++) {
-            int jnkms = (j - n) * (j - n + 1) / 2 - k + m;
-            int nm    = n * n + n - m;
+            int jnkms = (j-n)*(j-n+1)/2 - k + m;
+            int nm    = n*(n+1) - m;
             M += fmmtl::conj(Msource[jnkms]) * (Ynm[nm] * real(neg1pow(k+n+m)));
           }
         }
@@ -129,16 +129,16 @@ class BiotSpherical
   void M2L(const multipole_type& Msource,
            local_type& Ltarget,
            const point_type& translation) const {
-    complex Ynm[P*P];
+    complex Ynm[4*P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalLocal(rho, theta, phi, P, Ynm);
+    evalLocal(rho, theta, phi, 2*P, Ynm);
     for (int j = 0; j < P; ++j) {
       real Cnm = neg1pow(j);
       for (int k = 0; k <= j; k++) {
         int jks = j*(j+1)/2 + k;
         local_type::value_type L = local_type::value_type();
-        for (int n=0; n<P-j; ++n) {
+        for (int n=0; n<P; ++n) {
           for (int m=-n; m<0; ++m) {
             int nms  = n*(n+1)/2 - m;
             int jnkm = (j+n)*(j+n+1) + m - k;

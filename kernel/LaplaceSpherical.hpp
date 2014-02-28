@@ -110,7 +110,7 @@ class LaplaceSpherical
    */
   void P2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
-    complex Ynm[4*P*P], YnmTheta[4*P*P];
+    complex Ynm[P*P], YnmTheta[P*P];
     point_type r = source - center;
     real rho, alpha, beta;
     cart2sph(rho,alpha,beta,r);
@@ -135,7 +135,7 @@ class LaplaceSpherical
   void M2M(const multipole_type& Msource,
            multipole_type& Mtarget,
            const point_type& translation) const {
-    complex Ynm[4*P*P], YnmTheta[4*P*P];
+    complex Ynm[P*P], YnmTheta[P*P];
     real rho, alpha, beta;
     cart2sph(rho,alpha,beta,translation);
     evalMultipole(rho,alpha,-beta,Ynm,YnmTheta);
@@ -263,7 +263,7 @@ class LaplaceSpherical
   void L2L(const local_type& source,
            local_type& target,
            const point_type& translation) const {
-    complex Ynm[4*P*P], YnmTheta[4*P*P];
+    complex Ynm[P*P], YnmTheta[P*P];
     real rho, alpha, beta;
     cart2sph(rho,alpha,beta,translation);
     evalMultipole(rho,alpha,beta,Ynm,YnmTheta);
@@ -306,7 +306,7 @@ class LaplaceSpherical
    */
   void L2P(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
-    complex Ynm[4*P*P], YnmTheta[4*P*P];
+    complex Ynm[P*P], YnmTheta[P*P];
     point_type dist = target - center;
     point_type spherical = point_type();
     point_type cartesian = point_type();
