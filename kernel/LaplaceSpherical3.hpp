@@ -67,14 +67,14 @@ class LaplaceSpherical3
    */
   void P2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
-    complex Ynm[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, center - source);
-    evalZ(rho, theta, phi, P, Ynm);
+    complex Z[P*(P+1)/2];   // Avoid initialization?
+    evalZ(rho, theta, phi, P, Z);
+    int nm = 0;   // n*(n+1)/2+m
     for (int n = 0; n < P; ++n) {
-      for (int m = 0; m <= n; ++m) {
-        int nm  = n*(n+1)/2 + m;
-        M[nm] += neg1pow(m) * std::conj(Ynm[nm]) * charge;
+      for (int m = 0; m <= n; ++m, ++nm) {
+        M[nm] += neg1pow(m) * std::conj(Z[nm]) * charge;
       }
     }
   }
@@ -90,23 +90,28 @@ class LaplaceSpherical3
   void M2M(const multipole_type& Msource,
            multipole_type& Mtarget,
            const point_type& translation) const {
-    complex Y[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalZ(rho, theta, phi, P, Y);
+    complex Z[P*(P+1)/2];
+    evalZ(rho, theta, phi, P, Z);
+    int nm = 0;   // n*(n+1)/2+m
     for (int n = 0; n != P; ++n) {
-      for (int m = 0; m <= n; ++m) {
-        complex M = 0;
+      for (int m = 0; m <= n; ++m, ++nm) {
+        complex& M = Mtarget[nm];
+
         for (int j = 0; j <= n; ++j) {
+          // Compute the offset for Y_j
+          auto Zj = Z + j*(j+1)/2;
+          // Compute the offset for M_{n-j}
+          auto Mnj = Msource.begin() + (n-j)*(n-j+1)/2;
+
           // All k with -j <= k <= 0 and 0 <= m-k <= n-j
           // Thus, k >= -j and k >= -n+j+m
           int k = std::max(-j, -n+j+m);
           // Thus, k <= 0 and k <= m
           for ( ; k <= 0; ++k) {
             // k is negative and m-k is positive
-            int midx = (n-j)*(n-j+1)/2 + (m-k);
-            int jk   = j*(j+1)/2 - k;
-            M += Y[jk] * Msource[midx];
+            M += Zj[-k] * Mnj[m-k];
           }
 
           // All k with 0 < k <= j and 0 <= m-k <= n-j
@@ -114,23 +119,17 @@ class LaplaceSpherical3
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and m-k is positive
-            int midx = (n-j)*(n-j+1)/2 + (m-k);
-            int jk   = j*(j+1)/2 + k;
-            M += neg1pow(k) * std::conj(Y[jk]) * Msource[midx];
+            M += neg1pow(k) * std::conj(Zj[k]) * Mnj[m-k];
           }
 
           // All k with 0 <= k < j and -(n-j) <= m-k <= 0
-          // Thus, k <= j and k <= n-j+m
-          end = std::min(j, n-j+m);
+          // Thus, k <= j and k <= n+m-j
+          end = std::min(j, n+m-j);
           for ( ; k <= end; ++k) {
             // k is positive and m-k is negative
-            int midx = (n-j)*(n-j+1)/2 - (m-k);
-            int jk   = j*(j+1)/2 + k;
-            M += std::conj(neg1pow(m) * Y[jk] * Msource[midx]);
+            M += std::conj(neg1pow(m) * Zj[k] * Mnj[k-m]);
           }
         }
-        int nm = n*(n+1)/2 + m;
-        Mtarget[nm] += M;
       }
     }
   }
@@ -147,23 +146,28 @@ class LaplaceSpherical3
   void M2L(const multipole_type& Msource,
            local_type& Ltarget,
            const point_type& translation) const {
-    complex Y[4*P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalW(rho, theta, phi, 2*P, Y);
+    complex W[P*(2*P+1)];
+    evalW(rho, theta, phi, 2*P, W);
+    int nm = 0;    // n*(n+1)/2 + m
     for (int n = 0; n != P; ++n) {
-      for (int m = 0; m <= n; ++m) {
-        complex L = 0;
+      for (int m = 0; m <= n; ++m, ++nm) {
+        complex& L = Ltarget[nm];
+
         for (int j = 0; j != P; ++j) {
+          // Compute the offset for M_j
+          auto Mj = Msource.begin() + j*(j+1)/2;
+          // Compute the offset for W_{j+n}
+          auto Wjn = W + (j+n)*(j+n+1)/2;
+
           // All k with -j <= k <= 0 and -(j+n) <= k-m <= 0
           // Thus, k >= -j and k >= m-n-j
           int k = -j;
           // Thus, k <= 0 and k <= m
           for ( ; k <= 0; ++k) {
             // k is negative and k-m is negative
-            int midx = j*(j+1)/2 - k;
-            int yidx = (j+n)*(j+n+1)/2 - (k-m);
-            L += std::conj(neg1pow(m) * Msource[midx] * Y[yidx]);
+            L += std::conj(neg1pow(m) * Mj[-k] * Wjn[m-k]);
           }
 
           // All k with 0 <= k <= j and -(j+n) <= k-m <= 0
@@ -171,22 +175,16 @@ class LaplaceSpherical3
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is negative
-            int midx = j*(j+1)/2 + k;
-            int yidx = (j+n)*(j+n+1)/2 - (k-m);
-            L += neg1pow(k-m) * Msource[midx] * std::conj(Y[yidx]);
+            L += neg1pow(k-m) * Mj[k] * std::conj(Wjn[m-k]);
           }
 
           // All k with 0 <= k <= j and 0 <= k-m <= j+n
           // Thus, k <= j and k <= m+n+j
           for ( ; k <= j; ++k) {
             // k is positive and k-m is positive
-            int midx = j*(j+1)/2 + k;
-            int yidx = (j+n)*(j+n+1)/2 + (k-m);
-            L += Msource[midx] * Y[yidx];
+            L += Mj[k] * Wjn[k-m];
           }
         }
-        int nm = n*(n+1)/2 + m;
-        Ltarget[nm] += L;
       }
     }
   }
@@ -202,23 +200,28 @@ class LaplaceSpherical3
   void L2L(const local_type& Lsource,
            local_type& Ltarget,
            const point_type& translation) const {
-    complex Y[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    evalZ(rho, theta, phi, P, Y);
+    complex Z[P*(P+1)/2];
+    evalZ(rho, theta, phi, P, Z);
+    int nm = 0;    // n*(n+1)/2 + m
     for (int n = 0; n != P; ++n) {
-      for (int m = 0; m <= n; ++m) {
-        complex L = 0;
+      for (int m = 0; m <= n; ++m, ++nm) {
+        complex& L = Ltarget[nm];
+
         for (int j = n; j != P; ++j) {
+          // Compute the offset for L_j
+          auto Lj = Lsource.begin() + j*(j+1)/2;
+          // Compute the offset for Z_{j-n}
+          auto Zjn = Z + (j-n)*(j-n+1)/2;
+
           // All k with -j <= k <= 0 and -(j-n) <= k-m <= 0
           // Thus, k >= -j and k >= n+m-j
           int k = n+m-j;
           // Thus, k <= 0 and k <= m
           for ( ; k <= 0; ++k) {
             // k is negative and k-m is negative
-            int lidx = j*(j+1)/2 - k;
-            int yidx = (j-n)*(j-n+1)/2 - (k-m);
-            L += std::conj(neg1pow(m) * Lsource[lidx] * Y[yidx]);
+            L += std::conj(neg1pow(m) * Lj[-k] * Zjn[m-k]);
           }
 
           // All k with 0 <= k <= j and -(j-n) <= k-m <= 0
@@ -226,9 +229,7 @@ class LaplaceSpherical3
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is negative
-            int lidx = j*(j+1)/2 + k;
-            int yidx = (j-n)*(j-n+1)/2 - (k-m);
-            L += neg1pow(k-m) * Lsource[lidx] * std::conj(Y[yidx]);
+            L += neg1pow(k-m) * Lj[k] * std::conj(Zjn[m-k]);
           }
 
           // All k with 0 <= k <= j and 0 <= k-m <= j-n
@@ -236,13 +237,9 @@ class LaplaceSpherical3
           end = std::min(j, m-n+j);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is positive
-            int lidx = j*(j+1)/2 + k;
-            int yidx = (j-n)*(j-n+1)/2 + (k-m);
-            L += Lsource[lidx] * Y[yidx];
+            L += Lj[k] * Zjn[k-m];
           }
         }
-        int nm = n*(n+1)/2 + m;
-        Ltarget[nm] += L;
       }
     }
   }
@@ -258,22 +255,22 @@ class LaplaceSpherical3
    */
   void L2P(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
-    complex Ynm[P*P], YnmTheta[P*P];
     real rho, theta, phi;
     cart2sph(rho, theta, phi, target - center);
-    evalZ(rho, theta, phi, P, Ynm, YnmTheta);
+    complex Z[P*(P+1)/2], ZTheta[P*(P+1)/2];
+    evalZ(rho, theta, phi, P, Z, ZTheta);
     point_type spherical = point_type();
+    int nm = 0;
     for (int n = 0; n != P; ++n) {
-      int nm  = n*(n+1)/2;
-      result[0]    += std::real(L[nm] * Ynm[nm]);
-      spherical[0] += std::real(L[nm] * Ynm[nm]) / rho * n;
-      spherical[1] += std::real(L[nm] * YnmTheta[nm]);
-      for (int m = 1; m <= n; ++m) {
-        nm  = n*(n+1)/2 + m;
-        result[0]    += 2 * std::real(L[nm] * Ynm[nm]);
-        spherical[0] += 2 * std::real(L[nm] * Ynm[nm]) / rho * n;
-        spherical[1] += 2 * std::real(L[nm] * YnmTheta[nm]);
-        spherical[2] += 2 * std::real(L[nm] * Ynm[nm] * complex(0,1)) * m;
+      result[0]    += std::real(L[nm] * Z[nm]);
+      spherical[0] += std::real(L[nm] * Z[nm]) / rho * n;
+      spherical[1] += std::real(L[nm] * ZTheta[nm]);
+      ++nm;
+      for (int m = 1; m <= n; ++m, ++nm) {
+        result[0]    += 2 * std::real(L[nm] * Z[nm]);
+        spherical[0] += 2 * std::real(L[nm] * Z[nm]) / rho * n;
+        spherical[1] += 2 * std::real(L[nm] * ZTheta[nm]);
+        spherical[2] += 2 * std::real(L[nm] * Z[nm] * complex(0,1)) * m;
       }
     }
     point_type cartesian = sph2cart(rho, theta, phi, spherical);
