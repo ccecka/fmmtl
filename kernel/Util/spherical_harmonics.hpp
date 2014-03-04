@@ -1,3 +1,5 @@
+#pragma once
+
 #include <complex>
 #include <cmath>
 
@@ -89,6 +91,79 @@ void evalMultipole(real rho, real theta, real phi, int P,
 }
 
 
+/** Computes
+ * Y[n*(n+1)+m] = A_n^m i^-|m| (-rho)^n Y_n^m(theta, phi)
+ *              = (-1)^n/sqrt((n+m)!(n-m)!) i^-|m| (-rho)^n Y_n^m(theta, phi)
+ *              = rho^n/(n+m)! P_n^m(cos theta) exp(i m phi) i^-|m|
+ * for all 0 <= n < P and all -n <= m <= n.
+ *
+ * Note that this uses the definition...
+ *
+ * Note these are not the spherical harmonics, but are the spherical
+ * harmonics with the prefactor (often denoted A_n^m) included. These are useful
+ * for computing multipole and local expansions in an FMM.
+ */
+template <typename real>
+void evalZ(real rho, real theta, real phi, int P,
+           std::complex<real>* Y, std::complex<real>* dY = nullptr) {
+  typedef std::complex<real> complex;
+  using std::cos;
+  using std::sin;
+  for (int i = 0; i < P*P; ++i) Y[i] = std::numeric_limits<double>::quiet_NaN();
+
+  const real    ct = cos(theta);
+  const real    st = sin(theta);
+  const complex ei = complex(sin(phi),-cos(phi)); // exp(i*phi) i^-1
+
+  real    Pmm = 1;                                // Init Legendre P00(ct)
+  real   rhom = 1;                                // Init rho^n / (n+m)!
+  complex eim = 1;                                // Init exp(i*m*phi) i^-m
+  int m = 0;
+  while (true) {
+    // n == m
+    int npn = m*(m+1) + m;                        //  Index of Ynm for m > 0
+    Y[npn] = rhom * Pmm * eim;                    //  Ynm for m > 0
+    if (dY)
+      dY[npn] = m*ct/st * Y[npn];                 // theta derivative
+
+    // n == m+1
+    int n = m + 1;
+    if (n == P) return;                           // Done! m == P-1
+
+    real Pnm  = ct * (2*m+1) * Pmm;               //  P_{m+1}^m(x) = x(2m+1)Pmm
+    real rhon = rhom * rho / (n+m);               //  rho^n / (n+m)!
+    int npm = n*(n+1) + m;                        //   Index of Ynm for m > 0
+    Y[npm] = rhon * Pnm * eim;                    // Ynm for m > 0
+    if (dY)
+      dY[npm] = (n*ct - (n+m)*Pmm/Pnm)/st * Y[npm];  // theta derivative
+
+    // m+1 < n < P
+    real Pn1m = Pmm;                              //  P_{n-1}^m
+    while (++n != P) {
+      real Pn2m = Pn1m;                           //   P_{n-2}^m
+      Pn1m = Pnm;                                 //   P_{n-1}^m
+      Pnm = (ct*(2*n-1)*Pn1m-(n+m-1)*Pn2m)/(n-m); //   P_n^m recurrence
+      rhon *= rho / (n + m);                      //   rho^n / (n+m)!
+
+      int npm = n*(n+1) + m;                      //   Index of Ynm for m > 0
+      Y[npm] = rhon * Pnm * eim;                  //   Ynm for m > 0
+      if (dY)
+        dY[npm] = (n*ct - (n+m)*Pn1m/Pnm)/st * Y[npm];  // theta derivative
+    }
+
+    ++m;                                          // Increment m
+
+    rhom *= rho / (2*m*(2*m-1));                  //  rho^m / (2m)!
+    Pmm *= -st * (2*m-1);                         //  P_{m+1}^{m+1} recurrence
+    eim *= ei;                                    //  exp(i*m*phi) i^-m
+  }                                               // End loop over m in Ynm
+}
+
+
+
+
+
+
 //! Evaluate singular harmonics \f$ r^{-n-1} Y_n^m \f$
 template <typename real>
 void evalLocal(real rho, real theta, real phi, int P,
@@ -125,4 +200,75 @@ void evalLocal(real rho, real theta, real phi, int P,
     Pmm = -Pmm * (2*m+1) * st;                                        //  Pn
     eim *= ei;                                                  //  Update exp(i * m * phi)
   }                                                             // End loop over m in Ynm
+}
+
+
+/** Computes the function
+ * Y[n*(n+1)+m] = i^|m| / A_n^m rho^{-n-1} Y_n^m(theta, phi)
+ *              = i^|m| (-1)^n sqrt((n+m)!(n-m)!) rho^{-n-1} Y_n^m(theta, phi)
+ *              = (-1)^n rho^{-n-1} (n-|m|)! P_n^|m|(cos theta) exp(i m phi) i^|m|
+ * for all 0 <= n < P and all -n <= m <= n.
+ *
+ * Note that this uses the definition...
+ *
+ * Note these are not the spherical harmonics, but are the spherical
+ * harmonics with the prefactor (often denoted A_n^m) included. These are useful
+ * for computing multipole and local expansions in an FMM.
+ */
+template <typename real>
+void evalW(real rho, real theta, real phi, int P,
+           std::complex<real>* Y, std::complex<real>* dY = nullptr) {
+  typedef std::complex<real> complex;
+  using std::cos;
+  using std::sin;
+  for (int i = 0; i < P*P; ++i) Y[i] = std::numeric_limits<double>::quiet_NaN();
+
+  rho = 1 / rho;
+
+  const real    ct = cos(theta);
+  const real    st = sin(theta);
+  const complex ei = complex(-sin(phi),cos(phi)); // exp(i*phi) i
+
+  real    Pmm = 1;                                // Init Legendre P00(ct)
+  real   rhom = rho;                              // Init (-1)^n rho^{-n-1} (n-m)!
+  complex eim = 1;                                // Init exp(i*m*phi) i^-m
+  int m = 0;
+  while (true) {
+    // n == m
+    int npn = m*(m+1) + m;                        //  Index of Ynm for m > 0
+    Y[npn] = rhom * Pmm * eim;                    //  Ynm for m > 0
+    if (dY)
+      dY[npn] = m*ct/st * Y[npn];                 // theta derivative
+
+    // n == m+1
+    int n = m+1;
+    if (n == P) return;                           // Done! m == P-1
+
+    real Pnm  = ct * (2*m+1) * Pmm;               //  P_{m+1}^m(x) = x(2m+1)Pmm
+    real rhon = rhom * -rho;                      //  (-1)^n rho^{-n-1} (n-m)!
+    int npm = n*(n+1) + m;                        //   Index of Ynm for m > 0
+    Y[npm] = rhon * Pnm * eim;                    // Ynm for m > 0
+    if (dY)
+      dY[npm] = (n*ct - (n+m)*Pmm/Pnm)/st * Y[npm];  // theta derivative
+
+    // m+1 < n < P
+    real Pn1m = Pmm;                              //  P_{n-1}^m
+    while (++n != P) {
+      real Pn2m = Pn1m;                           //   P_{n-2}^m
+      Pn1m = Pnm;                                 //   P_{n-1}^m
+      Pnm = (ct*(2*n-1)*Pn1m-(n+m-1)*Pn2m)/(n-m); //   P_n^m recurrence
+      rhon *= -rho * (n - m);                     //   (-1)^n rho^{-n-1} (n-m)!
+
+      int npm = n*(n+1) + m;                      //   Index of Ynm for m > 0
+      Y[npm] = rhon * Pnm * eim;                  //   Ynm for m > 0
+      if (dY)
+        dY[npm] = (n*ct - (n+m)*Pn1m/Pnm)/st * Y[npm];  // theta derivative
+    }
+
+    ++m;                                          // Increment m
+
+    rhom *= -rho;                                 //  (-1)^m rho^{-m-1} (n-m)!
+    Pmm *= -st * (2*m-1);                         //  P_{m+1}^{m+1} recurrence
+    eim *= ei;                                    //  exp(i*m*phi) i^m
+  }                                               // End loop over m in Ynm
 }
