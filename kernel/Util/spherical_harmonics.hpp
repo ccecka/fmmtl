@@ -109,19 +109,17 @@ void evalZ(real rho, real theta, real phi, int P,
   typedef std::complex<real> complex;
   using std::cos;
   using std::sin;
-  for (int i = 0; i < P*P; ++i) Y[i] = std::numeric_limits<double>::quiet_NaN();
-
   const real    ct = cos(theta);
   const real    st = sin(theta);
   const complex ei = complex(sin(phi),-cos(phi)); // exp(i*phi) i^-1
 
+  int m = 0;
   real    Pmm = 1;                                // Init Legendre P00(ct)
   real   rhom = 1;                                // Init rho^n / (n+m)!
   complex eim = 1;                                // Init exp(i*m*phi) i^-m
-  int m = 0;
-  while (true) {
+  while (true) {                                  // For all 0 <= m < P
     // n == m
-    int npn = m*(m+1) + m;                        //  Index of Ynm for m > 0
+    int npn = m*(m+1)/2 + m;                      //  Index of Ynm for m > 0
     Y[npn] = rhom * Pmm * eim;                    //  Ynm for m > 0
     if (dY)
       dY[npn] = m*ct/st * Y[npn];                 // theta derivative
@@ -132,7 +130,7 @@ void evalZ(real rho, real theta, real phi, int P,
 
     real Pnm  = ct * (2*m+1) * Pmm;               //  P_{m+1}^m(x) = x(2m+1)Pmm
     real rhon = rhom * rho / (n+m);               //  rho^n / (n+m)!
-    int npm = n*(n+1) + m;                        //   Index of Ynm for m > 0
+    int npm = n*(n+1)/2 + m;                      //   Index of Ynm for m > 0
     Y[npm] = rhon * Pnm * eim;                    // Ynm for m > 0
     if (dY)
       dY[npm] = (n*ct - (n+m)*Pmm/Pnm)/st * Y[npm];  // theta derivative
@@ -145,7 +143,7 @@ void evalZ(real rho, real theta, real phi, int P,
       Pnm = (ct*(2*n-1)*Pn1m-(n+m-1)*Pn2m)/(n-m); //   P_n^m recurrence
       rhon *= rho / (n + m);                      //   rho^n / (n+m)!
 
-      int npm = n*(n+1) + m;                      //   Index of Ynm for m > 0
+      int npm = n*(n+1)/2 + m;                    //   Index of Ynm for m > 0
       Y[npm] = rhon * Pnm * eim;                  //   Ynm for m > 0
       if (dY)
         dY[npm] = (n*ct - (n+m)*Pn1m/Pnm)/st * Y[npm];  // theta derivative
@@ -221,21 +219,18 @@ void evalW(real rho, real theta, real phi, int P,
   typedef std::complex<real> complex;
   using std::cos;
   using std::sin;
-  for (int i = 0; i < P*P; ++i) Y[i] = std::numeric_limits<double>::quiet_NaN();
-
   rho = 1 / rho;
-
   const real    ct = cos(theta);
   const real    st = sin(theta);
   const complex ei = complex(-sin(phi),cos(phi)); // exp(i*phi) i
 
+  int m = 0;
   real    Pmm = 1;                                // Init Legendre P00(ct)
   real   rhom = rho;                              // Init (-1)^n rho^{-n-1} (n-m)!
   complex eim = 1;                                // Init exp(i*m*phi) i^-m
-  int m = 0;
-  while (true) {
+  while (true) {                                  // For all 0 <= m < P
     // n == m
-    int npn = m*(m+1) + m;                        //  Index of Ynm for m > 0
+    int npn = m*(m+1)/2 + m;                      //  Index of Ynm for m > 0
     Y[npn] = rhom * Pmm * eim;                    //  Ynm for m > 0
     if (dY)
       dY[npn] = m*ct/st * Y[npn];                 // theta derivative
@@ -246,7 +241,7 @@ void evalW(real rho, real theta, real phi, int P,
 
     real Pnm  = ct * (2*m+1) * Pmm;               //  P_{m+1}^m(x) = x(2m+1)Pmm
     real rhon = rhom * -rho;                      //  (-1)^n rho^{-n-1} (n-m)!
-    int npm = n*(n+1) + m;                        //   Index of Ynm for m > 0
+    int npm = n*(n+1)/2 + m;                      //   Index of Ynm for m > 0
     Y[npm] = rhon * Pnm * eim;                    // Ynm for m > 0
     if (dY)
       dY[npm] = (n*ct - (n+m)*Pmm/Pnm)/st * Y[npm];  // theta derivative
@@ -259,7 +254,7 @@ void evalW(real rho, real theta, real phi, int P,
       Pnm = (ct*(2*n-1)*Pn1m-(n+m-1)*Pn2m)/(n-m); //   P_n^m recurrence
       rhon *= -rho * (n - m);                     //   (-1)^n rho^{-n-1} (n-m)!
 
-      int npm = n*(n+1) + m;                      //   Index of Ynm for m > 0
+      int npm = n*(n+1)/2 + m;                    //   Index of Ynm for m > 0
       Y[npm] = rhon * Pnm * eim;                  //   Ynm for m > 0
       if (dY)
         dY[npm] = (n*ct - (n+m)*Pn1m/Pnm)/st * Y[npm];  // theta derivative
