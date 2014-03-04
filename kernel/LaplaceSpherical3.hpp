@@ -21,25 +21,25 @@
 class LaplaceSpherical3
     : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical3> {
  protected:
-  typedef double real;
-  typedef std::complex<real> complex;
+  typedef double real_type;
+  typedef std::complex<real_type> complex_type;
 
   //! Expansion order
   int P;
 
   //! (-1)^n
-  inline static constexpr real neg1pow(int n) {
+  inline static constexpr real_type neg1pow(int n) {
     return ((n & 1) ? -1 : 1);
   }
 
  public:
   //! Point type
-  typedef Vec<3,real> point_type;
+  typedef Vec<3,real_type> point_type;
 
   //! Multipole expansion type
-  typedef std::vector<complex> multipole_type;
+  typedef std::vector<complex_type> multipole_type;
   //! Local expansion type
-  typedef std::vector<complex> local_type;
+  typedef std::vector<complex_type> local_type;
 
   //! Constructor
   LaplaceSpherical3(int _P = 5)
@@ -49,12 +49,12 @@ class LaplaceSpherical3
   /** Initialize a multipole expansion with the size of a box at this level */
   void init_multipole(multipole_type& M,
                       const point_type&, unsigned) const {
-    M = std::vector<complex>(P*(P+1)/2);
+    M = std::vector<complex_type>(P*(P+1)/2);
   }
   /** Initialize a local expansion with the size of a box at this level */
   void init_local(local_type& L,
                   const point_type&, unsigned) const {
-    L = std::vector<complex>(P*(P+1)/2);
+    L = std::vector<complex_type>(P*(P+1)/2);
   }
 
   /** Kernel P2M operation
@@ -67,9 +67,9 @@ class LaplaceSpherical3
    */
   void P2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
-    real rho, theta, phi;
+    real_type rho, theta, phi;
     cart2sph(rho, theta, phi, center - source);
-    complex Z[P*(P+1)/2];   // Avoid initialization?
+    complex_type Z[P*(P+1)/2];   // Avoid initialization?
     evalZ(rho, theta, phi, P, Z);
     int nm = 0;   // n*(n+1)/2+m
     for (int n = 0; n < P; ++n) {
@@ -90,20 +90,20 @@ class LaplaceSpherical3
   void M2M(const multipole_type& Msource,
            multipole_type& Mtarget,
            const point_type& translation) const {
-    real rho, theta, phi;
+    real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    complex Z[P*(P+1)/2];
+    complex_type Z[P*(P+1)/2];
     evalZ(rho, theta, phi, P, Z);
     int nm = 0;   // n*(n+1)/2+m
     for (int n = 0; n != P; ++n) {
       for (int m = 0; m <= n; ++m, ++nm) {
-        complex& M = Mtarget[nm];
+        complex_type& M = Mtarget[nm];
 
         for (int j = 0; j <= n; ++j) {
           // Compute the offset for Y_j
-          auto Zj = Z + j*(j+1)/2;
+          const auto Zj = Z + j*(j+1)/2;
           // Compute the offset for M_{n-j}
-          auto Mnj = Msource.begin() + (n-j)*(n-j+1)/2;
+          const auto Mnj = Msource.begin() + (n-j)*(n-j+1)/2;
 
           // All k with -j <= k <= 0 and 0 <= m-k <= n-j
           // Thus, k >= -j and k >= -n+j+m
@@ -146,20 +146,20 @@ class LaplaceSpherical3
   void M2L(const multipole_type& Msource,
            local_type& Ltarget,
            const point_type& translation) const {
-    real rho, theta, phi;
+    real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    complex W[P*(2*P+1)];
+    complex_type W[P*(2*P+1)];
     evalW(rho, theta, phi, 2*P, W);
     int nm = 0;    // n*(n+1)/2 + m
     for (int n = 0; n != P; ++n) {
       for (int m = 0; m <= n; ++m, ++nm) {
-        complex& L = Ltarget[nm];
+        complex_type& L = Ltarget[nm];
 
         for (int j = 0; j != P; ++j) {
           // Compute the offset for M_j
-          auto Mj = Msource.begin() + j*(j+1)/2;
+          const auto Mj = Msource.begin() + j*(j+1)/2;
           // Compute the offset for W_{j+n}
-          auto Wjn = W + (j+n)*(j+n+1)/2;
+          const auto Wjn = W + (j+n)*(j+n+1)/2;
 
           // All k with -j <= k <= 0 and -(j+n) <= k-m <= 0
           // Thus, k >= -j and k >= m-n-j
@@ -200,20 +200,20 @@ class LaplaceSpherical3
   void L2L(const local_type& Lsource,
            local_type& Ltarget,
            const point_type& translation) const {
-    real rho, theta, phi;
+    real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
-    complex Z[P*(P+1)/2];
+    complex_type Z[P*(P+1)/2];
     evalZ(rho, theta, phi, P, Z);
     int nm = 0;    // n*(n+1)/2 + m
     for (int n = 0; n != P; ++n) {
       for (int m = 0; m <= n; ++m, ++nm) {
-        complex& L = Ltarget[nm];
+        complex_type& L = Ltarget[nm];
 
         for (int j = n; j != P; ++j) {
           // Compute the offset for L_j
-          auto Lj = Lsource.begin() + j*(j+1)/2;
+          const auto Lj = Lsource.begin() + j*(j+1)/2;
           // Compute the offset for Z_{j-n}
-          auto Zjn = Z + (j-n)*(j-n+1)/2;
+          const auto Zjn = Z + (j-n)*(j-n+1)/2;
 
           // All k with -j <= k <= 0 and -(j-n) <= k-m <= 0
           // Thus, k >= -j and k >= n+m-j
@@ -255,27 +255,35 @@ class LaplaceSpherical3
    */
   void L2P(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
-    real rho, theta, phi;
+    using std::real;
+    using std::imag;
+
+    real_type rho, theta, phi;
     cart2sph(rho, theta, phi, target - center);
-    complex Z[P*(P+1)/2], ZTheta[P*(P+1)/2];
-    evalZ(rho, theta, phi, P, Z, ZTheta);
-    point_type spherical = point_type();
+    complex_type Z[P*(P+1)/2], dZ[P*(P+1)/2];
+    evalZ(rho, theta, phi, P, Z, dZ);
+
+    point_type sph = point_type();
     int nm = 0;
     for (int n = 0; n != P; ++n) {
-      result[0]    += std::real(L[nm] * Z[nm]);
-      spherical[0] += std::real(L[nm] * Z[nm]) / rho * n;
-      spherical[1] += std::real(L[nm] * ZTheta[nm]);
+      const real_type LZ = real(L[nm])*real(Z[nm]) - imag(L[nm])*imag(Z[nm]);
+      result[0] += LZ;
+      sph[0]    += LZ / rho * n;
+      sph[1]    += real(L[nm])*real(dZ[nm]) - imag(L[nm])*imag(dZ[nm]);
+
       ++nm;
       for (int m = 1; m <= n; ++m, ++nm) {
-        result[0]    += 2 * std::real(L[nm] * Z[nm]);
-        spherical[0] += 2 * std::real(L[nm] * Z[nm]) / rho * n;
-        spherical[1] += 2 * std::real(L[nm] * ZTheta[nm]);
-        spherical[2] += 2 * std::real(L[nm] * Z[nm] * complex(0,1)) * m;
+        const complex_type LZ = L[nm] * Z[nm];
+        result[0] += 2 * std::real(LZ);
+        sph[0]    += 2 * std::real(LZ) / rho * n;
+        sph[1]    += 2 * (real(L[nm])*real(dZ[nm])-imag(L[nm])*imag(dZ[nm]));
+        sph[2]    += 2 *-std::imag(LZ) * m;
       }
     }
-    point_type cartesian = sph2cart(rho, theta, phi, spherical);
-    result[1] += cartesian[0];
-    result[2] += cartesian[1];
-    result[3] += cartesian[2];
+
+    const point_type cart = sph2cart(rho, theta, phi, sph);
+    result[1] += cart[0];
+    result[2] += cart[1];
+    result[3] += cart[2];
   }
 };
