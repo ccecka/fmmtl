@@ -37,20 +37,17 @@ std::vector<Iterator> bucket_sort(Iterator first, Iterator last,
   std::vector<std::vector<value_type>> buckets(num_buckets);
 
   // Push each element into a bucket
-  std::for_each(first, last, [&buckets, &map] (const value_type& v) {
-      buckets[map(v)].push_back(v);
-    });
+  for (Iterator it = first; it != last; ++it) {
+    auto&& v = *it;
+    buckets[map(v)].push_back(v);
+  }
 
   // Copy the buckets back to the range and keep each offset iterator
   std::vector<Iterator> bucket_off(num_buckets+1);
   auto offset = bucket_off.begin();
   *offset = first;
-  std::accumulate(buckets.begin(), buckets.end(), first,
-                  [&offset](Iterator out, const std::vector<value_type>& bucket)
-                  { ++offset;
-                    return *offset =
-                        std::copy(bucket.begin(), bucket.end(), out); });
-
+  for (auto&& bucket : buckets)
+    first = *(++offset) = std::copy(bucket.begin(), bucket.end(), first);
   return bucket_off;
 }
 
@@ -456,6 +453,8 @@ class NDTree {
   //! Uses incremental bucket sorting
   template <typename PointIter>
   void insert(PointIter p_first, PointIter p_last, unsigned NCRIT) {
+    FMMTL_LOG("Tree Insert");
+
     // Create a code-idx pair vector
     typedef std::pair<code_type, unsigned> code_pair;
     std::vector<code_pair> codes;

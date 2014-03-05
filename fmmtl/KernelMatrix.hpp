@@ -149,9 +149,11 @@ class kernel_matrix {
 
   template <class CA, class RA>
   inline void prod_impl(const CA& charges, RA& results) const {
+    FMMTL_LOG_CLEAR;
     if (plan == nullptr)
       create_plan();
-    return plan->execute(charges, results);
+    plan->execute(charges, results);
+    FMMTL_PRINT_LOG(std::cout);
   }
 
   expansion_type e_;

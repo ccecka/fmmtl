@@ -59,7 +59,11 @@ int main(int argc, char **argv)
   A.set_options(opts);
 
   // Execute the FMM
+  Ticker t;
   std::vector<result_type> result = A * charges;
+  double time = t.seconds();
+  std::cout << "FMM in " << time << " secs" << std::endl;
+
 
   // Check the result
   if (checkErrors) {
