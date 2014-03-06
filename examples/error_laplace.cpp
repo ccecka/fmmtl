@@ -10,16 +10,12 @@
 #include "ExpKernel.kern"
 
 #include "LaplaceSpherical.hpp"
-//#include "LaplaceSpherical2.hpp"
-#include "LaplaceSpherical3.hpp"
 
-#include "YukawaCartesian.hpp"
 
 int main(int argc, char **argv)
 {
   int N = 10000;
   bool checkErrors = true;
-  Ticker t;
 
   // Parse custom command line args
   for (int i = 1; i < argc; ++i) {
@@ -32,15 +28,12 @@ int main(int argc, char **argv)
 
   // Init the FMM Kernel and options
   FMMOptions opts = get_options(argc, argv);
-  //typedef UnitExpansion kernel_type;
-  //typedef ExpExpansion kernel_type;
-  typedef LaplaceSpherical3 kernel_type;
-  //typedef YukawaCartesian kernel_type;
 
   // Init kernel
+  typedef LaplaceSpherical kernel_type;
   kernel_type K;
 
-  typedef kernel_type::point_type point_type;
+  typedef kernel_type::point_type  point_type;
   typedef kernel_type::source_type source_type;
   typedef kernel_type::target_type target_type;
   typedef kernel_type::charge_type charge_type;

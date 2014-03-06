@@ -3,10 +3,6 @@
  * @brief General class representing a {1D,2D,3D,4D}-Tree.
  */
 
-#include "fmmtl/numeric/Vec.hpp"
-#include "BoundingBox.hpp"
-#include "MortonCoder.hpp"
-
 #include <vector>
 #include <bitset>
 #include <algorithm>
@@ -17,6 +13,12 @@
 #include <boost/iterator/iterator_adaptor.hpp>
 #include <boost/iterator/permutation_iterator.hpp>
 using boost::iterator_adaptor;
+
+#include "fmmtl/Logger.hpp"
+#include "fmmtl/numeric/Vec.hpp"
+#include "BoundingBox.hpp"
+#include "MortonCoder.hpp"
+
 
 /** Bucket sort using pigeonhole sorting
  *

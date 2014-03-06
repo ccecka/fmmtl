@@ -1,12 +1,13 @@
 #pragma once
 
-#include <complex>
 #include <cmath>
+
+#include "fmmtl/numeric/Complex.hpp"
 
 template <typename point_type,
           typename multipole_type,
           typename local_type>
-struct SphericalMultipoles3D {
+struct SphericalMultipole3D {
   //! real_type == either float or double
   typedef typename point_type::value_type  real_type;
   //! complex_type
@@ -24,6 +25,8 @@ struct SphericalMultipoles3D {
   inline static
   void P2M(int P, const point_type& translation, const charge_type& charge,
            multipole_type& M) {
+    using fmmtl::conj;
+
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type Z[P*(P+1)/2];   // Avoid initialization?
@@ -31,7 +34,9 @@ struct SphericalMultipoles3D {
     int nm = 0;   // n*(n+1)/2+m
     for (int n = 0; n < P; ++n) {
       for (int m = 0; m <= n; ++m, ++nm) {
-        M[nm] += neg1pow(m) * std::conj(Z[nm]) * charge;
+        // XXX explicit cast shouldn't be needed.
+        // XXX Update numeric system
+        M[nm] += neg1pow(m) * conj(Z[nm]) * typename multipole_type::value_type(charge);
       }
     }
   }
@@ -44,6 +49,8 @@ struct SphericalMultipoles3D {
            const multipole_type& Msource,
            multipole_type& Mtarget,
            const point_type& translation) {
+    using fmmtl::conj;
+
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type Z[P*(P+1)/2];
@@ -73,7 +80,7 @@ struct SphericalMultipoles3D {
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and m-k is positive
-            M += neg1pow(k) * std::conj(Zj[k]) * Mnj[m-k];
+            M += neg1pow(k) * conj(Zj[k]) * Mnj[m-k];
           }
 
           // All k with 0 <= k < j and -(n-j) <= m-k <= 0
@@ -81,7 +88,7 @@ struct SphericalMultipoles3D {
           end = std::min(j, n+m-j);
           for ( ; k <= end; ++k) {
             // k is positive and m-k is negative
-            M += std::conj(neg1pow(m) * Zj[k] * Mnj[k-m]);
+            M += conj(neg1pow(m) * Zj[k] * Mnj[k-m]);
           }
         }
       }
@@ -102,6 +109,8 @@ struct SphericalMultipoles3D {
            const multipole_type& Msource,
            local_type& Ltarget,
            const point_type& translation) {
+    using fmmtl::conj;
+
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type W[P*(2*P+1)];
@@ -123,7 +132,7 @@ struct SphericalMultipoles3D {
           // Thus, k <= 0 and k <= m
           for ( ; k <= 0; ++k) {
             // k is negative and k-m is negative
-            L += std::conj(neg1pow(m) * Mj[-k] * Wjn[m-k]);
+            L += conj(neg1pow(m) * Mj[-k] * Wjn[m-k]);
           }
 
           // All k with 0 <= k <= j and -(j+n) <= k-m <= 0
@@ -131,7 +140,7 @@ struct SphericalMultipoles3D {
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is negative
-            L += neg1pow(k-m) * Mj[k] * std::conj(Wjn[m-k]);
+            L += neg1pow(k-m) * Mj[k] * conj(Wjn[m-k]);
           }
 
           // All k with 0 <= k <= j and 0 <= k-m <= j+n
@@ -158,6 +167,8 @@ struct SphericalMultipoles3D {
            const local_type& Lsource,
            local_type& Ltarget,
            const point_type& translation) {
+    using fmmtl::conj;
+
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type Z[P*(P+1)/2];
@@ -179,7 +190,7 @@ struct SphericalMultipoles3D {
           // Thus, k <= 0 and k <= m
           for ( ; k <= 0; ++k) {
             // k is negative and k-m is negative
-            L += std::conj(neg1pow(m) * Lj[-k] * Zjn[m-k]);
+            L += conj(neg1pow(m) * Lj[-k] * Zjn[m-k]);
           }
 
           // All k with 0 <= k <= j and -(j-n) <= k-m <= 0
@@ -187,7 +198,7 @@ struct SphericalMultipoles3D {
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is negative
-            L += neg1pow(k-m) * Lj[k] * std::conj(Zjn[m-k]);
+            L += neg1pow(k-m) * Lj[k] * conj(Zjn[m-k]);
           }
 
           // All k with 0 <= k <= j and 0 <= k-m <= j-n
@@ -220,6 +231,7 @@ struct SphericalMultipoles3D {
   inline static
   void cart2sph(real_type& r, real_type& theta, real_type& phi,
                 const point_type& x) {
+    using fmmtl::norm;
     r = norm(x);
     theta = std::acos(x[2] / (r + 1e-100));
     phi = std::atan2(x[1], x[0]);
@@ -399,133 +411,5 @@ struct SphericalMultipoles3D {
       eim *= ei;                                    //  exp(i*m*phi) i^m
     }                                               // End loop over m in Ynm
   }
+
 };
-
-
-//! Evaluate singular harmonics \f$ r^{-n-1} Y_n^m \f$
-template <typename real>
-void evalLocal(real rho, real theta, real phi, int P,
-               std::complex<real>* Ynm) {
-  typedef std::complex<real> complex;
-  const real    ct = cos(theta);
-  const real    st = sin(theta);
-  const complex ei = complex(cos(phi), sin(phi)); // exp(i * phi)
-  real Pmm = 1;                                                // Initialize Legendre polynomial Pmm
-  real invR = -1.0 / rho;                                     // - 1 / rho
-  real rhom = -invR;                                          // Initialize rho^(-m-1)
-  complex eim = 1.0;                                          // Initialize exp(i * m * phi)
-  for (int m=0; m<P; m++) {                                     // Loop over m in Ynm
-    int npn = m * m + 2 * m;                                    //  Index of Ynm for m > 0
-    int nmn = m * m;                                            //  Index of Ynm for m < 0
-    Ynm[npn] = rhom * Pmm * eim;                                  //  rho^(-m-1) * Ynm for m > 0
-    Ynm[nmn] = std::conj(Ynm[npn]);                             //  Use conjugate relation for m < 0
-
-    real p1 = Pmm;                                              //  Pnm-1
-    real p = ct * (2 * m + 1) * p1;                                   //  Pnm using recurrence relation
-    rhom *= invR;                                               //  rho^(-m-1)
-    real rhon = rhom;                                         //  rho^(-n-1)
-    for (int n=m+1; n<P; n++) {                                 //  Loop over n in Ynm
-      int npm = n * n + n + m;                                  //   Index of Ynm for m > 0
-      int nmm = n * n + n - m;                                  //   Index of Ynm for m < 0
-      Ynm[npm] = rhon * p * eim;                                //   rho^n * Ynm for m > 0
-      Ynm[nmm] = std::conj(Ynm[npm]);                           //   Use conjugate relation for m < 0
-      real p2 = p1;                                           //   Pnm-2
-      p1 = p;                                                   //   Pnm-1
-      p = (ct * (2 * n + 1) * p1 - (n + m) * p2) / (n - m + 1);  //   Pnm using recurrence relation
-      rhon *= invR * (n - m + 1);                               //   rho^(-n-1)
-    }
-    //  End loop over n in Ynm
-    Pmm = -Pmm * (2*m+1) * st;                                        //  Pn
-    eim *= ei;                                                  //  Update exp(i * m * phi)
-  }                                                             // End loop over m in Ynm
-}
-
-
-
-/** Computes
- * Y[n*(n+1)+m] = A_n^m rho^n Y_n^m(theta, phi)
- *              = (-1)^n/sqrt((n+m)!(n-m)!) rho^n Y_n^m(theta, phi)
- *              = (-1)^n/(n+m)! rho^n P_n^m(cos theta) exp(i m phi)
- * for all 0 <= n < P and all -n <= m <= n.
- *
- * Note that this uses the definition
- *
- * ??? How different from evalLocal computes?
- *
- * Note these are not the spherical harmonics, but are the spherical
- * harmonics with the prefactor (often denoted A_n^m) included. These are useful
- * for computing multipole and local expansions in an FMM.
- */
-template <typename real>
-void evalMultipole(real rho, real theta, real phi, int P,
-                   std::complex<real>* Y, std::complex<real>* dY = nullptr) {
-  typedef std::complex<real> complex;
-  using std::cos;
-  using std::sin;
-  const real    ct = cos(theta);
-  const real    st = sin(theta);
-  const complex ei = complex(cos(phi), sin(phi)); // exp(i * phi)
-  real    Pmm = 1;                                // Init Legendre P00(ct)
-  real   rhom = 1;                                // Init (-1)^n rho^n / (n+m)!
-  complex eim = 1;                                // Init exp(i*m*phi)
-  int m = 0;
-  while (true) {
-    // n == m
-    int npn = m * m + 2 * m;                      //  Index of Ynm for m > 0
-    int nmn = m * m;                              //  Index of Ynm for m < 0
-    Y[npn] = rhom * Pmm * eim;                    //  Ynm for m > 0
-    Y[nmn] = std::conj(Y[npn]);                   //  Conj for m < 0
-    if (dY)
-      dY[npn] = m*ct/st * Y[npn];                 // theta derivative
-
-    real Pn1m = Pmm;                              //  P_m^m
-    real Pnm  = ct * (2*m+1) * Pmm;               //  P_{m+1}^{m}(x) = x (2m+1) Pmm
-    real rhon = rhom;                             //  (-1)^m rho^m / (2m)!
-    for (int n = m+1; n < P; ++n) {
-      rhon *= -rho / (n + m);                     //   (-1)^n rho^n / (n+m)!
-      int npm = n * n + n + m;                    //   Index of Ynm for m > 0
-      int nmm = n * n + n - m;                    //   Index of Ynm for m < 0
-
-      Y[npm] = rhon * Pnm * eim;                  //   Ynm for m > 0
-      Y[nmm] = std::conj(Y[npm]);                 //   Conj for m < 0
-      if (dY)
-        dY[npm] = (n*ct - (n+m)*Pn1m/Pnm)/st * Y[npm];  // theta derivative
-
-      real Pn2m = Pn1m;                           //   P_{n-1}^m
-      Pn1m = Pnm;                                 //   P_n^m
-      Pnm = (ct*(2*n+1)*Pn1m-(n+m)*Pn2m)/(n-m+1); //   P_{n+1}^m recurrence
-    }                                             //  End loop over n in Ynm
-
-    ++m;                                          // Increment m
-    if (m == P) return;
-
-    rhom *= -rho / (2*m*(2*m-1));                 //  (-1)^m rho^m / (2m)!
-    Pmm = -st * (2*m-1) * Pmm;                    //  P_{m+1}^{m+1} recurrence
-    eim *= ei;                                    //  exp(i*m*phi)
-  }                                               // End loop over m in Ynm
-}
-
-
-  /** Spherical to cartesian coordinates */
-template <typename real_type, typename point_type>
-inline
-point_type sph2cart(real_type rho, real_type theta, real_type phi,
-                    const point_type& s) {
-  real_type st = std::sin(theta);
-  real_type ct = std::cos(theta);
-  real_type sp = std::sin(phi);
-  real_type cp = std::cos(phi);
-  return point_type(s[0]*st*cp + s[1]*ct*cp/rho - s[2]*sp/(rho*st),
-                    s[0]*st*sp + s[1]*ct*sp/rho + s[2]*cp/(rho*st),
-                    s[0]*ct    - s[1]*st/rho);
-}
-
-  /** Cartesian to spherical coordinates */
-template <typename real_type, typename point_type>
-inline
-void cart2sph(real_type& r, real_type& theta, real_type& phi,
-              const point_type& x) {
-  r = norm(x);
-  theta = std::acos(x[2] / (r + 1e-100));
-  phi = std::atan2(x[1], x[0]);
-}

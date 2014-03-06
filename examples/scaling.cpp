@@ -1,6 +1,7 @@
 #include "fmmtl/KernelMatrix.hpp"
-
 #include "fmmtl/Logger.hpp"
+
+#include "LaplaceSpherical.hpp"
 
 int main() {
   typedef LaplaceSpherical expansion_type;

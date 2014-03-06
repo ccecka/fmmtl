@@ -8,6 +8,7 @@
 
 #include "BiotSpherical.hpp"
 
+
 int main(int argc, char** argv)
 {
   int N = 10000;
@@ -49,7 +50,22 @@ int main(int argc, char** argv)
   A.set_options(opts);
 
   // Execute the FMM
+  Ticker t1;
   std::vector<result_type> result = A * charges;
+  double time1 = t1.seconds();
+  std::cout << "FMM in " << time1 << " secs" << std::endl;
+
+  // Execute the FMM
+  Ticker t2;
+  result = A * charges;
+  double time2 = t2.seconds();
+  std::cout << "FMM in " << time2 << " secs" << std::endl;
+
+  // Execute the FMM
+  Ticker t3;
+  result = A * charges;
+  double time3 = t3.seconds();
+  std::cout << "FMM in " << time3 << " secs" << std::endl;
 
   // Check the result
   if (checkErrors) {

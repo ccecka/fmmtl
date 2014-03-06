@@ -259,7 +259,7 @@ FMMTL_INLINE Vec<N,T> conj(Vec<N,T> a) {
 // Ugh -- do this right
 template <std::size_t N, typename T>
 FMMTL_INLINE Vec<N,T> real(const Vec<N,std::complex<T> >& a) {
-  using std::real;
+  using fmmtl::real;
   Vec<N,T> r;
   for_i r[i] = real(a[i]);
   return r;
@@ -267,7 +267,7 @@ FMMTL_INLINE Vec<N,T> real(const Vec<N,std::complex<T> >& a) {
 
 template <std::size_t N, typename T>
 FMMTL_INLINE Vec<N,T> imag(const Vec<N,std::complex<T> >& a) {
-  using std::imag;
+  using fmmtl::imag;
   Vec<N,T> r;
   for_i r[i] = imag(a[i]);
   return r;

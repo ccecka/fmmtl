@@ -49,7 +49,7 @@ void single_level_test(const Expansion& K) {
   K.P2M(s[0], c[0], M_center, M);
 
   // test M2P
-  K.M2P(M, M_center, t[0], rm2p);
+  //K.M2P(M, M_center, t[0], rm2p);
 
   // test M2L, L2P
   local_type L;
