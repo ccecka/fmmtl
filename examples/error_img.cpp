@@ -12,13 +12,12 @@
 #include "ExpKernel.kern"
 
 #include "LaplaceSpherical.hpp"
-#include "LaplaceSpherical2.hpp"
-
+#include "BiotSpherical.hpp"
 #include "YukawaCartesian.hpp"
+
 
 #define png_infopp_NULL (png_infopp)NULL
 #define int_p_NULL (int*)NULL
-
 #include <boost/gil/gil_all.hpp>
 #include <boost/gil/extension/io/png_dynamic_io.hpp>
 
@@ -90,13 +89,13 @@ int main(int argc, char **argv)
   FMMOptions opts = get_options(argc, argv);
   //typedef UnitExpansion kernel_type;
   //typedef ExpExpansion kernel_type;
-  typedef LaplaceSpherical2 kernel_type;
+  typedef LaplaceSpherical kernel_type;
   //typedef YukawaCartesian kernel_type;
 
   // Init kernel
   kernel_type K;
 
-  typedef kernel_type::point_type point_type;
+  typedef kernel_type::point_type  point_type;
   typedef kernel_type::source_type source_type;
   typedef kernel_type::target_type target_type;
   typedef kernel_type::charge_type charge_type;
@@ -142,8 +141,10 @@ int main(int argc, char **argv)
   // Compute the result with a direct matrix-vector multiplication
   std::vector<result_type> exact(N);
   Direct::matvec(K,
-                 targets.begin()+middle, targets.begin()+middle+1, charges.begin()+middle,
-                 targets.begin(), targets.end(), exact.begin());
+                 targets.begin()+middle, targets.begin()+middle+1,
+                 charges.begin()+middle,
+                 targets.begin(), targets.end(),
+                 exact.begin());
 
   std::cout << "Computing the errors..." << std::endl;
 

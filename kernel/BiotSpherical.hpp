@@ -10,16 +10,17 @@
 #include <cmath>
 #include <cassert>
 
+#include "BiotSavart.kern"
+
 #include "fmmtl/Expansion.hpp"
+// Use a library-defined Vector class that supports multiple architectures
 #include "fmmtl/numeric/Vec.hpp"
-#include "fmmtl/numeric/Complex.hpp"
 
 #include "kernel/Util/SphericalMultipole3D.hpp"
 
-#include "Laplace.kern"
 
-class LaplaceSpherical
-    : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical> {
+class BiotSpherical
+    : public fmmtl::Expansion<BiotSavart, BiotSpherical> {
  public:
   typedef double real_type;
   typedef std::complex<real_type> complex_type;
@@ -28,9 +29,9 @@ class LaplaceSpherical
   typedef Vec<3,real_type> point_type;
 
   //! Multipole expansion type
-  typedef std::vector<complex_type> multipole_type;
+  typedef std::vector<Vec<3,complex_type> > multipole_type;
   //! Local expansion type
-  typedef std::vector<complex_type> local_type;
+  typedef std::vector<Vec<3,complex_type> > local_type;
 
   //! Transform operators
   typedef SphericalMultipole3D<point_type,multipole_type,local_type> SphOp;
@@ -39,17 +40,17 @@ class LaplaceSpherical
   int P;
 
   //! Constructor
-  LaplaceSpherical(int _P = 5)
+  BiotSpherical(int _P = 5)
       : P(_P) {
   }
 
   /** Initialize a multipole expansion with the size of a box at this level */
   void init_multipole(multipole_type& M, const point_type&, unsigned) const {
-    M = std::vector<complex_type>(P*(P+1)/2);
+    M = multipole_type(P*(P+1)/2);
   }
   /** Initialize a local expansion with the size of a box at this level */
   void init_local(local_type& L, const point_type&, unsigned) const {
-    L = std::vector<complex_type>(P*(P+1)/2);
+    L = local_type(P*(P+1)/2);
   }
 
   /** Kernel P2M operation
@@ -119,35 +120,38 @@ class LaplaceSpherical
    */
   void L2P(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
-    using std::real;
-    using std::imag;
+    using fmmtl::real;
+    using fmmtl::imag;
 
     real_type rho, theta, phi;
     SphOp::cart2sph(rho, theta, phi, target - center);
     complex_type Z[P*(P+1)/2], dZ[P*(P+1)/2];
     SphOp::evalZ(rho, theta, phi, P, Z, dZ);
 
-    point_type sph = point_type();
+    Vec<3,Vec<3,real_type> > sph;
     int nm = 0;
     for (int n = 0; n != P; ++n) {
-      const real_type LZ = real(L[nm])*real(Z[nm]) - imag(L[nm])*imag(Z[nm]);
-      result[0] += LZ;
-      sph[0]    += LZ / rho * n;
-      sph[1]    += real(L[nm])*real(dZ[nm]) - imag(L[nm])*imag(dZ[nm]);
+      sph[0] += (real(L[nm])*real( Z[nm]) - imag(L[nm])*imag( Z[nm]))/rho * n;
+      sph[1] += real(L[nm])*real(dZ[nm]) - imag(L[nm])*imag(dZ[nm]);
 
       ++nm;
       for (int m = 1; m <= n; ++m, ++nm) {
-        const complex_type LZ = L[nm] * Z[nm];
-        result[0] += 2 * real(LZ);
+        Vec<3,complex_type> LZ = L[nm] * Z[nm];
         sph[0]    += 2 * real(LZ) / rho * n;
         sph[1]    += 2 * (real(L[nm])*real(dZ[nm])-imag(L[nm])*imag(dZ[nm]));
         sph[2]    += 2 *-imag(LZ) * m;
       }
     }
 
-    const point_type cart = SphOp::sph2cart(rho, theta, phi, sph);
-    result[1] += cart[0];
-    result[2] += cart[1];
-    result[3] += cart[2];
+    // TODO: Optimize
+    point_type c0 = SphOp::sph2cart(rho, theta, phi,
+                                    Vec<3,real_type>(sph[0][0], sph[1][0], sph[2][0]));
+    point_type c1 = SphOp::sph2cart(rho, theta, phi,
+                                    Vec<3,real_type>(sph[0][1], sph[1][1], sph[2][1]));
+    point_type c2 = SphOp::sph2cart(rho, theta, phi,
+                                    Vec<3,real_type>(sph[0][2], sph[1][2], sph[2][2]));
+    result[0] += c2[1] - c1[2];
+    result[1] += c0[2] - c2[0];
+    result[2] += c1[0] - c0[1];
   }
 };

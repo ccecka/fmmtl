@@ -49,9 +49,7 @@ struct Plan
 
   virtual void execute(const std::vector<charge_type>& charges,
                        std::vector<result_type>& results) {
-    fmmtl_logger.clear();
     context.execute(charges, results, executor);
-    FMMTL_PRINT_LOG(std::cout);
   }
 
   virtual std::vector<target_type> targets() const {
@@ -75,6 +73,7 @@ struct Plan
 template <class KernelMatrix, class Options>
 PlanBase<typename KernelMatrix::expansion_type>*
 make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
+  FMMTL_LOG("Setup");
   // Statically compute the plan type, potentially from Option types
 
   typedef typename KernelMatrix::expansion_type expansion_type;

@@ -10,9 +10,7 @@
 #include "ExpKernel.kern"
 
 #include "LaplaceSpherical.hpp"
-#include "LaplaceSpherical2.hpp"
 
-#include "YukawaCartesian.hpp"
 
 int main(int argc, char **argv)
 {
@@ -30,15 +28,12 @@ int main(int argc, char **argv)
 
   // Init the FMM Kernel and options
   FMMOptions opts = get_options(argc, argv);
-  //typedef UnitExpansion kernel_type;
-  //typedef ExpExpansion kernel_type;
-  typedef LaplaceSpherical2 kernel_type;
-  //typedef YukawaCartesian kernel_type;
 
   // Init kernel
+  typedef LaplaceSpherical kernel_type;
   kernel_type K;
 
-  typedef kernel_type::point_type point_type;
+  typedef kernel_type::point_type  point_type;
   typedef kernel_type::source_type source_type;
   typedef kernel_type::target_type target_type;
   typedef kernel_type::charge_type charge_type;
@@ -58,7 +53,22 @@ int main(int argc, char **argv)
   A.set_options(opts);
 
   // Execute the FMM
+  Ticker t1;
   std::vector<result_type> result = A * charges;
+  double time1 = t1.seconds();
+  std::cout << "FMM in " << time1 << " secs" << std::endl;
+
+  // Execute the FMM
+  Ticker t2;
+  result = A * charges;
+  double time2 = t2.seconds();
+  std::cout << "FMM in " << time2 << " secs" << std::endl;
+
+  // Execute the FMM
+  Ticker t3;
+  result = A * charges;
+  double time3 = t3.seconds();
+  std::cout << "FMM in " << time3 << " secs" << std::endl;
 
   // Check the result
   if (checkErrors) {

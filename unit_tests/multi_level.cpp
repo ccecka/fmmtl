@@ -9,7 +9,6 @@
 
 #include <iostream>
 
-// #define TREECODE_ONLY
 
 template <typename Expansion>
 void two_level_test(const Expansion& K) {
@@ -58,11 +57,7 @@ void two_level_test(const Expansion& K) {
   K.M2M(M, M2, M2_center - M_center);
   //K.P2M(s,c,M2_center,M2);
 
-  // test M2P
-  K.M2P(M2, M2_center, t[0], rm2p);
-
-  // test M2L, L2P
-#ifndef TREECODE_ONLY
+  // test M2L
   local_type L2;
   point_type L2_center(0.9, 0.9, 0.9);
   point_type L2_extent(0.2, 0.2, 0.2);
@@ -78,7 +73,6 @@ void two_level_test(const Expansion& K) {
 
   // test L2P
   K.L2P(L2, L2_center, t[0], rfmm);
-#endif
 
   // check errors
   std::cout << "rexact = " << rexact[0] << std::endl;

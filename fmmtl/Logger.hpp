@@ -193,14 +193,20 @@ class Logger {
   std::map<std::string, EventData*> data_;
 };
 
+
+#if defined(FMMTL_LOGGING)
+
 //! Global static logger rather than a singleton for efficiency/consistency
 static Logger fmmtl_logger;
 
+#  define FMMTL_LOG(STRING) auto t##__LINE__ = fmmtl_logger.log(std::string(STRING) + " [" + std::to_string(omp_get_thread_num()) + ']')
+#  define FMMTL_PRINT_LOG(OUT) OUT << fmmtl_logger << std::endl
+#  define FMMTL_LOG_CLEAR fmmtl_logger.clear()
 
-#if defined(FMMTL_LOGGING)
-#define FMMTL_LOG(STRING) auto t##__LINE__ = fmmtl_logger.log(std::string(STRING) + " [" + std::to_string(omp_get_thread_num()) + ']')
-#define FMMTL_PRINT_LOG(OUT) OUT << fmmtl_logger << std::endl
 #else
-#define FMMTL_LOG(STRING)
-#define FMMTL_PRINT_LOG(OUT)
+
+#  define FMMTL_LOG(STRING)
+#  define FMMTL_PRINT_LOG(OUT)
+#  define FMMTL_LOG_CLEAR
+
 #endif
