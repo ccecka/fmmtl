@@ -1,5 +1,4 @@
 #include "fmmtl/KernelMatrix.hpp"
-#include "LaplaceSpherical.hpp"
 
 #include "fmmtl/Logger.hpp"
 
