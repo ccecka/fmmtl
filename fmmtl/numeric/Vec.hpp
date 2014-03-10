@@ -10,6 +10,51 @@
 
 #define for_i for(std::size_t i = 0; i != N; ++i)
 
+#if !defined(__CUDACC__)
+/** This is not being compiled with CUDA, but with C++11 compatible compiler.
+ * Type promotion with SFINAE selection can be accomplished with
+ *   template <typename T, typename U>
+ *   using prod_type = decltype(std::declval<T>() * std::declval<U>());
+ * but we use a C++03 style for compatibility with the nvcc version below.
+ */
+#  define FMMTL_BINARY_PROMOTE_DECLARE(NAME, OP)                            \
+  template <typename T, typename U,                                         \
+            typename R = decltype(std::declval<T>() OP std::declval<U>())>  \
+  struct NAME##_op {                                                        \
+    typedef R type;                                                         \
+    R operator()(const T& a, const U& b) const { return a OP b; }           \
+  }
+
+#  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
+  template <typename T,                                                     \
+            typename R = decltype(OP(std::declval<T>()))>                   \
+  struct NAME##_op {                                                        \
+    typedef R type;                                                         \
+    R operator()(const T& a) const { using fmmtl::OP; return OP(a); }       \
+  }
+#else
+/** This is being compiled by CUDA, which does not have decltype.
+ * Instead, a simple fix is to disallow type promotion and cross our fingers.
+ * TODO: Improve.
+ */
+#  define FMMTL_BINARY_PROMOTE_DECLARE(NAME, OP)                            \
+  template <typename T, typename U>                                         \
+  struct NAME##_op {};                                                      \
+  template <typename T>                                                     \
+  struct NAME##_op<T,T> {                                                   \
+    typedef T type;                                                         \
+    T operator()(const T& a, const T& b) const { return a OP b; }           \
+  }
+
+#  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
+  template <typename T>                                                     \
+  struct NAME##_op {                                                        \
+    typedef T type;                                                         \
+    T operator()(const T& a) const { using fmmtl::OP; return OP(a); }       \
+  }
+#endif
+
+
 /** @class Vec
  * @brief Class representing ND points and vectors.
  */
@@ -29,39 +74,54 @@ struct Vec {
 
   // CONSTRUCTORS
 
+  // TODO: require zero-initialization?
   FMMTL_INLINE Vec() {
-    for_i elem[i] = value_type();
+    std::fill(this->begin(), this->end(), value_type());
   }
   // TODO: Force 0-initialization to get POD and trivial semantics?
   //FMMTL_INLINE Vec() = default;
-  FMMTL_INLINE explicit Vec(value_type b) {
-    for_i elem[i] = b;
+  FMMTL_INLINE explicit Vec(const value_type& b) {
+    std::fill(this->begin(), this->end(), b);
   }
-  FMMTL_INLINE Vec(value_type b0, value_type b1) {
+  FMMTL_INLINE Vec(const value_type& b0,
+                   const value_type& b1) {
     FMMTL_STATIC_ASSERT(N >= 2, "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1;
-    for(std::size_t i = 2; i != N; ++i) elem[i] = value_type();
+    std::fill(this->begin() + 2, this->end(), value_type());
   }
-  FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2) {
+  FMMTL_INLINE Vec(const value_type& b0,
+                   const value_type& b1,
+                   const value_type& b2) {
     FMMTL_STATIC_ASSERT(N >= 3,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2;
-    for(std::size_t i = 3; i != N; ++i) elem[i] = value_type();
+    std::fill(this->begin() + 3, this->end(), value_type());
   }
-  FMMTL_INLINE Vec(value_type b0, value_type b1, value_type b2, value_type b3) {
+  FMMTL_INLINE Vec(const value_type& b0,
+                   const value_type& b1,
+                   const value_type& b2,
+                   const value_type& b3) {
     FMMTL_STATIC_ASSERT(N >= 4,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2; elem[3] = b3;
-    for(std::size_t i = 4; i != N; ++i) elem[i] = value_type();
+    std::fill(this->begin() + 4, this->end(), value_type());
   }
-  template <typename D>
-  FMMTL_INLINE explicit Vec(const Vec<N,D>& v) {
-    for_i elem[i] = v[i];
+  template <typename U>
+  FMMTL_INLINE explicit Vec(const Vec<N,U>& v) {
+    std::copy(v.begin(), v.end(), this->begin());
+  }
+  template <typename U, typename OP>
+  FMMTL_INLINE explicit Vec(const Vec<N,U>& v, OP op) {
+    for_i elem[i] = op(v[i]);
+  }
+  // Maybe?
+  template <typename U1, typename OP, typename U2>
+  FMMTL_INLINE explicit Vec(const Vec<N,U1>& v1, OP op, const Vec<N,U2>& v2) {
+    for_i elem[i] = op(v1[i], v2[i]);
   }
 
   // COMPARATORS
 
   FMMTL_INLINE bool operator==(const Vec& b) const {
-    for_i if (elem[i] != b[i]) return false;
-    return true;
+    return std::equal(this->begin(), this->end(), b.begin());
   }
   FMMTL_INLINE bool operator!=(const Vec& b) const {
     return !(*this == b);
@@ -70,50 +130,50 @@ struct Vec {
   // MODIFIERS
 
   /** Add scalar @a b to this Vec */
-  template <typename D>
-  FMMTL_INLINE Vec& operator+=(const D& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator+=(const U& b) {
     for_i elem[i] += b;
     return *this;
   }
   /** Subtract scalar @a b from this Vec */
-  template <typename D>
-  FMMTL_INLINE Vec& operator-=(const D& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator-=(const U& b) {
     for_i elem[i] -= b;
     return *this;
   }
   /** Scale this Vec up by scalar @a b */
-  template <typename D>
-  FMMTL_INLINE Vec& operator*=(const D& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator*=(const U& b) {
     for_i elem[i] *= b;
     return *this;
   }
   /** Scale this Vec down by scalar @a b */
-  template <typename D>
-  FMMTL_INLINE Vec& operator/=(const D& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator/=(const U& b) {
     for_i elem[i] /= b;
     return *this;
   }
   /** Add Vec @a b to this Vec */
-  template <typename D>
-  FMMTL_INLINE Vec& operator+=(const Vec<N,D>& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator+=(const Vec<N,U>& b) {
     for_i elem[i] += b[i];
     return *this;
   }
   /** Subtract Vec @a b from this Vec */
-  template <typename D>
-  FMMTL_INLINE Vec& operator-=(const Vec<N,D>& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator-=(const Vec<N,U>& b) {
     for_i elem[i] -= b[i];
     return *this;
   }
   /** Scale this Vec up by factors in @a b */
-  template <typename D>
-  FMMTL_INLINE Vec& operator*=(const Vec<N,D>& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator*=(const Vec<N,U>& b) {
     for_i elem[i] *= b[i];
     return *this;
   }
   /** Scale this Vec down by factors in @a b */
-  template <typename D>
-  FMMTL_INLINE Vec& operator/=(const Vec<N,D>& b) {
+  template <typename U>
+  FMMTL_INLINE Vec& operator/=(const Vec<N,U>& b) {
     for_i elem[i] /= b[i];
     return *this;
   }
@@ -170,7 +230,7 @@ FMMTL_INLINE Vec<3,T> cross(const Vec<3,T>& a, const Vec<3,T>& b) {
                   a[0]*b[1] - a[1]*b[0]);
 }
 
-// ARITHMETIC OPERATORS
+// ARITHMETIC UNARY OPERATORS
 
 /** Unary negation: Return -@a a */
 template <std::size_t N, typename T>
@@ -180,97 +240,123 @@ FMMTL_INLINE Vec<N,T> operator-(Vec<N,T> a) {
 }
 /** Unary plus: Return @a a. ("+a" should work if "-a" works.) */
 template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> operator+(const Vec<N,T>& a) {
+FMMTL_INLINE const Vec<N,T>& operator+(const Vec<N,T>& a) {
   return a;
 }
-template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> operator+(Vec<N,T> a, const Vec<N,T>& b) {
-  return a += b;
+
+// ARITHEMTIC BINARY OPERATORS
+
+namespace fmmtl {
+
+FMMTL_BINARY_PROMOTE_DECLARE(sum,+);
+FMMTL_BINARY_PROMOTE_DECLARE(diff,-);
+FMMTL_BINARY_PROMOTE_DECLARE(prod,*);
+FMMTL_BINARY_PROMOTE_DECLARE(div,/);
+
 }
-template <std::size_t N, typename T, typename D>
-FMMTL_INLINE Vec<N,T> operator+(Vec<N,T> a, const D& b) {
-  return a += b;
+
+// TODO: namespace Vec and all operators
+
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::sum_op<T,U>::type>
+operator+(const Vec<N,T>& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::sum_op<T,U>::type>(a) += b;
 }
-template <std::size_t N, typename T, typename D>
-FMMTL_INLINE Vec<N,T> operator+(const D& b, Vec<N,T> a) {
-  return a += b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::sum_op<T,U>::type>
+operator+(const Vec<N,T>& a, const U& b) {
+  return Vec<N,typename fmmtl::sum_op<T,U>::type>(b) += a;
 }
-template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> operator-(Vec<N,T> a, const Vec<N,T>& b) {
-  return a -= b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::sum_op<T,U>::type>
+operator+(const T& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::sum_op<T,U>::type>(a) += b;
 }
-template <std::size_t N, typename T, typename D>
-FMMTL_INLINE Vec<N,T> operator-(Vec<N,T> a, const D& b) {
-  return a -= b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::diff_op<T,U>::type>
+operator-(const Vec<N,T>& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a) -= b;
 }
-template <std::size_t N, typename T, typename D>
-FMMTL_INLINE Vec<N,T> operator-(const D& b, const Vec<N,T>& a) {
-  return (-a) += b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::diff_op<T,U>::type>
+operator-(const Vec<N,T>& a, const U& b) {
+  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a) -= b;
 }
-template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> operator*(Vec<N,T> a, const Vec<N,T>& b) {
-  return a *= b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::diff_op<T,U>::type>
+operator-(const T& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a) -= b;
 }
-template <std::size_t N, typename T, typename D>
-FMMTL_INLINE Vec<N,T> operator*(Vec<N,T> a, const D& b) {
-  return a *= b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::prod_op<T,U>::type>
+operator*(const Vec<N,T>& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::prod_op<T,U>::type>(a) *= b;
 }
-template <std::size_t N, typename T, typename D>
-FMMTL_INLINE Vec<N,T> operator*(const D& b, Vec<N,T> a) {
-  return a *= b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::prod_op<T,U>::type>
+operator*(const Vec<N,T>& a, const U& b) {
+  return Vec<N,typename fmmtl::prod_op<T,U>::type>(b) *= a;
 }
-template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> operator/(Vec<N,T> a, const Vec<N,T>& b) {
-  return a /= b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::prod_op<T,U>::type>
+operator*(const T& b, const Vec<N,U>& a) {
+  return Vec<N,typename fmmtl::prod_op<T,U>::type>(b) *= a;
 }
-template <std::size_t N, typename T, typename D>
-FMMTL_INLINE Vec<N,T> operator/(Vec<N,T> a, const D& b) {
-  return a /= b;
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::div_op<T,U>::type>
+operator/(const Vec<N,T>& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::div_op<T,U>::type>(a) /= b;
+}
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::div_op<T,U>::type>
+operator/(const Vec<N,T>& a, const U& b) {
+  return Vec<N,typename fmmtl::div_op<T,U>::type>(a) /= b;
+}
+template <std::size_t N, typename T, typename U>
+FMMTL_INLINE Vec<N,typename fmmtl::div_op<T,U>::type>
+operator/(const T& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::div_op<T,U>::type>(a) /= b;
 }
 
 // ELEMENTWISE OPERATORS
 
-template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> abs(Vec<N,T> a) {
-  using std::abs;
-  for_i a[i] = abs(a[i]);
-  return a;
-}
-template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> sqrt(Vec<N,T> a) {
-  using std::sqrt;
-  for_i a[i] = sqrt(a[i]);
-  return a;
-}
-
 #include "Complex.hpp"
 
-// TODO: Fix and generalize with promote_type
 namespace fmmtl {
 
+FMMTL_UNARY_PROMOTE_DECLARE(abs, abs);
 template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> conj(Vec<N,T> a) {
-  using fmmtl::conj;
-  for_i a[i] = conj(a[i]);
-  return a;
+FMMTL_INLINE Vec<N,typename abs_op<T>::type>
+abs(const Vec<N,T>& a) {
+  return Vec<N,typename abs_op<T>::type>(a, abs_op<T>());
 }
 
-
-// Ugh -- do this right
+FMMTL_UNARY_PROMOTE_DECLARE(sqrt, sqrt);
 template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> real(const Vec<N,std::complex<T> >& a) {
-  using fmmtl::real;
-  Vec<N,T> r;
-  for_i r[i] = real(a[i]);
-  return r;
+FMMTL_INLINE Vec<N,typename sqrt_op<T>::type>
+sqrt(const Vec<N,T>& a) {
+  return Vec<N,typename sqrt_op<T>::type>(a, sqrt_op<T>());
 }
 
+FMMTL_UNARY_PROMOTE_DECLARE(conj, conj);
 template <std::size_t N, typename T>
-FMMTL_INLINE Vec<N,T> imag(const Vec<N,std::complex<T> >& a) {
-  using fmmtl::imag;
-  Vec<N,T> r;
-  for_i r[i] = imag(a[i]);
-  return r;
+FMMTL_INLINE Vec<N,typename conj_op<T>::type>
+conj(const Vec<N,T>& a) {
+  return Vec<N,typename conj_op<T>::type>(a, conj_op<T>());
+}
+
+FMMTL_UNARY_PROMOTE_DECLARE(real, real);
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,typename real_op<T>::type>
+real(const Vec<N,T>& a) {
+  return Vec<N,typename real_op<T>::type>(a, real_op<T>());
+}
+
+FMMTL_UNARY_PROMOTE_DECLARE(imag, imag);
+template <std::size_t N, typename T>
+FMMTL_INLINE Vec<N,typename imag_op<T>::type>
+imag(const Vec<N,T>& a) {
+  return Vec<N,typename imag_op<T>::type>(a, imag_op<T>());
 }
 
 } // end namespace fmmtl
@@ -288,8 +374,10 @@ struct dimension<Vec<N,T> > {
 
 } // end namespace fmmtl
 
-#undef for_i
 
+#undef for_i
+#undef FMMTL_BINARY_PROMOTE_DECLARE
+#undef FMMTL_UNARY_PROMOTE_DECLARE
 
 #include "fmmtl/numeric/norm.hpp"
 #include "fmmtl/numeric/random.hpp"

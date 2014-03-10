@@ -4,6 +4,8 @@
 
 #include "fmmtl/numeric/Complex.hpp"
 
+/** TODO: Documentation
+ */
 template <typename point_type,
           typename multipole_type,
           typename local_type>
@@ -34,9 +36,7 @@ struct SphericalMultipole3D {
     int nm = 0;   // n*(n+1)/2+m
     for (int n = 0; n < P; ++n) {
       for (int m = 0; m <= n; ++m, ++nm) {
-        // XXX explicit cast shouldn't be needed.
-        // XXX Update numeric system
-        M[nm] += neg1pow(m) * conj(Z[nm]) * typename multipole_type::value_type(charge);
+        M[nm] += neg1pow(m) * conj(Z[nm]) * charge;
       }
     }
   }
