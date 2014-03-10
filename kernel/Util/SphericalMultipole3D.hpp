@@ -132,7 +132,7 @@ struct SphericalMultipole3D {
           // Thus, k <= 0 and k <= m
           for ( ; k <= 0; ++k) {
             // k is negative and k-m is negative
-            L += conj(neg1pow(m) * Mj[-k] * Wjn[m-k]);
+            L += conj(neg1pow(m) * Wjn[m-k] * Mj[-k]);
           }
 
           // All k with 0 <= k <= j and -(j+n) <= k-m <= 0
@@ -140,14 +140,14 @@ struct SphericalMultipole3D {
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is negative
-            L += neg1pow(k-m) * Mj[k] * conj(Wjn[m-k]);
+            L += neg1pow(k-m) * conj(Wjn[m-k]) * Mj[k];
           }
 
           // All k with 0 <= k <= j and 0 <= k-m <= j+n
           // Thus, k <= j and k <= m+n+j
           for ( ; k <= j; ++k) {
             // k is positive and k-m is positive
-            L += Mj[k] * Wjn[k-m];
+            L += Wjn[k-m] * Mj[k];
           }
         }
       }
@@ -190,7 +190,7 @@ struct SphericalMultipole3D {
           // Thus, k <= 0 and k <= m
           for ( ; k <= 0; ++k) {
             // k is negative and k-m is negative
-            L += conj(neg1pow(m) * Lj[-k] * Zjn[m-k]);
+            L += conj(neg1pow(m) * Zjn[m-k] * Lj[-k]);
           }
 
           // All k with 0 <= k <= j and -(j-n) <= k-m <= 0
@@ -198,7 +198,7 @@ struct SphericalMultipole3D {
           int end = std::min(j, m);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is negative
-            L += neg1pow(k-m) * Lj[k] * conj(Zjn[m-k]);
+            L += neg1pow(k-m) * conj(Zjn[m-k]) * Lj[k];
           }
 
           // All k with 0 <= k <= j and 0 <= k-m <= j-n
@@ -206,7 +206,7 @@ struct SphericalMultipole3D {
           end = std::min(j, m-n+j);
           for ( ; k <= end; ++k) {
             // k is positive and k-m is positive
-            L += Lj[k] * Zjn[k-m];
+            L += Zjn[k-m] * Lj[k];
           }
         }
       }
