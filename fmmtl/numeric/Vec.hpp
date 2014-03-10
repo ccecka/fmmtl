@@ -22,7 +22,9 @@
             typename R = decltype(std::declval<T>() OP std::declval<U>())>  \
   struct NAME##_op {                                                        \
     typedef R type;                                                         \
-    R operator()(const T& a, const U& b) const { return a OP b; }           \
+    FMMTL_INLINE R operator()(const T& a, const U& b) const {               \
+      return a OP b;                                                        \
+    }                                                                       \
   }
 
 #  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
@@ -30,7 +32,9 @@
             typename R = decltype(OP(std::declval<T>()))>                   \
   struct NAME##_op {                                                        \
     typedef R type;                                                         \
-    R operator()(const T& a) const { using fmmtl::OP; return OP(a); }       \
+    FMMTL_INLINE R operator()(const T& a) const {                           \
+      using fmmtl::OP; using std::OP; return OP(a);                         \
+    }                                                                       \
   }
 #else
 /** This is being compiled by CUDA, which does not have decltype.
@@ -43,14 +47,18 @@
   template <typename T>                                                     \
   struct NAME##_op<T,T> {                                                   \
     typedef T type;                                                         \
-    T operator()(const T& a, const T& b) const { return a OP b; }           \
+    FMMTL_INLINE T operator()(const T& a, const T& b) const {               \
+      return a OP b;                                                        \
+    }                                                                       \
   }
 
 #  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
   template <typename T>                                                     \
   struct NAME##_op {                                                        \
     typedef T type;                                                         \
-    T operator()(const T& a) const { using fmmtl::OP; return OP(a); }       \
+    FMMTL_INLINE T operator()(const T& a) const {                           \
+      using fmmtl::OP; using std::OP; return OP(a);                         \
+    }                                                                       \
   }
 #endif
 
@@ -112,10 +120,17 @@ struct Vec {
   FMMTL_INLINE explicit Vec(const Vec<N,U>& v, OP op) {
     for_i elem[i] = op(v[i]);
   }
-  // Maybe?
   template <typename U1, typename OP, typename U2>
-  FMMTL_INLINE explicit Vec(const Vec<N,U1>& v1, OP op, const Vec<N,U2>& v2) {
+  FMMTL_INLINE explicit Vec(const Vec<N,U1>& v1, const Vec<N,U2>& v2, OP op) {
     for_i elem[i] = op(v1[i], v2[i]);
+  }
+  template <typename U1, typename OP, typename U2>
+  FMMTL_INLINE explicit Vec(const U1& v1, const Vec<N,U2>& v2, OP op) {
+    for_i elem[i] = op(v1, v2[i]);
+  }
+  template <typename U1, typename OP, typename U2>
+  FMMTL_INLINE explicit Vec(const Vec<N,U1>& v1, const U2& v2, OP op) {
+    for_i elem[i] = op(v1[i], v2);
   }
 
   // COMPARATORS
@@ -260,62 +275,62 @@ FMMTL_BINARY_PROMOTE_DECLARE(div,/);
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::sum_op<T,U>::type>
 operator+(const Vec<N,T>& a, const Vec<N,U>& b) {
-  return Vec<N,typename fmmtl::sum_op<T,U>::type>(a) += b;
+  return Vec<N,typename fmmtl::sum_op<T,U>::type>(a, b, fmmtl::sum_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::sum_op<T,U>::type>
 operator+(const Vec<N,T>& a, const U& b) {
-  return Vec<N,typename fmmtl::sum_op<T,U>::type>(b) += a;
+  return Vec<N,typename fmmtl::sum_op<T,U>::type>(a, b, fmmtl::sum_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::sum_op<T,U>::type>
 operator+(const T& a, const Vec<N,U>& b) {
-  return Vec<N,typename fmmtl::sum_op<T,U>::type>(a) += b;
+  return Vec<N,typename fmmtl::sum_op<T,U>::type>(a, b, fmmtl::sum_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::diff_op<T,U>::type>
 operator-(const Vec<N,T>& a, const Vec<N,U>& b) {
-  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a) -= b;
+  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a, b, fmmtl::diff_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::diff_op<T,U>::type>
 operator-(const Vec<N,T>& a, const U& b) {
-  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a) -= b;
+  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a, b, fmmtl::diff_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::diff_op<T,U>::type>
 operator-(const T& a, const Vec<N,U>& b) {
-  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a) -= b;
+  return Vec<N,typename fmmtl::diff_op<T,U>::type>(a, b, fmmtl::diff_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::prod_op<T,U>::type>
 operator*(const Vec<N,T>& a, const Vec<N,U>& b) {
-  return Vec<N,typename fmmtl::prod_op<T,U>::type>(a) *= b;
+  return Vec<N,typename fmmtl::prod_op<T,U>::type>(a, b, fmmtl::prod_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::prod_op<T,U>::type>
 operator*(const Vec<N,T>& a, const U& b) {
-  return Vec<N,typename fmmtl::prod_op<T,U>::type>(b) *= a;
+  return Vec<N,typename fmmtl::prod_op<T,U>::type>(a, b, fmmtl::prod_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::prod_op<T,U>::type>
-operator*(const T& b, const Vec<N,U>& a) {
-  return Vec<N,typename fmmtl::prod_op<T,U>::type>(b) *= a;
+operator*(const T& a, const Vec<N,U>& b) {
+  return Vec<N,typename fmmtl::prod_op<T,U>::type>(a, b, fmmtl::prod_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::div_op<T,U>::type>
 operator/(const Vec<N,T>& a, const Vec<N,U>& b) {
-  return Vec<N,typename fmmtl::div_op<T,U>::type>(a) /= b;
+  return Vec<N,typename fmmtl::div_op<T,U>::type>(a, b, fmmtl::div_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::div_op<T,U>::type>
 operator/(const Vec<N,T>& a, const U& b) {
-  return Vec<N,typename fmmtl::div_op<T,U>::type>(a) /= b;
+  return Vec<N,typename fmmtl::div_op<T,U>::type>(a, b, fmmtl::div_op<T,U>());
 }
 template <std::size_t N, typename T, typename U>
 FMMTL_INLINE Vec<N,typename fmmtl::div_op<T,U>::type>
 operator/(const T& a, const Vec<N,U>& b) {
-  return Vec<N,typename fmmtl::div_op<T,U>::type>(a) /= b;
+  return Vec<N,typename fmmtl::div_op<T,U>::type>(a, b, fmmtl::div_op<T,U>());
 }
 
 // ELEMENTWISE OPERATORS
