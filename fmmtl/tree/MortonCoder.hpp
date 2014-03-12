@@ -78,7 +78,7 @@ struct MortonCoder {
     return BoundingBox<DIM>(pmin, pmin + cell_size_);
   }
 
-  /** Return the bounding box of the box with Morton codes @a cmin and @cmax.
+  /** Return the bounding box of the box with Morton codes @a cmin and @a cmax.
    * @pre cmin,cmax < end_code */
   BoundingBox<DIM> cell(code_type cmin, code_type cmax) const {
     point_type pmin = pmin_ + cell_size_ * deinterleave(cmin);
@@ -86,7 +86,12 @@ struct MortonCoder {
     return BoundingBox<DIM>(pmin, pmax);
   }
 
-  /** Return the center of the box with Morton codes @a cmin and @cmax.
+  /** Return the center of the Morton coders' bounding box */
+  point_type center() const {
+    return pmin_ + cell_size_ * (cells_per_side()/2);
+  }
+
+  /** Return the center of the box with Morton codes @a cmin and @a cmax.
    * @pre cmin,cmax < end_code */
   point_type center(code_type cmin, code_type cmax) const {
     return pmin_ + (cell_size_/2)*(deinterleave(cmax)+deinterleave(cmin)+1);

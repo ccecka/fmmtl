@@ -82,12 +82,17 @@ class NDTree {
     unsigned begin_;
     unsigned end_;
 
+    // Precomputed center
+    point_type center_;
+
     static constexpr unsigned leaf_bit = (1 << (8*sizeof(level_)-1));
 
     box_data(unsigned level, unsigned parent,
-             unsigned begin, unsigned end)
+             unsigned begin, unsigned end,
+             const point_type& center)
         : level_(level), parent_(parent),
-          begin_(begin), end_(end) {
+          begin_(begin), end_(end),
+          center_(center) {
     }
     unsigned parent() const {
       return parent_;
@@ -190,17 +195,10 @@ class NDTree {
     bool is_leaf() const {
       return data().is_leaf();
     }
-    // TODO: optimize
+    /** The center of this box */
     point_type center() const {
-      // Mask for boxes of this level
-      code_type mask = code_type(1) << (DIM*(tree_->max_level() - level() + 1));
-      --mask;
-
-      // Get the Morton code of the first body
-      code_type c = body_begin()->morton_index();
-      return tree_->coder_.center(c & ~mask /*cmin*/, c | mask /*cmax*/);
+      return data().center_;
     }
-
     /** The parent box of this box */
     Box parent() const {
       return Box(data().parent(), tree_);
@@ -346,6 +344,11 @@ class NDTree {
     return coder_.bounding_box();
   }
 
+  /** Return the center of this NDTree */
+  point_type center() const {
+    return coder_.center();
+  }
+
   /** The number of bodies contained in this tree */
   inline unsigned size() const {
     return permute_.size();
@@ -473,7 +476,7 @@ class NDTree {
     }
 
     // Push the root box which contains all points
-    box_data_.emplace_back(0, 0, 0, codes.size());
+    box_data_.emplace_back(0, 0, 0, codes.size(), center());
     level_offset_.push_back(0);
 
     // For every box that is created
@@ -508,12 +511,14 @@ class NDTree {
       // For each bucket
       for (unsigned c = 0; c < max_children; ++c) {
         // If this child contains points
-        if (off[c+1] - off[c] > 0) {
+        if (off[c+1] != off[c]) {
           // Add the child
-          box_data_.emplace_back(box_data_[k].level() + 1,   // Level
+          unsigned level = box_data_[k].level() + 1;
+          box_data_.emplace_back(level,                      // Level
                                  k,                          // Parent idx
                                  off[c]   - codes.begin(),   // Body begin idx
-                                 off[c+1] - codes.begin());  // Body end idx
+                                 off[c+1] - codes.begin(),   // Body end idx
+                                 get_center(off[c]->first, level));  // Center
         }
       }
 
@@ -533,6 +538,16 @@ class NDTree {
       permute_.push_back(c.second);
       //point_.push_back(points[permute_.back()]);
     }
+  }
+
+  /** Get the center of the box that
+   * morton code @a c is contained in at level @level
+   */
+  point_type get_center(code_type c, unsigned level) {
+    // Mask for boxes of this level
+    code_type mask = code_type(1) << (DIM*(max_level() - level + 1));
+    --mask;
+    return coder_.center(c & ~mask /*cmin*/, c | mask /*cmax*/);
   }
 
   template <typename PointIter>
