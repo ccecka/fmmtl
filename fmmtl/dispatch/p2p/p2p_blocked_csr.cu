@@ -1,5 +1,8 @@
 #pragma once
 
+#include <thrust/system/cuda/detail/detail/uninitialized.h>
+using thrust::system::cuda::detail::detail::uninitialized_array;
+
 #include "fmmtl/meta/kernel_traits.hpp"
 
 /** CSR Blocked P2P in CUDA
@@ -9,7 +12,7 @@
  * @param[in] K                 The kernel to generate matrix elements.
  * @param[in] target_range      Maps blockIdx.x to pair<uint,uint> representing
                                  the [start,end) of targets for this threadblock.
- * #param[in] source_range_ptr  Maps blockIdx.x to pair<uint,uint> representing
+ * @param[in] source_range_ptr  Maps blockIdx.x to pair<uint,uint> representing
                                  the [start,end) of the source ranges interacting
                                  the target range for this threadblock.
  * @param[in] source_range      Maps each index of the source_range_ptr range to
@@ -43,24 +46,24 @@ blocked_p2p(const Kernel K,
   typedef typename KernelTraits<Kernel>::target_type target_type;
   typedef typename KernelTraits<Kernel>::result_type result_type;
 
-  typedef thrust::pair<unsigned,unsigned> upair;
+  typedef thrust::pair<unsigned, const unsigned> upair;
 
-  // Allocate shared memory
-  __shared__ source_type sh_s[BLOCKDIM]; // Warning: Initialization with non-POD
-  __shared__ charge_type sh_c[BLOCKDIM]; // Warning: Initialization with non-POD
+  // Allocate shared memory -- prevent initialization of non-POD
+  __shared__ uninitialized_array<source_type,BLOCKDIM> sh_s;
+  __shared__ uninitialized_array<charge_type,BLOCKDIM> sh_c;
 
   // Get the target range this block is responsible for
   upair t_range = target_range[blockIdx.x];
+  // The target index this thread is responsible for
+  t_range.first += threadIdx.x;
 
   // Get the range of source ranges this block is responsible for
   upair s_range_ptr = source_range_ptr[blockIdx.x];
 
-  // Each thread is assigned to one target
+  // Each thread is assigned to one target in the target range
   result_type r = result_type();
-  target_type t;
-  t_range.first += threadIdx.x;
-  if (t_range.first < t_range.second)
-    t = target[t_range.first];
+  target_type t = ((t_range.first < t_range.second)
+                   ? target[t_range.first] : target_type());
 
   // For each source range
   for ( ; s_range_ptr.first < s_range_ptr.second; ++s_range_ptr.first) {
@@ -69,8 +72,8 @@ blocked_p2p(const Kernel K,
 
     // For each chuck of sources
     for ( ; s_range.first < s_range.second; s_range.first += BLOCKDIM) {
+
       // Read up to blockDim.x sources into shared memory
-      __syncthreads();
       unsigned n = min(s_range.second - s_range.first, BLOCKDIM);
       if (threadIdx.x < n) {
         sh_s[threadIdx.x] = source[s_range.first + threadIdx.x];
@@ -85,6 +88,7 @@ blocked_p2p(const Kernel K,
           r += K(t, sh_s[n]) * sh_c[n];
         } while (n != 0);
       }
+      __syncthreads();   // TODO: Unroll to prevent an extra __syncthreads()?
     }
   }
 
