@@ -280,26 +280,27 @@ struct SphericalMultipole3D {
     const complex ei = complex(sin(phi),-cos(phi)); // exp(i*phi) i^-1
 
     int m = 0;
+    int nm;
     real    Pmm = 1;                                // Init Legendre Pmm(ct)
     real   rhom = 1;                                // Init rho^n / (n+m)!
     complex eim = 1;                                // Init exp(i*m*phi) i^-m
     while (true) {                                  // For all 0 <= m < P
       // n == m
-      int npn = m*(m+1)/2 + m;                      //  Index of Ynm for m > 0
-      Y[npn] = rhom * Pmm * eim;                    //  Ynm for m > 0
+      nm = m*(m+1)/2 + m;                           //  Index of Znm for m > 0
+      Y[nm] = rhom * Pmm * eim;                     //  Znm for m > 0
       if (dY)
-        dY[npn] = m*ct/st * Y[npn];                 // theta derivative
+        dY[nm] = m*ct/st * Y[nm];                   //  Theta derivative of Znm
 
       // n == m+1
       int n = m + 1;
-      if (n == P) return;                           // Done! m == P-1
+      if (n == P) return;                           //  Done! m == P-1
 
       real Pnm  = ct * (2*m+1) * Pmm;               //  P_{m+1}^m(x) = x(2m+1)Pmm
       real rhon = rhom * rho / (n+m);               //  rho^n / (n+m)!
-      int npm = n*(n+1)/2 + m;                      //   Index of Ynm for m > 0
-      Y[npm] = rhon * Pnm * eim;                    // Ynm for m > 0
+      nm += n;                                      //  n*(n+1)/2 + m
+      Y[nm] = rhon * Pnm * eim;                     //  Znm for m > 0
       if (dY)
-        dY[npm] = (n*ct - (n+m)*Pmm/Pnm)/st * Y[npm];  // theta derivative
+        dY[nm] = (n*ct-(n+m)*Pmm/Pnm)/st * Y[nm];   //  Theta derivative of Znm
 
       // m+1 < n < P
       real Pn1m = Pmm;                              //  P_{n-1}^m
@@ -309,18 +310,18 @@ struct SphericalMultipole3D {
         Pnm = (ct*(2*n-1)*Pn1m-(n+m-1)*Pn2m)/(n-m); //   P_n^m recurrence
         rhon *= rho / (n + m);                      //   rho^n / (n+m)!
 
-        int npm = n*(n+1)/2 + m;                    //   Index of Ynm for m > 0
-        Y[npm] = rhon * Pnm * eim;                  //   Ynm for m > 0
+        nm += n;                                    //   n*(n+1)/2 + m
+        Y[nm] = rhon * Pnm * eim;                   //   Znm for m > 0
         if (dY)
-          dY[npm] = (n*ct - (n+m)*Pn1m/Pnm)/st * Y[npm];  // theta derivative
+          dY[nm] = (n*ct-(n+m)*Pn1m/Pnm)/st * Y[nm];//   Theta derivative of Znm
       }
 
-      ++m;                                          // Increment m
+      ++m;                                          //  Increment m
 
       rhom *= rho / (2*m*(2*m-1));                  //  rho^m / (2m)!
-      Pmm *= -st * (2*m-1);                         //  P_{m+1}^{m+1} recurrence
-      eim *= ei;                                    //  exp(i*m*phi) i^-m
-    }                                               // End loop over m in Ynm
+      Pmm  *= -st * (2*m-1);                        //  P_{m+1}^{m+1} recurrence
+      eim  *= ei;                                   //  exp(i*m*phi) i^-m
+    }                                               // End loop over m in Znm
   }
 
 
@@ -356,7 +357,7 @@ struct SphericalMultipole3D {
    */
   inline static
   void evalW(real_type rho, real_type theta, real_type phi, int P,
-             complex_type* Y, complex_type* dY = nullptr) {
+             complex_type* Y) {
     typedef real_type     real;
     typedef complex_type  complex;
     using std::cos;
@@ -370,25 +371,21 @@ struct SphericalMultipole3D {
     int m = 0;
     int nm;
     real    Pmm = 1;                               // Init Legendre Pmm(ct)
-    real   rhom = rho;                             // Init (-1)^n rho^{-n-1} (n-m)!
+    real   rhom = rho;                             // Init -1^n rho^{-n-1} (n-m)!
     complex eim = 1;                               // Init exp(i*m*phi) i^-m
     while (true) {                                 // For all 0 <= m < P
       // n == m
       nm = m*(m+1)/2 + m;                          //  Index of Wnm for m > 0
       Y[nm] = rhom * Pmm * eim;                    //  Wnm for m > 0
-      if (dY)
-        dY[nm] = m*ct/st * Y[nm];                  //  Theta derivative of Wnm
 
       // n == m+1
       int n = m+1;
       if (n == P) return;                          //  Done! m == P-1
 
       real Pnm  = ct * (2*m+1) * Pmm;              //  P_{m+1}^m(x) = x(2m+1)Pmm
-      real rhon = rhom * -rho;                     //  (-1)^n rho^{-n-1} (n-m)!
-      nm = n*(n+1)/2 + m;                          //  Index of Wnm for m > 0
+      real rhon = rhom * -rho;                     //  -1^n rho^{-n-1} (n-m)!
+      nm += n;                                     //  n*(n+1)/2 + m
       Y[nm] = rhon * Pnm * eim;                    //  Wnm for m > 0
-      if (dY)
-        dY[nm] = (n*ct - (n+m)*Pmm/Pnm)/st * Y[nm];// Theta derivative of Wnm
 
       // m+1 < n < P
       real Pn1m = Pmm;                              //  P_{n-1}^m
@@ -396,20 +393,18 @@ struct SphericalMultipole3D {
         real Pn2m = Pn1m;                           //   P_{n-2}^m
         Pn1m = Pnm;                                 //   P_{n-1}^m
         Pnm = (ct*(2*n-1)*Pn1m-(n+m-1)*Pn2m)/(n-m); //   P_n^m recurrence
-        rhon *= -rho * (n - m);                     //   (-1)^n rho^{-n-1} (n-m)!
+        rhon *= -rho * (n - m);                     //   -1^n rho^{-n-1} (n-m)!
 
-        nm = n*(n+1)/2 + m;                         //   Index of Wnm for m > 0
+        nm += n;                                    //   n*(n+1)/2 + m
         Y[nm] = rhon * Pnm * eim;                   //   Wnm for m > 0
-        if (dY)
-          dY[nm] = (n*ct - (n+m)*Pn1m/Pnm)/st * Y[nm];// Theta derivative of Wnm
       }
 
       ++m;                                          //  Increment m
 
-      rhom *= -rho;                                 //  (-1)^m rho^{-m-1} (n-m)!
-      Pmm *= -st * (2*m-1);                         //  P_{m+1}^{m+1} recurrence
-      eim *= ei;                                    //  exp(i*m*phi) i^m
-    }                                               // End loop over m in Ynm
+      rhom *= -rho;                                 //  -1^m rho^{-m-1} (n-m)!
+      Pmm  *= -st * (2*m-1);                        //  P_{m+1}^{m+1} recurrence
+      eim  *= ei;                                   //  exp(i*m*phi) i^m
+    }                                               // End loop over m in Wnm
   }
 
 };
