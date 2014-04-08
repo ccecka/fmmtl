@@ -26,7 +26,7 @@ Performance
 [ ] Autotuning for choosing between computational pathways, e.g M2L+L2L+L2P => M2P.
 [ ] Investigate use of KD-trees rather than 2k-trees.
 [ ] Cached-optimal and communication-optimal distributed p2p library.
-[ ] Optimization of A2B algorithms in the case of unused arguments.
+[x] Optimization of A2B algorithms in the case of unused arguments.
 [x] Optimized and generalized spherical harmonic expansions.
 
 Maintenance
@@ -38,7 +38,7 @@ Maintenance
 Documentation
 =============
 
-[ ] Improved use of DEBUG_ONLY macro.
+[ ] Improved use of FMMTL_DEBUG_ONLY macros.
 [ ] Use #pragma once *and* #define fences.
 
 
