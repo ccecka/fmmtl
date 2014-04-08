@@ -1,49 +1,80 @@
 #pragma once
 /** @file INITM.hpp
  * @brief Dispatch methods for the initializing a multipole expansion
- *
  */
 
-#include "fmmtl/Logger.hpp"
+#include "fmmtl/util/Logger.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
-#include <type_traits>
 
-struct INITM
-{
-  /** If no init_multipole dispatcher matches */
-  template <typename Expansion, typename... Args>
-  inline static void eval(const Expansion&,
-                          typename Expansion::multipole_type& M,
-                          Args...) {
-    // Use default constructor
-    M = typename Expansion::multipole_type();
+/** Default behavior uses the default constructor */
+template <bool has_initm>
+struct INITM_Helper {
+  template <typename multipole_type>
+  inline static void apply(multipole_type& M) {
+    M = multipole_type();
   }
 
   template <typename Expansion>
-  inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_init_multipole>::type
-  eval(const Expansion& K,
-       typename Expansion::multipole_type& M,
-       const typename Expansion::point_type& extents,
-       unsigned level) {
+  inline static void apply(const Expansion&,
+                           typename Expansion::multipole_type& M,
+                           const typename Expansion::point_type&,
+                           unsigned) {
+    apply(M);
+  }
+
+  template <typename Context>
+  inline static void eval(Context& c,
+                          const typename Context::source_box_type& box) {
+    apply(c.multipole(box));
+  }
+};
+
+/** Expansion has an INITM method to dispatch to */
+template <>
+struct INITM_Helper<true> {
+  template <typename Expansion>
+  inline static void apply(const Expansion& K,
+                           typename Expansion::multipole_type& M,
+                           const typename Expansion::point_type& extents,
+                           unsigned level) {
     K.init_multipole(M, extents, level);
   }
 
-  /** Unwrap data from Context and dispatch to the INITM evaluator
-   */
   template <typename Context>
   inline static void eval(Context& c,
-                          const typename Context::source_box_type& sbox)
+                          const typename Context::source_box_type& box) {
+    apply(c.expansion(),
+          c.multipole(box),
+          box.extents(),
+          box.level());
+  }
+};
+
+
+struct INITM {
+  /** Forward to INITM_Helper::apply */
+  template <typename Expansion>
+  inline static void apply(const Expansion& K,
+                           typename Expansion::multipole_type& M,
+                           const typename Expansion::point_type& extents,
+                           unsigned level) {
+    typedef INITM_Helper<ExpansionTraits<Expansion>::has_init_multipole> INITM_H;
+    INITM_H::apply(K, M, extents, level);
+  }
+
+  /** Forward to INITM_Helper::eval */
+  template <typename Context>
+  inline static void eval(Context& c,
+                          const typename Context::source_box_type& box)
   {
 #if defined(FMMTL_DEBUG)
     std::cout << "INITM:"
-              << "\n  " << sbox << std::endl;
+              << "\n  " << box << std::endl;
 #endif
     FMMTL_LOG("INITM");
 
-    INITM::eval(c.expansion(),
-                c.multipole(sbox),
-                sbox.extents(),
-                sbox.level());
+    typedef ExpansionTraits<typename Context::expansion_type> expansion_traits;
+    typedef INITM_Helper<expansion_traits::has_init_multipole> INITM_H;
+    INITM_H::eval(c, box);
   }
 };

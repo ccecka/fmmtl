@@ -45,7 +45,7 @@ void single_level_test(const Expansion& K) {
   multipole_type M;
   point_type M_center(0.1, 0.1, 0.1);
   point_type M_extent(0.2, 0.2, 0.2);
-  INITM::eval(K, M, M_extent, 1u);
+  INITM::apply(K, M, M_extent, 1u);
   K.P2M(s[0], c[0], M_center, M);
 
   // test M2P
@@ -57,7 +57,7 @@ void single_level_test(const Expansion& K) {
   point_type L_extent(0.2, 0.2, 0.2);
   auto d = L_center - M_center;
   printf("DIST: (%lg, %lg, %lg) : %lg\n",d[0],d[1],d[2],norm(d));
-  INITL::eval(K, L, L_extent, 1u);
+  INITL::apply(K, L, L_extent, 1u);
   K.M2L(M, L, L_center - M_center);
   K.L2P(L, L_center, t[0], rfmm);
 

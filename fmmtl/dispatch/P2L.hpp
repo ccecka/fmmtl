@@ -1,93 +1,104 @@
 #pragma once
-/** @file M2P.hpp
- * @brief Dispatch methods for the M2P stage
+/** @file P2L.hpp
+ * @brief Dispatch methods for the P2L stage
  *
  */
 
-#include "fmmtl/Logger.hpp"
+#include "fmmtl/util/Logger.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
 #include <type_traits>
 
-class P2L
-{
-  /** If no other P2L dispatcher matches */
-  template <typename Expansion, typename... Args>
-  inline static void eval(const Expansion&, Args...) {
-    std::cerr << "Expansion does not have a correct P2L!\n";
-    std::cerr << ExpansionTraits<Expansion>() << std::endl;
-    exit(1);
+/** Default behavior gives a warning -- using non-existent method */
+template <bool has_p2l>
+struct P2L_Helper {
+  inline static void apply(...) {
+    std::cerr << "WARNING: Expansion does not have a correct P2L!\n";
   }
+  inline static void eval(...) {
+    std::cerr << "WARNING: Expansion does not have a correct P2L!\n";
+  }
+};
 
-  /** P2L evaluation.
-   * The Expansion provides a vector P2L accumulator.
-   */
+/** Expansion has an P2L method (scalar/vector) to dispatch to */
+template <>
+struct P2L_Helper<true> {
+  /** The Expansion provides a vector P2L accumulator. */
   template <typename Expansion, typename SourceIter, typename ChargeIter>
   inline static
   typename std::enable_if<ExpansionTraits<Expansion>::has_vector_P2L>::type
-  eval(const Expansion& K,
-       SourceIter s_begin, SourceIter s_end,
-       ChargeIter c_begin,
-       const typename Expansion::point_type& center,
-       typename Expansion::local_type& L) {
+  apply(const Expansion& K,
+        SourceIter s_begin, SourceIter s_end, ChargeIter c_begin,
+        const typename Expansion::point_type& center,
+        typename Expansion::local_type& L) {
     K.P2L(s_begin, s_end, c_begin, center, L);
   }
 
-  /** P2L evaluation.
-   * The Expansion provides a scalar P2L accumulator. Use it for each source.
-   */
+  /** The Expansion provides a scalar P2L accumulator. */
+  template <typename Expansion>
+  inline static
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_P2L &
+                          !ExpansionTraits<Expansion>::has_vector_P2L>::type
+  apply(const Expansion& K,
+        const typename Expansion::source_type& source,
+        const typename Expansion::charge_type& charge,
+        const typename Expansion::point_type& center,
+        typename Expansion::local_type& L) {
+    K.P2L(source, charge, center, L);
+  }
+
+  /** The Expansion provides a scalar P2L accumulator. */
   template <typename Expansion, typename SourceIter, typename ChargeIter>
   inline static
   typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_P2L &
                           !ExpansionTraits<Expansion>::has_vector_P2L>::type
-  eval(const Expansion& K,
-       SourceIter s_begin, SourceIter s_end,
-       ChargeIter c_begin,
-       const typename Expansion::point_type& center,
-       typename Expansion::local_type& L) {
+  apply(const Expansion& K,
+        SourceIter s_begin, SourceIter s_end, ChargeIter c_begin,
+        const typename Expansion::point_type& center,
+        typename Expansion::local_type& L) {
     for ( ; s_begin != s_end; ++s_begin, ++c_begin)
-      K.P2L(*s_begin, *c_begin, center, L);
+      apply(K, *s_begin, *c_begin, center, L);
   }
 
- public:
-
-  /** Unwrap the data from BoxContext and dispatch to the P2L evaluator
-   */
+  /** Unpack from Context and apply */
   template <typename Context>
   inline static void eval(Context& c,
-                          const typename Context::source_body_iterator sfirst,
-                          const typename Context::source_body_iterator slast,
+                          const typename Context::source_box_type& sbox,
                           const typename Context::target_box_type& tbox) {
+    apply(c.expansion(),
+          c.source_begin(sbox), c.source_end(sbox), c.charge_begin(sbox),
+          tbox.center(),
+          c.local(tbox));
+  }
+};
+
+/** Public P2L dispatcher */
+class P2L {
+  /** Forward to P2L_Helper::apply */
+  template <typename Expansion>
+  inline static void apply(const Expansion& K,
+                           const typename Expansion::source_type& source,
+                           const typename Expansion::charge_type& charge,
+                           const typename Expansion::point_type& center,
+                           typename Expansion::local_type& L) {
+    typedef P2L_Helper<ExpansionTraits<Expansion>::has_P2L> P2L_H;
+    P2L_H::apply(K, source, charge, center, L);
+  }
+
+  /** Forward to P2L_Helper::eval */
+  template <typename Context>
+  inline static void eval(Context& c,
+                          const typename Context::source_box_type& sbox,
+                          const typename Context::target_box_type& tbox)
+  {
 #if defined(FMMTL_DEBUG)
     std::cout << "P2L:"
-              << "\n  Bodies [" << sfirst << ", " << slast << ")"
+              << "\n  " << sbox
               << "\n  " << tbox << std::endl;
 #endif
-    FMMTL_LOG("P2L vec");
+    FMMTL_LOG("P2L");
 
-    P2L::eval(c.expansion(),
-              c.source(sfirst), c.source(slast),
-              c.charge(sfirst),
-              tbox.center(),
-              c.local(tbox));
-  }
-
-  /** Unwrap the data from BoxContext and dispatch to the P2L evaluator
-   */
-  template <typename Context>
-  inline static void eval(Context& c,
-                          const typename Context::source_box_type& source,
-                          const typename Context::target_box_type& target) {
-#if defined(FMMTL_DEBUG)
-    std::cout << "P2L:"
-              << "\n  " << source
-              << "\n  " << target << std::endl;
-#endif
-    FMMTL_LOG("P2L box");
-
-    P2L::eval(c.expansion(),
-              c.source_begin(source), c.source_begin(source),
-              c.charge_begin(source),
-              target.center(),
-              c.local(target));
+    typedef ExpansionTraits<typename Context::expansion_type> expansion_traits;
+    typedef P2L_Helper<expansion_traits::has_P2L> P2L_H;
+    P2L_H::eval(c, sbox, tbox);
   }
 };

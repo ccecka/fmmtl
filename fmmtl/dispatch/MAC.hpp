@@ -3,7 +3,7 @@
  * @brief Dispatch methods for the Multipole Acceptance Criteria
  */
 
-#include "fmmtl/Logger.hpp"
+#include "fmmtl/util/Logger.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
 #include <type_traits>
 
