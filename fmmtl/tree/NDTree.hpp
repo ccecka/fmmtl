@@ -14,7 +14,7 @@
 #include <boost/iterator/permutation_iterator.hpp>
 using boost::iterator_adaptor;
 
-#include "fmmtl/Logger.hpp"
+#include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
 #include "BoundingBox.hpp"
 #include "MortonCoder.hpp"

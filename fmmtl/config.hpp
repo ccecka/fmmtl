@@ -4,6 +4,8 @@
 #include <boost/version.hpp>
 #include <boost/config.hpp>
 
+#include <omp.h>
+
 #if defined(__CUDACC__)
 #  define FMMTL_WITH_CUDA
 #endif

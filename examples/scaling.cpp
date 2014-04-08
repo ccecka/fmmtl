@@ -1,5 +1,5 @@
 #include "fmmtl/KernelMatrix.hpp"
-#include "fmmtl/Logger.hpp"
+#include "fmmtl/util/Clock.hpp"
 
 #include "LaplaceSpherical.hpp"
 
@@ -32,9 +32,9 @@ int main() {
     std::vector<result_type> r = A * charges;
 
     // Compute the product
-    Ticker tick;
+    Clock clock;
     std::vector<result_type> result = A * charges;
-    double time = tick.seconds();
+    double time = clock.seconds();
 
     std::cout << N << "\t" << time << "\n";
   }

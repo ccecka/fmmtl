@@ -5,6 +5,7 @@
 
 #include "fmmtl/KernelMatrix.hpp"
 #include "fmmtl/Direct.hpp"
+#include "fmmtl/util/Clock.hpp"
 
 #include "UnitKernel.kern"
 #include "ExpKernel.kern"
@@ -53,19 +54,19 @@ int main(int argc, char **argv)
   A.set_options(opts);
 
   // Execute the FMM
-  Ticker t1;
+  Clock t1;
   std::vector<result_type> result = A * charges;
   double time1 = t1.seconds();
   std::cout << "FMM in " << time1 << " secs" << std::endl;
 
   // Execute the FMM
-  Ticker t2;
+  Clock t2;
   result = A * charges;
   double time2 = t2.seconds();
   std::cout << "FMM in " << time2 << " secs" << std::endl;
 
   // Execute the FMM
-  Ticker t3;
+  Clock t3;
   result = A * charges;
   double time3 = t3.seconds();
   std::cout << "FMM in " << time3 << " secs" << std::endl;

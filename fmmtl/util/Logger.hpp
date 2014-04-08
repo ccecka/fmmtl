@@ -6,108 +6,58 @@
 #include <map>
 #include <string>
 
-#include <chrono>
 #include <atomic>
 
-#include "fmmtl/common.hpp"
+#include "fmmtl/util/Clock.hpp"
+
 #include "fmmtl/config.hpp"
 
-/** An RAII class
- * Updates a listener with the amount of time the Ticker was alive.
- */
-template <typename Listener>
-class TickerNotifier {
- public:
-  typedef std::chrono::high_resolution_clock clock;
-  typedef typename clock::time_point         time_point;
-  typedef typename clock::duration           duration;
-  typedef typename duration::rep             tick_type;
-
-  TickerNotifier()
-      : owner_(nullptr), starttime_(clock::now()) {}
-  explicit TickerNotifier(Listener* owner)
-      : owner_(owner), starttime_(clock::now()) {}
-  // Allow moving
-  TickerNotifier(TickerNotifier&& t) :
-      owner_(t.owner_), starttime_(t.starttime_) {
-    t.owner_ = nullptr;
-  }
-  // Disable copying
-  TickerNotifier(const TickerNotifier&) = delete;
-  TickerNotifier& operator=(const TickerNotifier&) = delete;
-  // Destructor
-  ~TickerNotifier() {
-    duration tick_time = elapsed();
-    if (owner_)
-      owner_->operator+=(tick_time);
-  }
-  // Get the duration on this Ticker
-  duration elapsed() const {
-    return clock::now() - starttime_;
-  }
-  // Get the seconds on this Ticker
-  double seconds() const {
-    typedef std::chrono::duration<double> units;
-    return std::chrono::duration_cast<units>(elapsed()).count();
-  }
- private:
-  Listener* owner_;
-  time_point starttime_;
-};
-/** A quick class for timing code:
- * Usage:
- *
- * Ticker ticker;
- * // code to time
- * double time = ticker.seconds();
- */
-typedef TickerNotifier<std::chrono::duration<double>> Ticker;
-
-
-/** A quick class for timing segments of code:
+/** A class for accumulating the time of segments of code:
  * Usage:
  *
  * Timer timer;
- * { auto time = timer.start();
+ * { auto ts = timer.time_scope();
  *   // code to time
  * }
  * std::cout << timer << std::endl;
  */
 class Timer {
  public:
-  typedef TickerNotifier<Timer>       ticker_type;
-  typedef ticker_type::clock          clock;
-  typedef typename clock::time_point  time_point;
-  typedef typename clock::duration    duration;
-  typedef typename duration::rep      tick_type;
+  typedef TickerNotifier<Timer&>       ticker_type;
+  typedef ticker_type::clock           clock;
+  typedef typename clock::time_point   time_point;
+  typedef typename clock::duration     duration_type;
+  typedef typename duration_type::rep  tick_type;
 
   // Start by returning an RAII ticker
-  ticker_type start() {
-    return ticker_type(this);
+  ticker_type time_scope() {
+    return ticker_type(*this);
   }
-  // Add a duration
-  void operator+=(const duration& d) {
-    ticks_ += d.count();
+  // Add a ticker to the duration
+  void operator()(const ticker_type& t) {
+    ticks_ += t.duration().count();
+  }
+  void operator+=(const duration_type& t) {
+    ticks_ += t.count();
   }
   // Reset this timer
   void reset() {
     ticks_ = tick_type(0);
   }
   // Get the duration on this Timer
-  duration total() const {
-    return duration(ticks_);
+  duration_type duration() const {
+    return duration_type(ticks_);
   }
   // Get the seconds on this Timer
   double seconds() const {
     typedef std::chrono::duration<double> units;
-    return std::chrono::duration_cast<units>(total()).count();
+    return std::chrono::duration_cast<units>(duration()).count();
   }
   // Print this Timer
   friend std::ostream& operator<<(std::ostream& s, const Timer& t) {
     return s << t.seconds() << "secs";
   }
  private:
-  //std::atomic<tick_type> ticks_;
   tick_type ticks_;
 };
 
@@ -129,7 +79,7 @@ class Logger {
   struct EventData;
 
  public:
-  typedef TickerNotifier<EventData>   ticker_type;
+  typedef TickerNotifier<EventData&>  ticker_type;
   typedef ticker_type::clock          clock;
   typedef typename clock::time_point  time_point;
   typedef typename clock::duration    duration;
@@ -142,7 +92,7 @@ class Logger {
 #pragma omp critical
       {
       range.first = data_.insert(range.first,
-                                 std::make_pair(event, new EventData()));
+                                 std::make_pair(event, EventData()));
       }
     }
     return ticker_type((*range.first).second);
@@ -152,8 +102,6 @@ class Logger {
   inline void clear() {
 #pragma omp critical
     {
-      for (auto& event : data_)
-        delete event.second;
       data_.clear();
     }
   }
@@ -162,14 +110,14 @@ class Logger {
   friend std::ostream& operator<<(std::ostream& s, const Logger& log) {
     for (auto& event : log.data_)
       s << std::setw(20) << std::left << event.first
-        << ": " << *(event.second) << std::endl;
+        << ": " << event.second << std::endl;
     return s;
   }
 
  private:
   struct EventData {
-    void operator+=(const duration& time) {
-      total_ += time;
+    void operator()(const ticker_type& ticker) {
+      total_ += ticker.duration();
       ++call_;
     }
     double seconds() const {
@@ -185,12 +133,11 @@ class Logger {
     }
    private:
     Timer total_;
-    //std::atomic<unsigned> call_; // Not required if threads have unique event strings
     unsigned call_;
   };
 
-  // A map of pointers to (total_time, #calls) with string identifiers
-  std::map<std::string, EventData*> data_;
+  // A map of string identifiers to EventData (total_time, #calls)
+  std::map<std::string, EventData> data_;
 };
 
 

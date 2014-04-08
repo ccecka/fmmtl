@@ -2,7 +2,7 @@
 
 #include "fmmtl/config.hpp"
 
-#include "fmmtl/Logger.hpp"
+#include "fmmtl/util/Logger.hpp"
 
 #include "fmmtl/FMMOptions.hpp"
 #include "fmmtl/KernelMatrixPlan.hpp"
