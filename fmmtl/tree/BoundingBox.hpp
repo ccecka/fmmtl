@@ -35,7 +35,8 @@ class BoundingBox {
   }
   /** Construct the minimal bounding box containing a given sphere.
    * @param[in] center center of the sphere
-   * @param[in] radius radius of the sphere */
+   * @param[in] radius radius of the sphere
+   * @pre radius >= 0 */
   BoundingBox(const point_type& center, double radius)
       : empty_(false), min_(center), max_(center) {
     min_ -= radius;
@@ -62,8 +63,8 @@ class BoundingBox {
    *
    * This function lets you write code such as "if (b) { ... }" or
    * "if (box1 & box2) std::cout << "box1 and box2 intersect\n". */
-  operator const void*() const {
-    return empty_ ? 0 : this;
+  operator bool() const {
+    return empty_;
   }
 
   /** Return the minimum corner of the bounding box.
@@ -119,7 +120,7 @@ class BoundingBox {
    * @post contains(@a p) is true
    * @post if old contains(@a x) was true, then new contains(@a x) is true */
   BoundingBox& operator|=(const point_type& p) {
-    if (empty_) {
+    if (empty()) {
       empty_ = false;
       min_ = max_ = p;
     } else {
@@ -141,10 +142,8 @@ class BoundingBox {
   /** Extend the bounding box to contain the points in [first, last). */
   template <typename IT>
   BoundingBox& insert(IT first, IT last) {
-    while (first != last) {
+    for ( ; first != last; ++first)
       *this |= static_cast<point_type>(*first);
-      ++first;
-    }
     return *this;
   }
 
