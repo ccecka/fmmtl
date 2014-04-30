@@ -25,6 +25,7 @@
 
 #include <utility>
 #include <queue>
+#include <tuple>
 
 template <typename SourceBox, typename TargetBox>
 struct Traversal {
@@ -36,40 +37,32 @@ struct Traversal {
   typedef std::queue<box_pair> box_queue;
 
   template <class NearEvaluator, class FarEvaluator>
-  void eval(source_box& sbox, target_box& tbox,
-            NearEvaluator& near_eval, FarEvaluator& far_eval) {
+  inline static void eval(source_box sbox, target_box tbox,
+                          NearEvaluator& near_eval, FarEvaluator& far_eval) {
     // Queue based tree traversal
     box_queue pairQ;
     interact(sbox, tbox, far_eval, pairQ);
 
     while (!pairQ.empty()) {
-      source_box sbox = pairQ.front().first;
-      target_box tbox = pairQ.front().second;
+      std::tie(sbox, tbox) = pairQ.front();
       pairQ.pop();
 
       char code = (sbox.is_leaf() << 1) | (tbox.is_leaf() << 0);
       switch (code) {
-        case 3: {    // sbox and tbox are leaves
-          near_eval(sbox, tbox);
-        } break;
-
-        case 2: {    // sbox is a leaf, tbox is not leaf
-          // Split tbox into children and interact
-          split_target(sbox, tbox, far_eval, pairQ);
-        } break;
-
-        case 1: {    // sbox is not leaf, tbox is leaf
-          // Split sbox into children and interact
-          split_source(sbox, tbox, far_eval, pairQ);
-        } break;
-
-        case 0: {    // sbox and tbox are not leaves
+        case 0: {             // sbox and tbox are not leaves
           // Split the larger of the two into children and interact
-          if (sbox.volume() > tbox.volume())
-            split_source(sbox, tbox, far_eval, pairQ);
-          else
-            split_target(sbox, tbox, far_eval, pairQ);
-        } break;
+          if (sbox.volume() > tbox.volume()) {
+            case 1:           // tbox is a leaf, sbox is not a leaf
+              split_source(sbox, tbox, far_eval, pairQ);
+          } else {
+            case 2:           // sbox is a leaf, tbox is not a leaf
+              split_target(sbox, tbox, far_eval, pairQ);
+          }
+        } continue;
+
+        case 3: {             // sbox and tbox are leaves
+          near_eval(sbox, tbox);
+        } continue;
       } // end switch
     } // end while
   }
