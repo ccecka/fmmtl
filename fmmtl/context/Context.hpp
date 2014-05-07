@@ -8,9 +8,16 @@
 
 #include "fmmtl/meta/kernel_traits.hpp"
 #include "fmmtl/meta/tree_traits.hpp"
+
+#include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/FMMOptions.hpp"
 
-#include <boost/iterator/transform_iterator.hpp>
+#include "fmmtl/dispatch/S2P.hpp"
+#include "fmmtl/dispatch/T2P.hpp"
+#include <boost/range/adaptor/transformed.hpp>
+
+namespace fmmtl {
+using boost::adaptors::transformed;
 
 // General TreeContext declarations
 template <typename TreeType>
@@ -58,7 +65,8 @@ class SingleTreeContext<NDTree<DIM> > {
   //! Constructor
   template <typename KernelMatrix, typename Options>
   SingleTreeContext(const KernelMatrix& mat, Options& opts)
-      : source_tree_(mat.sources().begin(), mat.sources().end(), opts.ncrit) {
+      : source_tree_(mat.sources() | transformed(S2P(mat.expansion())),
+                     opts.ncrit) {
   }
 
   // Tree accessors
@@ -117,8 +125,10 @@ class DualTreeContext<NDTree<SOURCEDIM>,
   //! Constructor
   template <typename KernelMatrix, typename Options>
   DualTreeContext(const KernelMatrix& mat, Options& opts)
-      : source_tree_(mat.sources().begin(), mat.sources().end(), opts.ncrit),
-        target_tree_(mat.targets().begin(), mat.targets().end(), opts.ncrit) {
+      : source_tree_(mat.sources() | transformed(S2P(mat.expansion())),
+                     opts.ncrit),
+        target_tree_(mat.targets() | transformed(T2P(mat.expansion())),
+                     opts.ncrit) {
   }
 
   inline source_tree_type& source_tree() {
@@ -301,3 +311,5 @@ class DataContext
     return this->result(this->target_tree().body_end());
   }
 };
+
+} // end namespace fmmtl

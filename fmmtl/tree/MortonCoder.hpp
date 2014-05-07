@@ -5,7 +5,9 @@
  */
 
 #include "fmmtl/numeric/Vec.hpp"
-#include "BoundingBox.hpp"
+#include "fmmtl/tree/BoundingBox.hpp"
+
+namespace fmmtl {
 
 /** @class MortonCoder
  * @brief Class representing Z-order-curve values, aka Morton codes.
@@ -250,3 +252,5 @@ inline unsigned MortonCoder<4>::compact_bits(unsigned x) const {
   x = (x | (x >> 12)) & 0b00000000000000000000000011111111;
   return x;
 }
+
+} // end namespace fmmtl

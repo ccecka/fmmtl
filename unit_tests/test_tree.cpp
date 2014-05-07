@@ -19,7 +19,7 @@ int main(int argc, char** argv)
   for (int k = 0; k < N; ++k)
     points[k] = fmmtl::random<point_type>::get();
 
-  NDTree<3> tree(points.begin(), points.end());
+  fmmtl::NDTree<3> tree(points.begin(), points.end());
 
   std::cout << tree.bounding_box() << std::endl;
   std::cout << tree << "\n";

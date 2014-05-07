@@ -2,11 +2,13 @@
 /** @file BoundingBox.hpp
  * @brief Define the BoundingBox class for ND bounding boxes. */
 
-#include "fmmtl/numeric/Vec.hpp"
-
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+
+#include "fmmtl/numeric/Vec.hpp"
+
+namespace fmmtl {
 
 /** @class BoundingBox
  * @brief Class representing ND bounding boxes.
@@ -18,7 +20,6 @@
  * BoundingBoxes are implemented as boxes -- ND rectangular cuboids -- whose
  * sides are aligned with the principal axes.
  */
-
 template <unsigned DIM>
 class BoundingBox {
  public:
@@ -143,7 +144,7 @@ class BoundingBox {
   template <typename IT>
   BoundingBox& insert(IT first, IT last) {
     for ( ; first != last; ++first)
-      *this |= static_cast<point_type>(*first);
+      *this |= *first;
     return *this;
   }
 
@@ -216,3 +217,5 @@ BoundingBox<DIM> operator&(BoundingBox<DIM> box1,
                            const BoundingBox<DIM>& box2) {
   return box1 &= box2;
 }
+
+} // end namespace fmmtl

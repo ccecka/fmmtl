@@ -1,28 +1,12 @@
 #ifndef FMMTL_KERNELSKELETON_KERN
 #define FMMTL_KERNELSKELETON_KERN
 /** @file KernelSkeleton
- * @brief An example Kernel implementation that explains the required and
- * optional methods and types that define a Kernel class.
+ * @brief An example Kernel and Expansion implementation that explains the
+ * required and optional methods and types in the Kernel and Expansion concepts.
  *
- * This class will be used to evaluate the matrix-vector product
+ * These classes will be used to evaluate the matrix-vector product
  * r_i = sum_j K(t_i, s_j) c_j
  * for all i where K is the Kernel defined by this class.
-
- * A kernel is a function:
- * K : (target_type, source_type) -> kernel_value_type
- * The types in the matrix-vector product are
- * result_type = kernel_value_type * charge_type
- *
- * The source_type and target_type must be castable to a point_type. FMMs and
- * Treecodes use spacial trees to partition the sources and targets so they must
- * define a dimension and point_type.
- *
- * Many Kernels will specify source, target, and point types that are the same.
- * Other Kernels must ensure that
- * static_cast<point_type>(target_type)
- * and
- * static_cast<point_type>(source_type)
- * operate as expected.
  *
  * MORE on Tree Operations.
  */
@@ -34,10 +18,17 @@
 
 
 /** @struct KernelSkeleton
- * @brief A short description of an implemented Kernel. The Kernel class
- * need only define the types required in the equation
- * result = K(target,source) * charge
- * and the operator() to compute the kernel.
+ * @brief A short description of an implemented Kernel.
+ *
+ * A Kernel is a function:
+ * K : (target_type, source_type) -> kernel_value_type
+ * The types in the matrix-vector product are
+ * result_type = kernel_value_type * charge_type
+ *
+ * The Kernel class need only define the operator() to compute the kernel,
+ * and define the above types in the Kernel computation. (TODO: Not necessary)
+ * However, some optimizations may be possible by implementing optional methods
+ * detailed below.
  */
 struct KernelSkeleton
     : public fmmtl::Kernel<KernelSkeleton>   // This class is an FMMTL Kernel
@@ -168,7 +159,11 @@ FMMTL_KERNEL_EXTRAS(KernelSkeleton);
  * @brief A set of methods that can be used in the KernelMatrix and extend
  * the functionality of a Kernel with
  *
- * multipole_type and local_type with initialization methods
+ * The source_type and target_type must be castable to a point_type. FMMs and
+ * Treecodes use spacial trees to partition the sources and targets so they must
+ * define a dimension and point_type.
+ *
+ * multipole_type and local_type with initialization methods INITM and INITL
  * S2M operator
  * S2L operator (Adaptive FMM)
  * M2M operator
@@ -182,9 +177,9 @@ struct ExpansionSkeleton
 {
   /** @brief Spacial type to build the tree.
    * Restricted to fmmtl/numeric/Vec.hpp for now.
-   * @note source_type and target_type must be convertible to point_type:
-   *    static_cast<point_type>(source_type)
-   *    static_cast<point_type>(target_type)
+   * @note source_type and target_type must be convertible to point_type
+   *       or S2P and T2P should be defined. These provide a spacial
+   *       interpritation of the sources and targets for clustering.
    * @note Also defines the spacial dimension of the problem: [1-4] available.
    * TODO: Generalize? Use any type with op[]/size() or begin()/end()? */
   typedef Vec<3,double> point_type;
@@ -381,6 +376,32 @@ struct ExpansionSkeleton
   /*******************************************************************/
   /************************* Optional ********************************/
   /*******************************************************************/
+
+  /** Optional source-to-point transformation.
+   * If the source_type is not convertible to point_type or some other spatial
+   * interpretation of the sources is desired, implement this method to transform
+   * a source to a point appropriately.
+   *
+   * @param[in] source  The source data to be transformed
+   * @returns A point_type representing the spacial position of the source data
+   */
+  point_type S2P(const source_type& source) const {
+    (void) source;
+    return point_type();
+  }
+
+  /** Optional target-to-point transformation.
+   * If the target_type is not convertible to point_type or some other spatial
+   * interpretation of the targets is desired, implement this method to transform
+   * a target to a point appropriately.
+   *
+   * @param[in] target  The target data to be transformed
+   * @returns A point_type representing the spacial position of the target data
+   */
+  point_type T2P(const target_type& target) const {
+    (void) target;
+    return point_type();
+  }
 
   /** Optional Dynamic Multipole Acceptance Criteria
    * Some MACs depend on the data other than box descriptors. Extra data

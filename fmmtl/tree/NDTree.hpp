@@ -10,15 +10,18 @@
 #include <iostream>
 #include <iomanip>
 
+#include <boost/range.hpp>
 #include <boost/iterator/iterator_adaptor.hpp>
 #include <boost/iterator/permutation_iterator.hpp>
-using boost::iterator_adaptor;
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
 #include "BoundingBox.hpp"
 #include "MortonCoder.hpp"
 
+namespace fmmtl {
+using boost::has_range_iterator;
+using boost::iterator_adaptor;
 
 /** Bucket sort using pigeonhole sorting
  *
@@ -333,6 +336,14 @@ class NDTree {
 
   /** Construct an tree encompassing a bounding box
    * and insert a range of points */
+  template <typename Range>
+  NDTree(Range rng, unsigned n_crit = 256,
+         typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
+      : NDTree(rng.begin(), rng.end(), n_crit) {
+  }
+
+  /** Construct an tree encompassing a bounding box
+   * and insert a range of points */
   template <typename PointIter>
   NDTree(PointIter first, PointIter last, unsigned n_crit = 256)
       : coder_(get_boundingbox(first, last)) {
@@ -468,7 +479,7 @@ class NDTree {
 
     unsigned idx = 0;
     for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
-      point_type p = static_cast<point_type>(*pi);
+      point_type p = *pi;
       FMMTL_ASSERT(coder_.bounding_box().contains(p));
 
       //points.push_back(p);
@@ -565,3 +576,5 @@ class NDTree {
   NDTree(const NDTree& other_tree) {};
   void operator=(const NDTree& other_tree) {};
 };
+
+} // end namespace fmmtl

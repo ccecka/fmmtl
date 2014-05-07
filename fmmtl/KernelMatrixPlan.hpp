@@ -5,6 +5,8 @@
 #include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/context/Context.hpp"
 
+namespace fmmtl {
+
 /** Abstract PlanBase class */
 template <class Expansion>
 class PlanBase {
@@ -109,3 +111,5 @@ make_kernel_matrix_plan(const KernelMatrix& mat, const Options& opts) {
   typedef Plan<expansion_type, context_type> plan_type;
   return new plan_type(mat, opts);
 }
+
+} // end namespace fmmtl

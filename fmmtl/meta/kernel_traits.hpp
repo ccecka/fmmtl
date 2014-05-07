@@ -110,6 +110,16 @@ struct ExpansionTraits
                local_type&, const point_type&, unsigned);
   static const bool has_init_local = HasInitLocal<Expansion>::value;
 
+  // S2P, T2P
+  HAS_MEM_FUNC(HasS2P,
+               point_type, S2P,
+               const source_type&);
+  static const bool has_S2P = HasS2P<Expansion>::value;
+  HAS_MEM_FUNC(HasT2P,
+               point_type, T2P,
+               const target_type&);
+  static const bool has_T2P = HasT2P<Expansion>::value;
+
   // S2M
   HAS_MEM_FUNC(HasScalarS2M,
                void, S2M,
