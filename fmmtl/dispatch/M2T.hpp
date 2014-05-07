@@ -1,6 +1,6 @@
 #pragma once
-/** @file M2P.hpp
- * @brief Dispatch methods for the M2P stage
+/** @file M2T.hpp
+ * @brief Dispatch methods for the M2T stage
  *
  */
 
@@ -10,47 +10,47 @@
 
 /** Default behavior gives a warning -- using non-existent method */
 template <bool has_m2p>
-struct M2P_Helper {
+struct M2T_Helper {
   inline static void apply(...) {
-    std::cerr << "WARNING: Expansion does not have a correct M2P!\n";
+    std::cerr << "WARNING: Expansion does not have a correct M2T!\n";
   }
   inline static void eval(...) {
-    std::cerr << "WARNING: Expansion does not have a correct M2P!\n";
+    apply();
   }
 };
 
-/** Expansion has an M2P method (scalar/vector) to dispatch to */
+/** Expansion has an M2T method (scalar/vector) to dispatch to */
 template <>
-struct M2P_Helper<true> {
-  /** The Expansion provides a vector M2P accumulator. */
+struct M2T_Helper<true> {
+  /** The Expansion provides a vector M2T accumulator. */
   template <typename Expansion, typename TargetIter, typename ResultIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_vector_M2P>::type
+  typename std::enable_if<ExpansionTraits<Expansion>::has_vector_M2T>::type
   apply(const Expansion& K,
         const typename Expansion::multipole_type& M,
         const typename Expansion::point_type& center,
         TargetIter t_begin, TargetIter t_end, ResultIter r_begin) {
-    K.M2P(M, center, t_begin, t_end, r_begin);
+    K.M2T(M, center, t_begin, t_end, r_begin);
   }
 
-  /** The Expansion provides a scalar M2P accumulator. */
+  /** The Expansion provides a scalar M2T accumulator. */
   template <typename Expansion>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_M2P &
-                          !ExpansionTraits<Expansion>::has_vector_M2P>::type
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_M2T &
+                          !ExpansionTraits<Expansion>::has_vector_M2T>::type
   apply(const Expansion& K,
         const typename Expansion::multipole_type& M,
         const typename Expansion::point_type& center,
         const typename Expansion::target_type& target,
               typename Expansion::result_type& result) {
-    K.M2P(M, center, target, result);
+    K.M2T(M, center, target, result);
   }
 
-  /** The Expansion provides a scalar M2P accumulator. */
+  /** The Expansion provides a scalar M2T accumulator. */
   template <typename Expansion, typename TargetIter, typename ResultIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_M2P &
-                          !ExpansionTraits<Expansion>::has_vector_M2P>::type
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_M2T &
+                          !ExpansionTraits<Expansion>::has_vector_M2T>::type
   apply(const Expansion& K,
         const typename Expansion::multipole_type& M,
         const typename Expansion::point_type& center,
@@ -70,34 +70,34 @@ struct M2P_Helper<true> {
   }
 };
 
-/** Public M2P dispatcher */
-struct M2P {
-  /** Forward to M2P_Helper::apply */
+/** Public M2T dispatcher */
+struct M2T {
+  /** Forward to M2T_Helper::apply */
   template <typename Expansion>
   inline static void apply(const Expansion& K,
                            const typename Expansion::multipole_type& M,
                            const typename Expansion::point_type& center,
                            const typename Expansion::target_type& target,
                            typename Expansion::result_type& result) {
-    typedef M2P_Helper<ExpansionTraits<Expansion>::has_M2P> M2P_H;
-    M2P_H::apply(K, M, center, target, result);
+    typedef M2T_Helper<ExpansionTraits<Expansion>::has_M2T> M2T_H;
+    M2T_H::apply(K, M, center, target, result);
   }
 
-  /** Forward to M2P_Helper::eval */
+  /** Forward to M2T_Helper::eval */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::source_box_type& sbox,
                           const typename Context::target_box_type& tbox)
   {
 #if defined(FMMTL_DEBUG)
-    std::cout << "M2P:"
+    std::cout << "M2T:"
               << "\n  " << sbox
               << "\n  " << tbox << std::endl;
 #endif
-    FMMTL_LOG("M2P");
+    FMMTL_LOG("M2T");
 
     typedef ExpansionTraits<typename Context::expansion_type> expansion_traits;
-    typedef M2P_Helper<expansion_traits::has_M2P> M2P_H;
-    M2P_H::eval(c, sbox, tbox);
+    typedef M2T_Helper<expansion_traits::has_M2T> M2T_H;
+    M2T_H::eval(c, sbox, tbox);
   }
 };

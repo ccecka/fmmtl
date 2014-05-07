@@ -15,7 +15,7 @@ struct M2M_Helper {
     std::cerr << "WARNING: Expansion does not have a correct M2M!\n";
   }
   inline static void eval(...) {
-    std::cerr << "WARNING: Expansion does not have a correct M2M!\n";
+    apply();
   }
 };
 
@@ -73,4 +73,3 @@ struct M2M {
     M2M_H::eval(c, sbox, tbox);
   }
 };
-

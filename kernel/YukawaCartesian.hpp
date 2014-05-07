@@ -126,7 +126,7 @@ class YukawaCartesian
     L = std::vector<real>((P+1)*(P+2)*(P+3)/6, 0);
   }
 
-  /** Kernel P2M operation
+  /** Kernel S2M operation
    * M += Op(s) * c where M is the multipole and s is the source
    *
    * @param[in] source The source to accumulate into the multipole
@@ -134,7 +134,7 @@ class YukawaCartesian
    * @param[in] center The center of the box containing the multipole expansion
    * @param[in,out] M The multipole expansion to accumulate into
    */
-  void P2M(const source_type& source, const charge_type& charge,
+  void S2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
     point_type dX = center - source;
 
@@ -176,7 +176,7 @@ class YukawaCartesian
     }
   }
 
-  /** Kernel M2P operation
+  /** Kernel M2T operation
    * r += Op(M, t) where M is the multipole and r is the result
    *
    * @param[in] M The multpole expansion
@@ -185,7 +185,7 @@ class YukawaCartesian
    * @param[in,out] result The target's corresponding result to accumulate into
    * @pre M includes the influence of all sources within its box
    */
-  void M2P(const multipole_type& M, const point_type& center,
+  void M2T(const multipole_type& M, const point_type& center,
            const target_type& target, result_type& result) const {
     std::vector<real> a_aux(MTERMS,0), ax_aux(MTERMS,0), ay_aux(MTERMS,0), az_aux(MTERMS,0);
 
@@ -282,16 +282,16 @@ class YukawaCartesian
     }
   }
 
-  /** Kernel L2P operation
+  /** Kernel L2T operation
    * r += Op(L, t) where L is the local expansion and r is the result
    *
    * @param[in] L The local expansion
    * @param[in] center The center of the box with the local expansion
-   * @param[in] target The target of this L2P operation
+   * @param[in] target The target of this L2T operation
    * @param[in] result The result to accumulate into
    * @pre L includes the influence of all sources outside its box
    */
-  void L2P(const local_type& L, const point_type& center,
+  void L2T(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
     auto dx = target-center;
 

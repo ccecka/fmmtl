@@ -15,7 +15,7 @@ struct L2L_Helper {
     std::cerr << "WARNING: Expansion does not have a correct L2L!\n";
   }
   inline static void eval(...) {
-    std::cerr << "WARNING: Expansion does not have a correct L2L!\n";
+    apply();
   }
 };
 
@@ -73,4 +73,3 @@ struct L2L {
     L2L_H::eval(c, sbox, tbox);
   }
 };
-

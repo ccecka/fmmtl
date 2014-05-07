@@ -23,7 +23,7 @@ Performance
 
 [ ] On-demand tree/child construction.
 [ ] Automatic balancing of near-field and far-field -- deprecate ncrit.
-[ ] Autotuning for choosing between computational pathways, e.g M2L+L2L+L2P => M2P.
+[ ] Autotuning for choosing between computational pathways, e.g M2L+L2L+L2T => M2T.
 [ ] Investigate use of KD-trees rather than 2k-trees.
 [ ] Cached-optimal and communication-optimal distributed p2p library.
 [x] Optimization of A2B algorithms in the case of unused arguments.

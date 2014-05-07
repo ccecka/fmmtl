@@ -51,15 +51,15 @@ struct ExpExpansion
   //! Local expansion type
   typedef double local_type;
 
-  /** Kernel P2M operation */
-  void P2M(const source_type& source, const charge_type& charge,
+  /** Kernel S2M operation */
+  void S2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
     M += exp(center[0] + center[1] + center[2]
              - source[0] - source[1] - source[2]) * charge;
   }
 
-  /** Kernel P2L operation */
-  void P2L(const source_type& source, const charge_type& charge,
+  /** Kernel S2L operation */
+  void S2L(const source_type& source, const charge_type& charge,
            const point_type& center, local_type& L) const {
     L += exp(center[0] + center[1] + center[2]
              - source[0] - source[1] - source[2]) * charge;
@@ -79,8 +79,8 @@ struct ExpExpansion
     target += exp(translation[0] + translation[1] + translation[2]) * source;
   }
 
-  /** Kernel M2P operation */
-  void M2P(const multipole_type& M, const point_type& center,
+  /** Kernel M2T operation */
+  void M2T(const multipole_type& M, const point_type& center,
            const target_type& target, result_type& result) const {
     result += exp(target[0] + target[1] + target[2]
                   - center[0] - center[1] - center[2]) * M;
@@ -93,8 +93,8 @@ struct ExpExpansion
     target += exp(translation[0] + translation[1] + translation[2]) * source;
   }
 
-  /** Kernel L2P operation */
-  void L2P(const local_type& L, const point_type& center,
+  /** Kernel L2T operation */
+  void L2T(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
     result += exp(target[0] + target[1] + target[2]
                   - center[0] - center[1] - center[2]) * L;

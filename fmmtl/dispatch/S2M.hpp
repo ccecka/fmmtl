@@ -1,6 +1,6 @@
 #pragma once
-/** @file P2M.hpp
- * @brief Dispatch methods for the P2M stage
+/** @file S2M.hpp
+ * @brief Dispatch methods for the S2M stage
  *
  */
 
@@ -10,47 +10,47 @@
 
 /** Default behavior gives a warning -- using non-existent method */
 template <bool has_p2m>
-struct P2M_Helper {
+struct S2M_Helper {
   inline static void apply(...) {
-    std::cerr << "WARNING: Expansion does not have a correct P2M!\n";
+    std::cerr << "WARNING: Expansion does not have a correct S2M!\n";
   }
   inline static void eval(...) {
-    std::cerr << "WARNING: Expansion does not have a correct P2M!\n";
+    apply();
   }
 };
 
-/** Expansion has an P2M method (scalar/vector) to dispatch to */
+/** Expansion has an S2M method (scalar/vector) to dispatch to */
 template <>
-struct P2M_Helper<true> {
-  /** The Expansion provides a vector P2M accumulator. */
+struct S2M_Helper<true> {
+  /** The Expansion provides a vector S2M accumulator. */
   template <typename Expansion, typename SourceIter, typename ChargeIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_vector_P2M>::type
+  typename std::enable_if<ExpansionTraits<Expansion>::has_vector_S2M>::type
   apply(const Expansion& K,
         SourceIter s_begin, SourceIter s_end, ChargeIter c_begin,
         const typename Expansion::point_type& center,
         typename Expansion::multipole_type& M) {
-    K.P2M(s_begin, s_end, c_begin, center, M);
+    K.S2M(s_begin, s_end, c_begin, center, M);
   }
 
-  /** The Expansion provides a scalar P2M accumulator. */
+  /** The Expansion provides a scalar S2M accumulator. */
   template <typename Expansion>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_P2M &
-                          !ExpansionTraits<Expansion>::has_vector_P2M>::type
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_S2M &
+                          !ExpansionTraits<Expansion>::has_vector_S2M>::type
   apply(const Expansion& K,
         const typename Expansion::source_type& source,
         const typename Expansion::charge_type& charge,
         const typename Expansion::point_type& center,
         typename Expansion::multipole_type& M) {
-    K.P2M(source, charge, center, M);
+    K.S2M(source, charge, center, M);
   }
 
-  /** The Expansion provides a scalar P2M accumulator. */
+  /** The Expansion provides a scalar S2M accumulator. */
   template <typename Expansion, typename SourceIter, typename ChargeIter>
   inline static
-  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_P2M &
-                          !ExpansionTraits<Expansion>::has_vector_P2M>::type
+  typename std::enable_if<ExpansionTraits<Expansion>::has_scalar_S2M &
+                          !ExpansionTraits<Expansion>::has_vector_S2M>::type
   apply(const Expansion& K,
         SourceIter s_begin, SourceIter s_end, ChargeIter c_begin,
         const typename Expansion::point_type& center,
@@ -70,32 +70,32 @@ struct P2M_Helper<true> {
   }
 };
 
-/** Public P2M dispatcher */
-struct P2M {
-  /** Forward to P2M_Helper::apply */
+/** Public S2M dispatcher */
+struct S2M {
+  /** Forward to S2M_Helper::apply */
   template <typename Expansion>
   inline static void apply(const Expansion& K,
                            const typename Expansion::source_type& source,
                            const typename Expansion::charge_type& charge,
                            const typename Expansion::point_type& center,
                            typename Expansion::multipole_type& M) {
-    typedef P2M_Helper<ExpansionTraits<Expansion>::has_P2M> P2M_H;
-    P2M_H::apply(K, source, charge, center, M);
+    typedef S2M_Helper<ExpansionTraits<Expansion>::has_S2M> S2M_H;
+    S2M_H::apply(K, source, charge, center, M);
   }
 
-  /** Forward to P2M_Helper::eval */
+  /** Forward to S2M_Helper::eval */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::source_box_type& sbox)
   {
 #if defined(FMMTL_DEBUG)
-    std::cout << "P2M:"
+    std::cout << "S2M:"
               << "\n  " << sbox << std::endl;
 #endif
-    FMMTL_LOG("P2M");
+    FMMTL_LOG("S2M");
 
     typedef ExpansionTraits<typename Context::expansion_type> expansion_traits;
-    typedef P2M_Helper<expansion_traits::has_P2M> P2M_H;
-    P2M_H::eval(c, sbox);
+    typedef S2M_Helper<expansion_traits::has_S2M> S2M_H;
+    S2M_H::eval(c, sbox);
   }
 };

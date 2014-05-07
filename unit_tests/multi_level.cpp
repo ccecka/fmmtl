@@ -47,7 +47,7 @@ void two_level_test(const Expansion& K) {
   point_type M_center(0.05, 0.05, 0.05);
   point_type M_extent(0.1, 0.1, 0.1);
   INITM::apply(K, M, M_extent, 2u);
-  K.P2M(s[0], c[0], M_center, M);
+  K.S2M(s[0], c[0], M_center, M);
 
   // perform M2M
   multipole_type M2;
@@ -55,7 +55,7 @@ void two_level_test(const Expansion& K) {
   point_type M2_extent(0.2, 0.2, 0.2);
   INITM::apply(K, M2, M2_extent, 1u);
   K.M2M(M, M2, M2_center - M_center);
-  //K.P2M(s,c,M2_center,M2);
+  //K.S2M(s,c,M2_center,M2);
 
   // test M2L
   local_type L2;
@@ -71,8 +71,8 @@ void two_level_test(const Expansion& K) {
   INITL::apply(K, L, L_extent, 2u);
   K.L2L(L2, L, L_center - L2_center);
 
-  // test L2P
-  K.L2P(L2, L2_center, t[0], rfmm);
+  // test L2T
+  K.L2T(L2, L2_center, t[0], rfmm);
 
   // check errors
   std::cout << "rexact = " << rexact[0] << std::endl;

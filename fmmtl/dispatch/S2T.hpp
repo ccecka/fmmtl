@@ -1,6 +1,6 @@
 #pragma once
-/** @file P2P.hpp
- * @brief Dispatch methods for the P2P stage
+/** @file S2T.hpp
+ * @brief Dispatch methods for the S2T stage
  *
  */
 
@@ -9,7 +9,7 @@
 #include <iterator>
 #include <type_traits>
 
-struct P2P
+struct S2T
 {
   /** Dual-Evaluation dispatch
    */
@@ -50,22 +50,22 @@ struct P2P
     r2 += K.transpose(k12) * c1;
   }
 
-	/** Asymmetric block P2P dispatch
+	/** Asymmetric block S2T dispatch
 	 */
 	template <typename Kernel,
 	          typename SourceIter, typename ChargeIter,
 	          typename TargetIter, typename ResultIter>
 	inline static
-	typename std::enable_if<KernelTraits<Kernel>::has_vector_P2P_asymm>::type
+	typename std::enable_if<KernelTraits<Kernel>::has_vector_S2T_asymm>::type
 	block_eval(const Kernel& K,
              SourceIter s_first, SourceIter s_last, ChargeIter c_first,
              TargetIter t_first, TargetIter t_last, ResultIter r_first)
 	{
-		K.P2P(s_first, s_last, c_first,
+		K.S2T(s_first, s_last, c_first,
 		      t_first, t_last, r_first);
 	}
 
-	/** Asymmetric block P2P using the evaluation operator
+	/** Asymmetric block S2T using the evaluation operator
 	 * r_i += sum_j K(t_i, s_j) * c_j
 	 *
 	 * @param[in] ...
@@ -75,7 +75,7 @@ struct P2P
 	          typename TargetIter, typename ResultIter>
 	inline static
   typename std::enable_if<KernelTraits<Kernel>::has_eval_op &
-                          !KernelTraits<Kernel>::has_vector_P2P_asymm>::type
+                          !KernelTraits<Kernel>::has_vector_S2T_asymm>::type
   block_eval(const Kernel& K,
              SourceIter s_first, SourceIter s_last, ChargeIter c_first,
              TargetIter t_first, TargetIter t_last, ResultIter r_first)
@@ -109,25 +109,25 @@ struct P2P
     }
   }
 
-  /** Symmetric off-diagonal block P2P dispatch
+  /** Symmetric off-diagonal block S2T dispatch
    * @pre source_type == target_type
    */
   template <typename Kernel,
             typename SourceIter, typename ChargeIter, typename ResultIter>
   inline static
-  typename std::enable_if<KernelTraits<Kernel>::has_vector_P2P_symm>::type
+  typename std::enable_if<KernelTraits<Kernel>::has_vector_S2T_symm>::type
   block_eval(const Kernel& K,
              SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
              ResultIter r1_first,
              SourceIter p2_first, SourceIter p2_last, ChargeIter c2_first,
              ResultIter r2_first)
   {
-    K.P2P(p1_first, p1_last, c1_first,
+    K.S2T(p1_first, p1_last, c1_first,
           p2_first, p2_last, c2_first,
           r1_first, r2_first);
   }
 
-  /** Symmetric off-diagonal block P2P using the evaluation operator
+  /** Symmetric off-diagonal block S2T using the evaluation operator
    * r2_i += sum_j K(p2_i, p1_j) * c1_j
    * r1_j += sum_i K(p1_j, p2_i) * c2_i
    *
@@ -138,7 +138,7 @@ struct P2P
   template <typename Kernel,
             typename SourceIter, typename ChargeIter, typename ResultIter>
   inline static
-  typename std::enable_if<!KernelTraits<Kernel>::has_vector_P2P_symm>::type
+  typename std::enable_if<!KernelTraits<Kernel>::has_vector_S2T_symm>::type
   block_eval(const Kernel& K,
              SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
              ResultIter r1_first,
@@ -172,11 +172,11 @@ struct P2P
       ChargeIter c2i = c2_first;
       ResultIter r2i = r2_first;
       for ( ; p2i != p2_last; ++p2i, ++c2i, ++r2i)
-        P2P::symm_eval(K, p1, c1, r1, *p2i, *c2i, *r2i);
+        S2T::symm_eval(K, p1, c1, r1, *p2i, *c2i, *r2i);
     }
   }
 
-  /** Symmetric diagonal block P2P using the evaluation operator
+  /** Symmetric diagonal block S2T using the evaluation operator
    * r_i += sum_j K(p_i, p_j) * c_j
    *
    * @pre source_type == target_type
@@ -184,7 +184,7 @@ struct P2P
   template <typename Kernel,
             typename SourceIter, typename ChargeIter, typename ResultIter>
   inline static
-  typename std::enable_if<!KernelTraits<Kernel>::has_vector_P2P_symm>::type
+  typename std::enable_if<!KernelTraits<Kernel>::has_vector_S2T_symm>::type
   block_eval(const Kernel& K,
              SourceIter p_first, SourceIter p_last,
              ChargeIter c_first, ResultIter r_first)
@@ -195,7 +195,7 @@ struct P2P
     typedef typename Kernel::result_type result_type;
 
     static_assert(std::is_same<source_type, target_type>::value,
-                  "source_type != target_type in symmetric P2P");
+                  "source_type != target_type in symmetric S2T");
     static_assert(std::is_same<source_type,
                                typename SourceIter::value_type>::value,
                   "SourceIter::value_type != Kernel::source_type");
@@ -222,7 +222,7 @@ struct P2P
       ChargeIter cj = c_first;
       ResultIter rj = r_first;
       for ( ; pj != pi; ++pj, ++cj, ++rj)
-        P2P::symm_eval(K, p, c, r, *pj, *cj, *rj);
+        S2T::symm_eval(K, p, c, r, *pj, *cj, *rj);
 
       // The diagonal element
       r += K(p,p) * c;
@@ -237,7 +237,7 @@ struct P2P
   struct ONE_SIDED {};
   struct TWO_SIDED {};
 
-  /** Asymmetric P2P
+  /** Asymmetric S2T
    */
   template <typename Context>
   inline static void eval(Context& c,
@@ -246,20 +246,20 @@ struct P2P
                           const ONE_SIDED&)
   {
 #if defined(FMMTL_DEBUG)
-    std::cout << "P2P:"
+    std::cout << "S2T:"
               << "\n  " << source
               << "\n  " << target << std::endl;
 #endif
-    FMMTL_LOG("P2P 2box asymm");
+    FMMTL_LOG("S2T 2box asymm");
 
-    P2P::block_eval(c.kernel(),
+    S2T::block_eval(c.kernel(),
                     c.source_begin(source), c.source_end(source),
                     c.charge_begin(source),
                     c.target_begin(target), c.target_end(target),
                     c.result_begin(target));
   }
 
-  /** Symmetric P2P
+  /** Symmetric S2T
    */
   template <typename Context>
   inline static void eval(Context& c,
@@ -268,35 +268,35 @@ struct P2P
                           const TWO_SIDED&)
   {
 #if defined(FMMTL_DEBUG)
-    std::cout << "P2P:"
+    std::cout << "S2T:"
               << "\n  " << box1
               << "\n  " << box2 << std::endl;
-    std::cout << "P2P:"
+    std::cout << "S2T:"
               << "\n  " << box2
               << "\n  " << box1 << std::endl;
 #endif
-    FMMTL_LOG("P2P 2box symm");
+    FMMTL_LOG("S2T 2box symm");
 
-    P2P::block_eval(c.kernel(),
+    S2T::block_eval(c.kernel(),
                     c.source_begin(box1), c.source_end(box1),
                     c.charge_begin(box1), c.result_begin(box1),
                     c.target_begin(box2), c.target_end(box2),
                     c.charge_begin(box2), c.result_begin(box2));
   }
 
-  /** Symmetric P2P
+  /** Symmetric S2T
    */
   template <typename Context>
   inline static void eval(Context& c,
                           const typename Context::source_box_type& box)
   {
 #if defined(FMMTL_DEBUG)
-    std::cout << "P2P:"
+    std::cout << "S2T:"
               << "\n  " << box << std::endl;
 #endif
-    FMMTL_LOG("P2P 1box symm");
+    FMMTL_LOG("S2T 1box symm");
 
-    P2P::block_eval(c.kernel(),
+    S2T::block_eval(c.kernel(),
                     c.source_begin(box), c.source_end(box),
                     c.charge_begin(box), c.result_begin(box),
                     c.target_begin(box), c.target_end(box),
@@ -307,25 +307,25 @@ struct P2P
 
 
 /**
- * Batched P2P methods
+ * Batched S2T methods
  **/
 
 #include <cmath>
 
-#include "fmmtl/dispatch/P2P_Compressed.hpp"
+#include "fmmtl/dispatch/S2T/S2T_Compressed.hpp"
 
-#define BOOST_UBLAS_NDEBUG
-#include <boost/numeric/ublas/matrix_sparse.hpp>
-#include <boost/numeric/ublas/vector.hpp>
-namespace ublas = boost::numeric::ublas;
+//#define BOOST_UBLAS_NDEBUG
+//#include <boost/numeric/ublas/matrix_sparse.hpp>
+//#include <boost/numeric/ublas/vector.hpp>
+//namespace ublas = boost::numeric::ublas;
 
-#include <unordered_map>
+#include <vector>
 
-/** A lazy P2P evaluator which saves a list of pairs of boxes
- * That are sent to the P2P dispatcher on demand.
+/** A lazy S2T evaluator which saves a list of pairs of boxes
+ * That are sent to the S2T dispatcher on demand.
  */
 template <typename Context>
-class P2P_Batch {
+class S2T_Batch {
   //! Kernel type
   typedef typename Context::kernel_type kernel_type;
   //! Kernel value type
@@ -339,18 +339,18 @@ class P2P_Batch {
   std::vector<std::vector<source_box_type>> source_boxes;
   unsigned box_pair_count;
 
-  //! Box list for P2P interactions    TODO: could further compress these...
+  //! Box list for S2T interactions    TODO: could further compress these...
   //typedef std::pair<source_box_type, target_box_type> box_pair;
   //std::vector<box_pair> p2p_list;
 
   // For now, only use for GPU...
-  P2P_Compressed<kernel_type>* p2p_compressed;
+  S2T_Compressed<kernel_type>* p2p_compressed;
 
  public:
-  P2P_Batch()
+  S2T_Batch()
       : box_pair_count(0), p2p_compressed(nullptr) {
   }
-  ~P2P_Batch() {
+  ~S2T_Batch() {
     delete p2p_compressed;
   }
 
@@ -371,11 +371,11 @@ class P2P_Batch {
 
   /** Compute all interations in the interaction list */
   void execute(Context& c) {
-    FMMTL_LOG("P2P Batch");
+    FMMTL_LOG("S2T Batch");
 #if defined(FMMTL_WITH_CUDA)        // XXX: Dispatch this
     if (p2p_compressed == nullptr)
       p2p_compressed =
-          P2P_Compressed<kernel_type>::make(c, target_box_list, source_boxes, box_pair_count);
+          S2T_Compressed<kernel_type>::make(c, target_box_list, source_boxes, box_pair_count);
     p2p_compressed->execute(c);
 #else
     auto t_end = target_box_list.end();
@@ -384,14 +384,14 @@ class P2P_Batch {
       target_box_type& tb = *ti;
       auto s_end = source_boxes[tb.index()].end();
       for (auto si = source_boxes[tb.index()].begin(); si != s_end; ++si) {
-        P2P::eval(c, *si, tb, P2P::ONE_SIDED());
+        S2T::eval(c, *si, tb, S2T::ONE_SIDED());
       }
     }
 #endif
   }
 
   /*
-  class P2P_Matrix
+  class S2T_Matrix
       : public EvaluatorBase<Context> {
     ublas::compressed_matrix<kernel_value_type> A;
 

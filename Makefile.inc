@@ -21,7 +21,7 @@ KERNEL_DIR = $(FMMTL_DIR)kernel
 UNAME := $(shell uname)
 
 # Define the C++ compiler to use
-CXX := $(shell which g++) -std=gnu++0x -fPIC
+CXX := $(shell which g++) -std=c++11 -fPIC
 # Check the version number of CXX
 CXX_VERSION_LT_47 := $(shell expr `$(CXX) -dumpversion | cut -f1,2 -d.` \< 4.7)
 ifeq ($(CXX_VERSION_LT_47),1)
@@ -44,7 +44,7 @@ INCLUDES += -I. -I$(FMMTL_DIR) -I$(KERNEL_DIR)
 INCLUDES += -I$(BOOST_DIR)
 
 # Define cxx compile flags
-CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra #-Wfatal-errors
+CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors
 
 # Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
 NVCCFLAGS := --compiler-options "$(CXXFLAGS)" -w -arch=sm_20 -O3 #-Xptxas="-v"

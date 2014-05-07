@@ -20,12 +20,12 @@ struct SphericalMultipole3D {
     return ((n & 1) ? -1 : 1);
   }
 
-  /** Kernel P2M operation
+  /** Kernel S2M operation
    * M += Op(s) * c where M is the multipole and s is the source
    */
   template <typename charge_type>
   inline static
-  void P2M(int P, const point_type& translation, const charge_type& charge,
+  void S2M(int P, const point_type& translation, const charge_type& charge,
            multipole_type& M) {
     using fmmtl::conj;
 

@@ -5,7 +5,7 @@ using thrust::system::cuda::detail::detail::uninitialized_array;
 
 #include "fmmtl/meta/kernel_traits.hpp"
 
-/** CSR Blocked P2P in CUDA
+/** CSR Blocked S2T in CUDA
  * @brief  Computes the kernel matrix-vector product using a blocked CSR-like
  *     format. Each target range has a range of source ranges to compute.
  *

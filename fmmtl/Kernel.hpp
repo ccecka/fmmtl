@@ -12,7 +12,7 @@
 
 #include "fmmtl/config.hpp"
 
-#include "fmmtl/dispatch/P2P_Compressed.hpp"
+#include "fmmtl/dispatch/S2T/S2T_Compressed.hpp"
 
 namespace fmmtl
 {
@@ -34,6 +34,6 @@ struct Kernel {
 
 // Template instantiations for external compilation and linking
 // TODO: Remove?
-#define FMMTL_KERNEL_EXTRAS(kernel) template class P2P_Compressed<kernel>
+#define FMMTL_KERNEL_EXTRAS(kernel) template class S2T_Compressed<kernel>
 
 } // end namespace fmmtl

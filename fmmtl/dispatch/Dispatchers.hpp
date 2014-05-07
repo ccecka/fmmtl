@@ -3,13 +3,13 @@
 #include "INITM.hpp"
 #include "INITL.hpp"
 
-#include "P2P.hpp"
-#include "P2M.hpp"
-#include "P2L.hpp"
-#include "M2P.hpp"
+#include "S2T.hpp"
+#include "S2M.hpp"
+#include "S2L.hpp"
+#include "M2T.hpp"
 #include "M2M.hpp"
 #include "M2L.hpp"
-#include "L2P.hpp"
+#include "L2T.hpp"
 #include "L2L.hpp"
 
 #include "MAC.hpp"

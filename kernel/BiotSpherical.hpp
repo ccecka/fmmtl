@@ -53,7 +53,7 @@ class BiotSpherical
     L = local_type(P*(P+1)/2);
   }
 
-  /** Kernel P2M operation
+  /** Kernel S2M operation
    * M += Op(s) * c where M is the multipole and s is the source
    *
    * @param[in] source The point source
@@ -61,9 +61,9 @@ class BiotSpherical
    * @param[in] center The center of the box containing the multipole expansion
    * @param[in,out] M The multipole expansion to accumulate into
    */
-  void P2M(const source_type& source, const charge_type& charge,
+  void S2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
-    return SphOp::P2M(P, center-source, charge, M);
+    return SphOp::S2M(P, center-source, charge, M);
   }
 
   /** Kernel M2M operator
@@ -109,16 +109,16 @@ class BiotSpherical
     return SphOp::L2L(P, Lsource, Ltarget, translation);
   }
 
-  /** Kernel L2P operation
+  /** Kernel L2T operation
    * r += Op(L, t) where L is the local expansion and r is the result
    *
    * @param[in] L The local expansion
    * @param[in] center The center of the box with the local expansion
-   * @param[in] target The target of this L2P operation
+   * @param[in] target The target of this L2T operation
    * @param[in] result The result to accumulate into
    * @pre L includes the influence of all sources outside its box
    */
-  void L2P(const local_type& L, const point_type& center,
+  void L2T(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
     using fmmtl::real;
     using fmmtl::imag;

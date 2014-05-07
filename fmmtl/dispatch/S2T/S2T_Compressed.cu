@@ -5,10 +5,10 @@
 #include <thrust/device_vector.h>
 #include <thrust/copy.h>
 
-#include "P2P_Compressed.hpp"
 #include "fmmtl/config.hpp"
 
-#include "fmmtl/dispatch/p2p/p2p_blocked_csr.cu"
+#include "fmmtl/dispatch/S2T/S2T_Compressed.hpp"
+#include "fmmtl/dispatch/S2T/S2T_Blocked_CSR.cu"
 
 struct Data {
   unsigned num_sources;
@@ -47,12 +47,12 @@ inline void gpu_free(T* p) {
 }
 
 template <typename Kernel>
-P2P_Compressed<Kernel>::P2P_Compressed()
+S2T_Compressed<Kernel>::S2T_Compressed()
     : data_(0) {
 }
 
 template <typename Kernel>
-P2P_Compressed<Kernel>::P2P_Compressed(
+S2T_Compressed<Kernel>::S2T_Compressed(
     std::vector<std::pair<unsigned,unsigned> >& target_ranges,
     std::vector<unsigned>& source_range_ptrs,
     std::vector<std::pair<unsigned,unsigned> >& source_ranges,
@@ -67,7 +67,7 @@ P2P_Compressed<Kernel>::P2P_Compressed(
 }
 
 template <typename Kernel>
-P2P_Compressed<Kernel>::~P2P_Compressed() {
+S2T_Compressed<Kernel>::~S2T_Compressed() {
   delete data_;
   gpu_free(target_ranges_);
   gpu_free(source_range_ptrs_);
@@ -90,7 +90,7 @@ class tricky_cast {
 };
 
 template <typename Kernel>
-void P2P_Compressed<Kernel>::execute(
+void S2T_Compressed<Kernel>::execute(
     const Kernel& K,
     const std::vector<charge_type>& charges,
     std::vector<result_type>& results) {
@@ -168,7 +168,7 @@ class constant {
 
 template <typename Kernel>
 void
-P2P_Compressed<Kernel>::execute(const Kernel& K,
+S2T_Compressed<Kernel>::execute(const Kernel& K,
                                 const std::vector<source_type>& s,
                                 const std::vector<charge_type>& c,
                                 const std::vector<target_type>& t,

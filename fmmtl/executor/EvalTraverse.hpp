@@ -33,8 +33,8 @@ class EvalTraverse
     // Perform the upward pass (not all may be needed)
     auto up_dispatch = [&c](const source_box& box) {
       if (box.is_leaf()) {
-        // If leaf, make P2M calls
-        P2M::eval(c, box);
+        // If leaf, make S2M calls
+        S2M::eval(c, box);
       } else {
         // If not leaf, then for all the children M2M
         auto c_end = box.child_end();
@@ -53,7 +53,7 @@ class EvalTraverse
       return false;
     };
     auto near_dispatch = [&c](const source_box& s, const target_box& t) {
-      P2P::eval(c,s,t,P2P::ONE_SIDED());
+      S2T::eval(c,s,t,S2T::ONE_SIDED());
     };
     Traverse::eval(c.source_tree().root(), c.target_tree().root(),
                    near_dispatch, far_dispatch);
@@ -61,8 +61,8 @@ class EvalTraverse
     // Perform the downward pass (not all may be needed)
     auto down_dispatch = [&c](const target_box& box) {
       if (box.is_leaf()) {
-        // If leaf, make L2P calls
-        L2P::eval(c, box);
+        // If leaf, make L2T calls
+        L2T::eval(c, box);
       } else {
         // If not leaf, then for all children L2L
         auto c_end = box.child_end();

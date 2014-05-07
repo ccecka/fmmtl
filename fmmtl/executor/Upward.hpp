@@ -38,7 +38,7 @@ struct ComputeM {
 
     if (sbox.is_leaf()) {
       // Compute the multipole from the box's sources
-      P2M::eval(c, sbox);
+      S2M::eval(c, sbox);
     } else {
       auto c_end = sbox.child_end();
       for (auto cit = sbox.child_begin(); cit != c_end; ++cit) {

@@ -7,7 +7,7 @@
 #include "Helmholtz.kern"
 #include "Stokes.kern"
 
-#include "fmmtl/dispatch/P2P.hpp"
+#include "fmmtl/dispatch/S2T.hpp"
 
 #include <vector>
 #include <set>
@@ -124,8 +124,8 @@ int main(int argc, char** argv) {
   // Create a vector of results
   std::vector<result_type> r_cpu(N);
 
-  // Compute the full P2P on the CPU.
-  P2P::block_eval(K,
+  // Compute the full S2T on the CPU.
+  S2T::block_eval(K,
                   s.begin(), s.end(), c.begin(),
                   t.begin(), t.end(), r_cpu.begin());
 
@@ -139,8 +139,8 @@ int main(int argc, char** argv) {
   // Create a vector of results
   std::vector<result_type> r_gpu(N);
 
-  // Compute the full P2P on the GPU
-  P2P_Compressed<kernel_type>::execute(K, s, c, t, r_gpu);
+  // Compute the full S2T on the GPU
+  S2T_Compressed<kernel_type>::execute(K, s, c, t, r_gpu);
 
 #if defined(FMMTL_DEBUG)
   std::cout << "GPU:" << std::endl;
@@ -178,15 +178,15 @@ int main(int argc, char** argv) {
   }
 #endif
 
-  // Create the blocked P2P on the GPU
-  P2P_Compressed<kernel_type>* p2p
-      = P2P_Compressed<kernel_type>::make(sr_list.begin(), sr_list.end(),
+  // Create the blocked S2T on the GPU
+  S2T_Compressed<kernel_type>* p2p
+      = S2T_Compressed<kernel_type>::make(sr_list.begin(), sr_list.end(),
                                           tr_list.begin(),
                                           s, t);
   // Create a vector of results
   std::vector<result_type> r_gpu_b(N);
 
-  // Execute the blocked P2P on the GPU
+  // Execute the blocked S2T on the GPU
   p2p->execute(K, c, r_gpu_b);
 
 #if defined(FMMTL_DEBUG)

@@ -15,7 +15,7 @@ struct M2L_Helper {
     std::cerr << "WARNING: Expansion does not have a correct M2L!\n";
   }
   inline static void eval(...) {
-    std::cerr << "WARNING: Expansion does not have a correct M2L!\n";
+    apply();
   }
 };
 

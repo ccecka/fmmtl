@@ -84,7 +84,7 @@ struct KernelSkeleton
    * Often, a kernel has a symmetry in s and t that can be computed faster than
    * by calling the evaluation operator. If this function is implemented, the
    * computation may use it to prevent uneccessary calls to the evaluation
-   * operator and accelerate the P2P interactions.
+   * operator and accelerate the S2T interactions.
    *
    * @param[in] kts  A kernel value that was returned from operator()(t,s)
    * @returns        The value of operator()(s,t)
@@ -96,7 +96,7 @@ struct KernelSkeleton
     return kts;
   }
 
-  /** Optional Kernel vectorized asymmetric P2P operation
+  /** Optional Kernel vectorized asymmetric S2T operation
    * r_i += sum_j K(t_i,s_j) * c_j
    *
    * @param[in] s_first,s_last  Iterator range to the sources
@@ -107,7 +107,7 @@ struct KernelSkeleton
    */
   template <typename SourceIter, typename ChargeIter,
             typename TargetIter, typename ResultIter>
-  void P2P(SourceIter s_first, SourceIter s_last, ChargeIter c_first,
+  void S2T(SourceIter s_first, SourceIter s_last, ChargeIter c_first,
            TargetIter t_first, TargetIter t_last, ResultIter r_first) const {
     (void) s_first;
     (void) s_last;
@@ -117,7 +117,7 @@ struct KernelSkeleton
     (void) r_first;
   }
 
-  /** Optional Kernel vectorized symmetric P2P operation
+  /** Optional Kernel vectorized symmetric S2T operation
    * This can occur when s_i == t_i for all i.
    * rt_i += sum_j K(t_i, s_j) * cs_j
    * rs_j += sum_i K(s_j, t_i) * ct_i
@@ -133,7 +133,7 @@ struct KernelSkeleton
    */
   template <typename SourceIter, typename ChargeIter,
             typename TargetIter, typename ResultIter>
-  void P2P(SourceIter s_first, SourceIter s_last, ChargeIter cs_first,
+  void S2T(SourceIter s_first, SourceIter s_last, ChargeIter cs_first,
            TargetIter t_first, TargetIter t_last, ChargeIter ct_first,
            ResultIter rt_first, ResultIter rs_first) const {
     (void) s_first;
@@ -169,13 +169,13 @@ FMMTL_KERNEL_EXTRAS(KernelSkeleton);
  * the functionality of a Kernel with
  *
  * multipole_type and local_type with initialization methods
- * P2M operator
- * P2L operator (Adaptive FMM)
+ * S2M operator
+ * S2L operator (Adaptive FMM)
  * M2M operator
  * M2L operator (FMM)
- * M2P operator (Treecode)
+ * M2T operator (Treecode)
  * L2L operator (FMM)
- * L2P operator (FMM)
+ * L2T operator (FMM)
  */
 struct ExpansionSkeleton
     : public fmmtl::Expansion<KernelSkeleton, ExpansionSkeleton>
@@ -240,16 +240,17 @@ struct ExpansionSkeleton
    *        ^\__        __/|
    *        |   \__  __/   |
    *        |      \/      v
-   *    P2M ^   ___/\___   | L2P
-   *        | _/P2L  M2P\_ |
+   *    S2M ^   ___/\___   | L2T
+   *        | _/S2L  M2T\_ |
    *        |/            \v
-   *        P (src)        P (trg)
+   *        S (src)        T (trg)
    *
-   * and there must exist a path from P(src) to P(trg) in this graph. Some paths
-   * may be more efficient than others, both asymptotically and actually.
+   * and there must exist a path from S (src) to T (trg) in this graph.
+   * Some paths may be more efficient than others,
+   * both asymptotically and actually.
    */
 
-  /** Kernel P2M operation
+  /** Kernel S2M operation
    * M += c * Op(s) where M is the multipole expansion,
    *                      s is the source,
    *                  and c is the charge.
@@ -259,7 +260,7 @@ struct ExpansionSkeleton
    * @param[in] center  The center of the box containing the multipole expansion
    * @param[in,out] M   The multipole expansion to accumulate into
    */
-  void P2M(const source_type& source, const charge_type& charge,
+  void S2M(const source_type& source, const charge_type& charge,
            const point_type& center, multipole_type& M) const {
     (void) source;
     (void) charge;
@@ -267,7 +268,7 @@ struct ExpansionSkeleton
     (void) M;
   }
 
-  /** Kernel P2L operation
+  /** Kernel S2L operation
    * L += c * Op(s) where L is the local expansion,
    *                      s is the source,
    *                  and c is the charge.
@@ -277,7 +278,7 @@ struct ExpansionSkeleton
    * @param[in] center  The center of the box containing the local expansion
    * @param[in,out] L   The local expansion to accumulate into
    */
-  void P2L(const source_type& source, const charge_type& charge,
+  void S2L(const source_type& source, const charge_type& charge,
            const point_type& center, local_type& L) const {
     (void) source;
     (void) charge;
@@ -302,7 +303,7 @@ struct ExpansionSkeleton
     (void) translation;
   }
 
-  /** Kernel M2P operation
+  /** Kernel M2T operation
    * r += Op(M, t) where M is the multipole expansion,
    *                     t is the target,
    *                 and r is the result.
@@ -313,7 +314,7 @@ struct ExpansionSkeleton
    * @param[in,out] result  The corresponding result value to accumulate into
    * @pre @a M includes the influence of all sources within its box
    */
-  void M2P(const multipole_type& M, const point_type& center,
+  void M2T(const multipole_type& M, const point_type& center,
            const target_type& target, result_type& result) const {
     (void) M;
     (void) center;
@@ -356,18 +357,18 @@ struct ExpansionSkeleton
     (void) translation;
   }
 
-  /** Kernel L2P operation
+  /** Kernel L2T operation
    * r += Op(L, t) where L is the local expansion,
    *                     t is the target,
    *                 and r is the result.
    *
    * @param[in] L       The local expansion
    * @param[in] center  The center of the box with the local expansion
-   * @param[in] target  The target of this L2P operation
+   * @param[in] target  The target of this L2T operation
    * @param[in] result  The corresponding result value to accumulate into
    * @pre @a L includes the influence of all sources outside its box
    */
-  void L2P(const local_type& L, const point_type& center,
+  void L2T(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
     (void) L;
     (void) center;
@@ -382,9 +383,9 @@ struct ExpansionSkeleton
   /*******************************************************************/
 
   /** Optional Dynamic Multipole Acceptance Criteria
-   * Some MACs depend on the data other than box descriptors. Extra data regarding
-   * source or target distributions may be stored in multipole and local expansions
-   * and used by this function as an interaction criteria.
+   * Some MACs depend on the data other than box descriptors. Extra data
+   * regarding source or target distributions may be stored in multipole
+   * and local expansions and used by this function as an interaction criteria.
    * WARNING: Implementing this function may prevent some optimizations.
    *
    * @param[in]  M  The multipole of the source box being considered
@@ -399,7 +400,7 @@ struct ExpansionSkeleton
     return true;
   }
 
-  /** Optional Kernel vectorized P2M operation
+  /** Optional Kernel vectorized S2M operation
    * M = sum_j Op(s_j) * c_j where M is the multipole,
    *                               s_j are the sources,
    *                           and c_j are the charges.
@@ -410,7 +411,7 @@ struct ExpansionSkeleton
    * @param[in,out] M               The multipole expansion to accumulate into
    */
   template <typename SourceIter, typename ChargeIter>
-  void P2M(SourceIter s_first, SourceIter s_last, ChargeIter c_first,
+  void S2M(SourceIter s_first, SourceIter s_last, ChargeIter c_first,
            const point_type& center, multipole_type& M) const {
     (void) s_first;
     (void) s_last;
@@ -419,7 +420,7 @@ struct ExpansionSkeleton
     (void) M;
   }
 
-  /** Optional Kernel vectorized P2L operation
+  /** Optional Kernel vectorized S2L operation
    * L = sum_j Op(s_j) * c_j where L is the local expansion,
    *                               s_j are the sources,
    *                           and c_j are the charges.
@@ -430,7 +431,7 @@ struct ExpansionSkeleton
    * @param[in,out] L               The local expansion to accumulate into
    */
   template <typename SourceIter, typename ChargeIter>
-  void P2L(SourceIter s_first, SourceIter s_last, ChargeIter c_first,
+  void S2L(SourceIter s_first, SourceIter s_last, ChargeIter c_first,
            const point_type& center, local_type& L) const {
     (void) s_first;
     (void) s_last;
@@ -439,7 +440,7 @@ struct ExpansionSkeleton
     (void) L;
   }
 
-  /** Optional Kernel vectorized M2P operation
+  /** Optional Kernel vectorized M2T operation
    * r_i += Op(t_i, M) where M is the multipole
    *                         t_i are the targets
    *                     and r_i are the results.
@@ -451,7 +452,7 @@ struct ExpansionSkeleton
    * @pre M includes the influence of all sources within its box
    */
   template <typename TargetIter, typename ResultIter>
-  void M2P(const multipole_type& M, const point_type& center,
+  void M2T(const multipole_type& M, const point_type& center,
            TargetIter t_first, TargetIter t_last,
            ResultIter r_first) const {
     (void) M;
@@ -461,7 +462,7 @@ struct ExpansionSkeleton
     (void) r_first;
   }
 
-  /** Optional Kernel vectorized L2P operation
+  /** Optional Kernel vectorized L2T operation
    * r_i += Op(t_i, L) where L is the local expansion
    *                         t_i are the targets
    *                     and r_i are the results.
@@ -473,7 +474,7 @@ struct ExpansionSkeleton
    * @pre @a L includes the influence of all sources outside its box
    */
   template <typename TargetIter, typename ResultIter>
-  void L2P(const local_type& L, const point_type& center,
+  void L2T(const local_type& L, const point_type& center,
            TargetIter t_first, TargetIter t_last,
            ResultIter r_first) const {
     (void) L;
