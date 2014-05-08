@@ -23,9 +23,9 @@ UNAME := $(shell uname)
 # Define the C++ compiler to use
 CXX := $(shell which g++) -std=c++11 -fPIC
 # Check the version number of CXX
-CXX_VERSION_LT_47 := $(shell expr `$(CXX) -dumpversion | cut -f1,2 -d.` \< 4.7)
-ifeq ($(CXX_VERSION_LT_47),1)
-  $(error Makefile using g++ v$(shell $(CXX) -dumpversion), please use >= v4.7)
+CXX_VERSION_LT_48 := $(shell expr `$(CXX) -dumpversion | cut -f1,2 -d.` \< 4.8)
+ifeq ($(CXX_VERSION_LT_48),1)
+  $(error Makefile using g++ v$(shell $(CXX) -dumpversion), please use >= v4.8)
 endif
 # Check for CUDA compiler
 NVCC := $(shell which nvcc)
