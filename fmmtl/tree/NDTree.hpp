@@ -337,7 +337,7 @@ class NDTree {
   /** Construct an tree encompassing a bounding box
    * and insert a range of points */
   template <typename Range>
-  NDTree(Range rng, unsigned n_crit = 256,
+  NDTree(const Range& rng, unsigned n_crit = 256,
          typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
       : NDTree(rng.begin(), rng.end(), n_crit) {
   }
@@ -573,8 +573,8 @@ class NDTree {
   }
 
   // Just making sure for now
-  NDTree(const NDTree& other_tree) {};
-  void operator=(const NDTree& other_tree) {};
+  NDTree(const NDTree&) {};
+  void operator=(const NDTree&) {};
 };
 
 } // end namespace fmmtl
