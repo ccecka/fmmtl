@@ -7,6 +7,8 @@
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/tree/BoundingBox.hpp"
 
+#include <cstdint>
+
 namespace fmmtl {
 
 /** @class MortonCoder
@@ -44,7 +46,7 @@ struct MortonCoder {
 
   // Using a 32-bit unsigned int for the code_type,
   // means we will resolve 32 1D levels, 16 2D levels, 10 3D levels, 8 4D levels.
-  typedef unsigned code_type;
+  typedef uint32_t code_type;
 
   /** The number of bits per dimension = the maximum number of levels */
   static constexpr unsigned levels() {
@@ -117,10 +119,10 @@ struct MortonCoder {
   point_type cell_size_;
 
   /** Spreads the bits of a number for interleaving */
-  inline unsigned spread_bits(unsigned x) const;
+  static inline unsigned spread_bits(unsigned x);
 
   /** Interleave the bits of s[0], s[1], ... */
-  inline code_type interleave(const point_type& s) const {
+  static inline code_type interleave(const point_type& s) {
     code_type code = code_type(0);
     for (unsigned i = 0; i < DIM; ++i) {
       FMMTL_ASSERT(unsigned(s[i]) < cells_per_side());
@@ -130,10 +132,10 @@ struct MortonCoder {
   }
 
   /** Compact the bits of a number for deinterleaving */
-  inline unsigned compact_bits(unsigned x) const;
+  static inline unsigned compact_bits(unsigned x);
 
   /** Deinterleave the bits from @a c into a point. */
-  inline point_type deinterleave(code_type c) const {
+  static inline point_type deinterleave(code_type c) {
     typedef typename point_type::value_type value_type;
     point_type p;
     for (unsigned i = 0; i < DIM; ++i)
@@ -152,7 +154,7 @@ struct MortonCoder {
  * @return 32-bit integer
  */
 template <>
-inline unsigned MortonCoder<1>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<1>::spread_bits(unsigned x) {
   return x;
 }
 
@@ -161,7 +163,7 @@ inline unsigned MortonCoder<1>::spread_bits(unsigned x) const {
  * @return 32-bit integer
  */
 template <>
-inline unsigned MortonCoder<1>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<1>::compact_bits(unsigned x) {
   return x;
 }
 
@@ -172,7 +174,7 @@ inline unsigned MortonCoder<1>::compact_bits(unsigned x) const {
  * where the X's are the original bits of @a x
  */
 template <>
-inline unsigned MortonCoder<2>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<2>::spread_bits(unsigned x) {
   x = (x | (x << 8)) & 0b00000000111111110000000011111111;
   x = (x | (x << 4)) & 0b00001111000011110000111100001111;
   x = (x | (x << 2)) & 0b00110011001100110011001100110011;
@@ -186,7 +188,7 @@ inline unsigned MortonCoder<2>::spread_bits(unsigned x) const {
  * where the X's are every-other bit of @a x
  */
 template <>
-inline unsigned MortonCoder<2>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<2>::compact_bits(unsigned x) {
   x &= 0b01010101010101010101010101010101;
   x = (x | (x >> 1)) & 0b00110011001100110011001100110011;
   x = (x | (x >> 2)) & 0b00001111000011110000111100001111;
@@ -202,7 +204,7 @@ inline unsigned MortonCoder<2>::compact_bits(unsigned x) const {
  * where the X's are the original bits of @a x
  */
 template <>
-inline unsigned MortonCoder<3>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<3>::spread_bits(unsigned x) {
   x = (x | (x << 16)) & 0b00000011000000000000000011111111;
   x = (x | (x <<  8)) & 0b00000011000000001111000000001111;
   x = (x | (x <<  4)) & 0b00000011000011000011000011000011;
@@ -216,7 +218,7 @@ inline unsigned MortonCoder<3>::spread_bits(unsigned x) const {
  * where the X's are every third bit of @a x
  */
 template <>
-inline unsigned MortonCoder<3>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<3>::compact_bits(unsigned x) {
   x &= 0b00001001001001001001001001001001;
   x = (x | (x >>  2)) & 0b00000011000011000011000011000011;
   x = (x | (x >>  4)) & 0b00000011000000001111000000001111;
@@ -232,7 +234,7 @@ inline unsigned MortonCoder<3>::compact_bits(unsigned x) const {
  * where the X's are the original bits of @a x
  */
 template <>
-inline unsigned MortonCoder<4>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<4>::spread_bits(unsigned x) {
   x = (x | (x << 12)) & 0b00000000000011110000000000001111;
   x = (x | (x <<  6)) & 0b00000011000000110000001100000011;
   x = (x | (x <<  3)) & 0b00010001000100010001000100010001;
@@ -245,7 +247,7 @@ inline unsigned MortonCoder<4>::spread_bits(unsigned x) const {
  * where the X's are every fourth bit of @a x
  */
 template <>
-inline unsigned MortonCoder<4>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<4>::compact_bits(unsigned x) {
   x &= 0b00010001000100010001000100010001;
   x = (x | (x >>  3)) & 0b00000011000000110000001100000011;
   x = (x | (x >>  6)) & 0b00000000000011110000000000001111;

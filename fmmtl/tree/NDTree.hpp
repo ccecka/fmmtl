@@ -4,7 +4,6 @@
  */
 
 #include <vector>
-#include <bitset>
 #include <algorithm>
 
 #include <iostream>
@@ -16,8 +15,8 @@
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
-#include "BoundingBox.hpp"
-#include "MortonCoder.hpp"
+#include "fmmtl/tree/BoundingBox.hpp"
+#include "fmmtl/tree/MortonCoder.hpp"
 
 namespace fmmtl {
 using boost::has_range_iterator;
