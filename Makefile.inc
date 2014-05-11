@@ -21,7 +21,7 @@ KERNEL_DIR = $(FMMTL_DIR)kernel
 UNAME := $(shell uname)
 
 # Define the C++ compiler to use
-CXX := $(shell which g++) -std=c++11 -fPIC
+CXX := $(shell which g++) -std=c++11
 # Check the version number of CXX
 CXX_VERSION_LT_48 := $(shell expr `$(CXX) -dumpversion | cut -f1,2 -d.` \< 4.8)
 ifeq ($(CXX_VERSION_LT_48),1)
