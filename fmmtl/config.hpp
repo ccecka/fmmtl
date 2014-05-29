@@ -17,13 +17,11 @@
 #  define FMMTL_INLINE inline
 #endif
 
-#if defined(FMMTL_WITH_CUDA)  // Enable CUDA/Thrust accleration
+#if defined(FMMTL_WITH_CUDA)   // Enable CUDA/Thrust accleration
 #  include <thrust/version.h>
 #  if (THRUST_VERSION < 100700)
 #    error Need Thrust v1.7. Please upgrade to CUDA 5.5.
 #  endif
-#  include <thrust/detail/config.h>
-#  include <cublas.h>
 #endif
 
 // Enable performance options in NDEBUG mode
@@ -55,13 +53,17 @@
 #if !defined(FMMTL_WITH_CUDA) || defined(FMMTL_DISABLE_CUDA_CHECKS)
 #  define FMMTL_CUDA_CHECK ((void)0)
 #else
-#  include <cstdlib>
-#  include <cstdio>
+#  include <iostream>
+#  include <thrust/system/cuda/error.h>
 inline void cuda_check(char* file, int line) {
-  cudaError_t code = cudaDeviceSynchronize();
-  if (code != cudaSuccess) {
-    fprintf(stderr,"CUDA assert: %s %s %d\n",cudaGetErrorString(code),file,line);
-    exit(code);
+  cudaError_t error = cudaDeviceSynchronize();
+  if (error != cudaSuccess) {
+    std::cerr << "CUDA assert:"
+              << " " << cudaGetErrorString(error)
+              << " " << file
+              << ":" << line
+              << std::endl;;
+    exit(error);
   }
 }
 #  define FMMTL_CUDA_CHECK cuda_check(__FILE__, __LINE__)

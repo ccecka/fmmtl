@@ -117,12 +117,5 @@ class M2L_Batch {
         M2L::eval(c, *si, tb);
       }
     }
-
-    /*
-    auto b_end = m2l_list.end();
-    //#pragma omp parallel for   TODO: Make thread safe!
-    for (auto bi = m2l_list.begin(); bi < b_end; ++bi)
-      M2L::eval(c, bi->first, bi->second);
-    */
   }
 };

@@ -13,12 +13,10 @@
 struct Data {
   unsigned num_sources;
   unsigned num_targets;
-  unsigned num_threads_per_block;
   unsigned num_blocks;
   Data(unsigned s, unsigned t, unsigned b)
       : num_sources(s),
         num_targets(t),
-        num_threads_per_block(256),
         num_blocks(b) {
   }
 };
@@ -106,7 +104,9 @@ void S2T_Compressed<Kernel>::execute(
   result_type* d_results = gpu_copy(results);
 
   Data* data = reinterpret_cast<Data*>(data_);
-  const unsigned num_tpb    = 256; //data->num_threads_per_block;
+
+  // TODO: set tpb to ncrit
+  const unsigned num_tpb    = 256;
   const unsigned num_blocks = data->num_blocks;
 
 #if defined(FMMTL_DEBUG)
