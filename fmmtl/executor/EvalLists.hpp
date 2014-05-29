@@ -72,6 +72,9 @@ class EvalLists
   }
 
   void execute(Context& c) {
+    // Launch the p2p early (potentially asynchronously?)
+    p2p_.execute(c);
+
     // Initialize all the multipoles and locals (not all may be needed)
     auto s_end = c.source_tree().box_end();
     for (auto bi = c.source_tree().box_begin(); bi != s_end; ++bi)
@@ -86,7 +89,6 @@ class EvalLists
 
     // Perform the source-target box interactions
     m2l_.execute(c);
-    p2p_.execute(c);
 
     // Perform the downward pass (not all may be needed)
     DownDispatch down(c);

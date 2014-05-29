@@ -60,6 +60,26 @@ class SingleTreeContext<NDTree<DIM> > {
   target_tree_permute(Iterator it, const target_body_iterator& tbi) const {
     return target_tree().body_permute(it, tbi);
   }
+  template <typename Iterator>
+  inline stree_permute_iterator<Iterator>
+  source_permute_begin(Iterator it) const {
+    return source_tree_permute(it, source_tree().body_begin());
+  }
+  template <typename Iterator>
+  inline stree_permute_iterator<Iterator>
+  source_permute_end(Iterator it) const {
+    return source_tree_permute(it, source_tree().body_end());
+  }
+  template <typename Iterator>
+  inline ttree_permute_iterator<Iterator>
+  target_permute_begin(Iterator it) const {
+    return target_tree_permute(it, target_tree().body_begin());
+  }
+  template <typename Iterator>
+  inline ttree_permute_iterator<Iterator>
+  target_permute_end(Iterator it) const {
+    return target_tree_permute(it, target_tree().body_end());
+  }
 
  public:
   //! Constructor
@@ -109,7 +129,7 @@ class DualTreeContext<NDTree<SOURCEDIM>,
   //! The tree of targets
   target_tree_type target_tree_;
 
-  /** Permuted iterators */
+    /** Permute iterators */
   template <typename Iterator>
   inline stree_permute_iterator<Iterator>
   source_tree_permute(Iterator it, const source_body_iterator& sbi) const {
@@ -120,6 +140,27 @@ class DualTreeContext<NDTree<SOURCEDIM>,
   target_tree_permute(Iterator it, const target_body_iterator& tbi) const {
     return target_tree().body_permute(it, tbi);
   }
+  template <typename Iterator>
+  inline stree_permute_iterator<Iterator>
+  source_permute_begin(Iterator it) const {
+    return source_tree_permute(it, source_tree().body_begin());
+  }
+  template <typename Iterator>
+  inline stree_permute_iterator<Iterator>
+  source_permute_end(Iterator it) const {
+    return source_tree_permute(it, source_tree().body_end());
+  }
+  template <typename Iterator>
+  inline ttree_permute_iterator<Iterator>
+  target_permute_begin(Iterator it) const {
+    return target_tree_permute(it, target_tree().body_begin());
+  }
+  template <typename Iterator>
+  inline ttree_permute_iterator<Iterator>
+  target_permute_end(Iterator it) const {
+    return target_tree_permute(it, target_tree().body_end());
+  }
+
 
  public:
   //! Constructor
@@ -161,21 +202,18 @@ class DataContext
   //! The kernel matrix this context is built for
   const kernel_matrix_type& mat_;
 
-  //! Source and target iterator types in the kernel_matrix
-  typedef typename kernel_matrix_type::source_array::const_iterator source_container_iterator;
-  typedef typename kernel_matrix_type::target_array::const_iterator target_container_iterator;
+  // TODO: Move to Tree context?
+  //! Permuted source data
+  std::vector<source_type> sources_;
+  //! Permuted target data
+  std::vector<target_type> targets_;
+  //! Permuted charge data
+  std::vector<charge_type> charges_;
+  //! Permuted result data
+  std::vector<result_type> results_;
 
   //! The "multipole acceptance criteria" to decide which boxes to interact
   std::function<bool(const source_box_type&, const target_box_type&)> mac_;
-
-  //! Iterator to the start of the charge vector
-  typedef std::vector<charge_type> charge_container;
-  typedef typename charge_container::const_iterator charge_container_iterator;
-  charge_container_iterator c_;
-  //! Iterator to the start of the result vector
-  typedef std::vector<result_type> result_container;
-  typedef typename result_container::iterator result_container_iterator;
-  result_container_iterator r_;
 
   //! Multipole expansions corresponding to Box indices in Tree
   typedef std::vector<multipole_type> multipole_container;
@@ -189,6 +227,11 @@ class DataContext
   DataContext(const kernel_matrix_type& mat, Options& opts)
       : TreeContext(mat, opts),
         mat_(mat),
+        // Pre-permute the sources and targets
+        sources_(this->source_permute_begin(mat_.sources().begin()),
+                 this->source_permute_end(  mat_.sources().begin())),
+        targets_(this->target_permute_begin(mat_.targets().begin()),
+                 this->target_permute_end(  mat_.targets().begin())),
         mac_(opts.MAC()),
         // TODO: only allocate if used...
         M_(this->source_tree().boxes()),
@@ -199,10 +242,16 @@ class DataContext
   inline void execute(const std::vector<charge_type>& charges,
                       std::vector<result_type>& results,
                       Executor* exec) {
-    c_ = charges.begin();
-    r_ = results.begin();
+    charges_.assign(this->source_permute_begin(charges.begin()),
+                    this->source_permute_end(  charges.begin()));
 
+    results_.assign(results.size(), result_type(0));
     exec->execute(*this);
+
+    // Accumulate the permuted result
+    auto pri = this->target_permute_begin(results.begin());
+    for (auto ri = results_.begin(); ri != results_.end(); ++ri, ++pri)
+      *pri += *ri;
   }
 
   const expansion_type& expansion() const {
@@ -234,14 +283,14 @@ class DataContext
   }
 
   // Define the body data iterators
-  typedef typename TreeContext::template stree_permute_iterator<source_container_iterator> source_iterator;
-  typedef typename TreeContext::template stree_permute_iterator<charge_container_iterator> charge_iterator;
-  typedef typename TreeContext::template ttree_permute_iterator<target_container_iterator> target_iterator;
-  typedef typename TreeContext::template ttree_permute_iterator<result_container_iterator> result_iterator;
+  typedef typename std::vector<source_type>::const_iterator source_iterator;
+  typedef typename std::vector<target_type>::const_iterator target_iterator;
+  typedef typename std::vector<charge_type>::const_iterator charge_iterator;
+  typedef typename std::vector<result_type>::iterator       result_iterator;
 
   // Accessor to the source data of a source body
   inline source_iterator source(const source_body_iterator& sbi) const {
-    return this->source_tree_permute(mat_.sources().begin(), sbi);
+    return sources_.begin() + std::distance(this->source_tree().body_begin(), sbi);
   }
   // Convenience methods for the sources
   inline source_iterator source_begin(const source_box_type& b) const {
@@ -259,7 +308,7 @@ class DataContext
 
   // Accessor to the charge of a source body
   inline charge_iterator charge(const source_body_iterator& sbi) const {
-    return this->source_tree_permute(c_, sbi);
+    return charges_.begin() + std::distance(this->source_tree().body_begin(), sbi);
   }
   // Convenience methods for charges
   inline charge_iterator charge_begin(const source_box_type& b) const {
@@ -276,8 +325,8 @@ class DataContext
   }
 
   // Accessor to the target data of a target body
-  inline target_iterator target(const target_body_iterator& sbi) const {
-    return this->target_tree_permute(mat_.targets().begin(), sbi);
+  inline target_iterator target(const target_body_iterator& tbi) const {
+    return targets_.begin() + std::distance(this->target_tree().body_begin(), tbi);
   }
   // Convenience methods for the targets
   inline target_iterator target_begin(const target_box_type& b) const {
@@ -294,20 +343,20 @@ class DataContext
   }
 
   // Accessor to the result of a target body
-  inline result_iterator result(const target_body_iterator& tbi) const {
-    return this->target_tree_permute(r_, tbi);
+  inline result_iterator result(const target_body_iterator& tbi) {
+    return results_.begin() + std::distance(this->target_tree().body_begin(), tbi);
   }
   // Convenience methods for results
-  inline result_iterator result_begin(const target_box_type& b) const {
+  inline result_iterator result_begin(const target_box_type& b) {
     return this->result(b.body_begin());
   }
-  inline result_iterator result_end(const target_box_type& b) const {
+  inline result_iterator result_end(const target_box_type& b) {
     return this->result(b.body_end());
   }
-  inline result_iterator result_begin() const {
+  inline result_iterator result_begin() {
     return this->result(this->target_tree().body_begin());
   }
-  inline result_iterator result_end() const {
+  inline result_iterator result_end() {
     return this->result(this->target_tree().body_end());
   }
 };

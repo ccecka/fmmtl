@@ -60,14 +60,22 @@ std::vector<Iterator> bucket_sort(Iterator first, Iterator last,
 template <unsigned DIM>
 class NDTree {
  public:
-  // Type declarations
+  //! The spacial point type used for centers and extents
   typedef Vec<DIM,double> point_type;
 
-  // 2^D
+  //! Each box has 2^DIM children
   static constexpr unsigned max_children = 1 << DIM;
 
   //! The type of this tree
   typedef NDTree<DIM> tree_type;
+
+  // Predeclarations
+  struct Body;
+  typedef Body body_type;
+  struct Box;
+  typedef Box box_type;
+  struct body_iterator;
+  struct box_iterator;
 
  private:
   // Morton coder to use for the points
@@ -126,13 +134,6 @@ class NDTree {
   std::vector<box_data> box_data_;
 
  public:
-  // Predeclarations
-  struct Body;
-  typedef Body body_type;
-  struct Box;
-  typedef Box box_type;
-  struct body_iterator;
-  struct box_iterator;
 
   struct Body {
     /** Construct an invalid Body */
@@ -251,8 +252,8 @@ class NDTree {
 
       return s << "Box " << b.index()
                << " (L" << b.level() << ", P" << b.parent().index()
-               << ", " << num_bodies << (num_bodies == 1 ? " body " : " bodies ")
-               << first_body << "-" << last_body
+               << ", " << num_bodies << (num_bodies == 1 ? " body" : " bodies")
+               << " " << first_body << "-" << last_body
                << "): " << b.center() << " - " << b.extents();
     }
    private:
@@ -276,7 +277,7 @@ class NDTree {
                                 Box,                             // Value
                                 std::random_access_iterator_tag, // IterCategory
                                 Box,                             // Reference
-                                std::ptrdiff_t>                  // DiffType
+                                unsigned>                        // DiffType
   {
     /** Construct an invalid box_iterator */
     inline box_iterator()
@@ -309,7 +310,7 @@ class NDTree {
                                 Body,                            // Value
                                 std::random_access_iterator_tag, // IterCategory
                                 Body,                            // Reference
-                                std::ptrdiff_t>                  // DiffType
+                                unsigned>                        // DiffType
   {
     /* Construct an invalid body_iterator */
     inline body_iterator()
