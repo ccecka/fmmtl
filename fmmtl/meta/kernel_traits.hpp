@@ -90,16 +90,6 @@ struct ExpansionTraits
   typedef typename expansion_type::multipole_type multipole_type;
   typedef typename expansion_type::local_type     local_type;
 
-  // Converters
-  HAS_MEM_FUNC(HasSourcePoint,
-               point_type, source_point,
-               const source_type&);
-  static const bool has_source_point = HasSourcePoint<Expansion>::value;
-  HAS_MEM_FUNC(HasTargetPoint,
-               point_type, target_point,
-               const target_type&);
-  static const bool has_target_point = HasTargetPoint<Expansion>::value;
-
   // Initializers
   HAS_MEM_FUNC(HasInitMultipole,
                void, init_multipole,
