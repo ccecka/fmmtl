@@ -22,7 +22,7 @@ namespace fmmtl {
 using boost::has_range_iterator;
 using boost::iterator_adaptor;
 
-/** Bucket sort using pigeonhole sorting
+/** In-place bucket sort using counting sort
  *
  * @param[in] first,last Iterator pair to the sequence to be bucketed
  * @param[in] num_buckets The number of buckets to be used
@@ -33,26 +33,39 @@ using boost::iterator_adaptor;
  * @pre For all i in [first,last), 0 <= map(*i) < num_buckets.
  * @post For all i and j such that first <= i < j < last,
  *       then 0 <= map(*i) <= map(*j) < num_buckets.
+ * @tparam Iterator models a random-access mutable iterator
  */
 template <typename Iterator, typename BucketMap>
 std::vector<Iterator> bucket_sort(Iterator first, Iterator last,
-                                  int num_buckets, BucketMap map) {
+                                  unsigned num_buckets, BucketMap map) {
   typedef typename std::iterator_traits<Iterator>::value_type value_type;
-  std::vector<std::vector<value_type>> buckets(num_buckets);
 
-  // Push each element into a bucket
-  for (Iterator it = first; it != last; ++it) {
-    auto&& v = *it;
-    buckets[map(v)].push_back(v);
+  std::vector<Iterator> start(num_buckets+1, first);
+
+  for ( ; first != last; ++first)
+    ++start[1 + map(*first)];
+
+  for (unsigned k = 2; k <= num_buckets; ++k)
+    start[k] += (start[k-1] - start[0]);
+
+  std::vector<Iterator> end = start;
+
+  // For each bin
+  for (unsigned curr_bin = 0; curr_bin < num_buckets; ++curr_bin) {
+    first = start[curr_bin];
+    last  = end[1+curr_bin];
+
+    while (first != last) {
+      value_type& v = *first++;
+
+      // Swap until an element comes back to this bin
+      unsigned bin;
+      while (curr_bin != (bin = map(v)))
+        std::swap(v, *start[bin]++);
+    }
   }
 
-  // Copy the buckets back to the range and keep each offset iterator
-  std::vector<Iterator> bucket_off(num_buckets+1);
-  auto offset = bucket_off.begin();
-  *offset = first;
-  for (auto&& bucket : buckets)
-    first = *(++offset) = std::copy(bucket.begin(), bucket.end(), first);
-  return bucket_off;
+  return end;
 }
 
 
