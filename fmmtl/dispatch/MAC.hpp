@@ -3,12 +3,12 @@
  * @brief Dispatch methods for the Multipole Acceptance Criteria
  */
 
-#include "fmmtl/util/Logger.hpp"
-#include "fmmtl/meta/kernel_traits.hpp"
 #include <type_traits>
 
-class MAC
-{
+#include "fmmtl/util/Logger.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
+
+class MAC {
   /** If no other MAC dispatcher matches */
   template <typename Context>
   inline static

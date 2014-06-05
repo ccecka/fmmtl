@@ -6,7 +6,6 @@
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
-#include <type_traits>
 
 /** Default behavior gives a warning -- using non-existent method */
 template <bool has_l2l>

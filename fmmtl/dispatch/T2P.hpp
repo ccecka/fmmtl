@@ -4,9 +4,10 @@
  *
  */
 
+#include <type_traits>
+
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
-#include <type_traits>
 
 /** Default behavior is no-op, but check for convertibility at compile-time */
 template <typename Expansion, bool _ = ExpansionTraits<Expansion>::has_T2P>

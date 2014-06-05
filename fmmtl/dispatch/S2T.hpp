@@ -4,10 +4,11 @@
  *
  */
 
-#include "fmmtl/util/Logger.hpp"
-#include "fmmtl/meta/kernel_traits.hpp"
 #include <iterator>
 #include <type_traits>
+
+#include "fmmtl/util/Logger.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
 
 struct S2T
 {
