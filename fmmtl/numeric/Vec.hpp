@@ -1,6 +1,8 @@
 #pragma once
 /** @file Vec.hpp
  * @brief A small N-dimensional numerical vector type that works on CPU and GPU.
+ *
+ * TODO: Place in fmmtl namespace.
  */
 
 #include <iostream>
@@ -33,7 +35,7 @@
   struct NAME##_op {                                                        \
     typedef R type;                                                         \
     FMMTL_INLINE R operator()(const T& a) const {                           \
-      using fmmtl::OP; using std::OP; return OP(a);                         \
+      return OP(a);                                                         \
     }                                                                       \
   }
 #else
@@ -57,7 +59,7 @@
   struct NAME##_op {                                                        \
     typedef T type;                                                         \
     FMMTL_INLINE T operator()(const T& a) const {                           \
-      using fmmtl::OP; using std::OP; return OP(a);                         \
+      return OP(a);                                                         \
     }                                                                       \
   }
 #endif
@@ -66,7 +68,7 @@
 /** @class Vec
  * @brief Class representing ND points and vectors.
  */
-template <std::size_t N, typename T = double>
+template <std::size_t N, typename T>
 struct Vec {
   FMMTL_STATIC_ASSERT(N > 0, "Vec<N,T> needs N >= 1");
 
@@ -335,9 +337,7 @@ operator/(const T& a, const Vec<N,U>& b) {
 
 // ELEMENTWISE OPERATORS
 
-#include "Complex.hpp"
-
-namespace fmmtl {
+//namespace fmmtl {
 
 FMMTL_UNARY_PROMOTE_DECLARE(abs, abs);
 template <std::size_t N, typename T>
@@ -374,7 +374,8 @@ imag(const Vec<N,T>& a) {
   return Vec<N,typename imag_op<T>::type>(a, imag_op<T>());
 }
 
-} // end namespace fmmtl
+
+//} // end namespace fmmtl
 
 // META OPERATIONS
 

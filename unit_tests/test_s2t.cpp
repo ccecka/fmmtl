@@ -57,7 +57,7 @@ void print_results(const std::vector<T1>& exact, const std::vector<T2>& result) 
   double max_ind_rel_err = 0;
   for (unsigned k = 0; k < result.size(); ++k) {
     // Individual relative error
-    double rel_error = norm(exact[k] - result[k]) / norm(exact[k]);
+    double rel_error = norm_2(exact[k] - result[k]) / norm_2(exact[k]);
     //if (rel_error > 1e-14) std::cout << k << std::endl;
 
     tot_ind_rel_err += rel_error;
@@ -65,8 +65,8 @@ void print_results(const std::vector<T1>& exact, const std::vector<T2>& result) 
     max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
 
     // Total relative error
-    tot_error_sq += normSq(exact[k] - result[k]);
-    tot_norm_sq  += normSq(exact[k]);
+    tot_error_sq += norm_2_sq(exact[k] - result[k]);
+    tot_norm_sq  += norm_2_sq(exact[k]);
   }
   double tot_rel_err = sqrt(tot_error_sq/tot_norm_sq);
   std::cout << "  Vector  relative error: " << tot_rel_err << std::endl;

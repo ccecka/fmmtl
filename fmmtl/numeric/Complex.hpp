@@ -61,14 +61,15 @@
 
 #include "fmmtl/config.hpp"
 
+#include <complex>
+#include <cmath>
+
 #if (defined THRUST_DEVICE_BACKEND && THRUST_DEVICE_BACKEND == THRUST_DEVICE_BACKEND_CUDA) || (defined THRUST_DEVICE_SYSTEM && THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA)
 
 #ifdef _WIN32
 #define _USE_MATH_DEFINES 1  // make sure M_PI is defined
 #endif
 
-#include <cmath>
-#include <complex>
 #include <cuComplex.h>
 #include <sstream>
 
@@ -165,10 +166,10 @@ inline ValueType conj(ValueType x){
 
 namespace fmmtl
 {
+// Declare fmmtl::complex
 template <typename ValueType> struct complex;
 template <> struct complex<float>;
 template <> struct complex<double>;
-
 
 ///  Returns the magnitude of z.
 template<typename ValueType> ValueType abs(const complex<ValueType>& z);
@@ -176,6 +177,9 @@ template<typename ValueType> ValueType abs(const complex<ValueType>& z);
 template<typename ValueType> ValueType arg(const complex<ValueType>& z);
 ///  Returns the magnitude of z squared.
 template<typename ValueType> ValueType norm(const complex<ValueType>& z);
+// Simple operators
+template<typename ValueType> ValueType real(const complex<ValueType>& z);
+template<typename ValueType> ValueType imag(const complex<ValueType>& z);
 
 ///  Returns the complex conjugate of z.
 template<typename ValueType> complex<ValueType> conj(const complex<ValueType>& z);
@@ -263,7 +267,6 @@ template<typename ValueType> complex<ValueType> sqrt(const complex<ValueType>&z)
 template<typename ValueType> complex<ValueType> tan(const complex<ValueType>&z);
 // Returns the complex hyperbolic tangent of z.
 template<typename ValueType> complex<ValueType> tanh(const complex<ValueType>&z);
-
 
 // Inverse Trigonometric:
 // Returns the complex arc cosine of z.
@@ -1118,7 +1121,6 @@ inline complex<float> atanh(const complex<float>& z){
 } // end namespace fmmtl
 
 #else
-#include <complex>
 
 namespace fmmtl
 {
@@ -1150,7 +1152,6 @@ using std::asinh;
 using std::atanh;
 }
 #endif
-
 
 #include "fmmtl/numeric/norm.hpp"
 #include "fmmtl/numeric/random.hpp"

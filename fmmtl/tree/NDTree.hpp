@@ -187,7 +187,7 @@ class NDTree {
       return std::accumulate(e.begin(), e.end(), double(1), std::multiplies<double>());
     }
     double radius() const {
-      return norm(extents()) / 2.0;
+      return norm_2(extents()) / 2.0;
     }
     unsigned num_children() const {
       return std::distance(child_begin(), child_end());

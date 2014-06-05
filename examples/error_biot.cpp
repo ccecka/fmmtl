@@ -83,14 +83,14 @@ int main(int argc, char** argv)
     double max_ind_rel_err = 0;
     for (unsigned k = 0; k < result.size(); ++k) {
       // Individual relative error
-      double rel_error = norm(exact[k] - result[k]) / norm(exact[k]);
+      double rel_error = norm_2(exact[k] - result[k]) / norm_2(exact[k]);
       tot_ind_rel_err += rel_error;
       // Maximum relative error
       max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
 
       // Total relative error
-      tot_error_sq += normSq(exact[k] - result[k]);
-      tot_norm_sq  += normSq(exact[k]);
+      tot_error_sq += norm_2_sq(exact[k] - result[k]);
+      tot_norm_sq  += norm_2_sq(exact[k]);
 
       //std::cout << exact[k] << "\t\t" << result[k] << std::endl;
     }

@@ -1,13 +1,13 @@
 #pragma once
 
+#include <limits>
+
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
 
-#include <limits>
-
-#include "fmmtl/numeric/Complex.hpp"
 #include "fmmtl/numeric/Vec.hpp"
+#include "fmmtl/numeric/Complex.hpp"
 
 namespace fmmtl {
 
@@ -60,12 +60,6 @@ struct random<int> {
   }
 };
 
-} // end namepsace fmmtl
-
-
-#include "fmmtl/numeric/Complex.hpp"
-
-namespace fmmtl {
 template <typename T>
 struct random<complex<T> > {
   static complex<T> get(T a, T b) {
@@ -75,12 +69,7 @@ struct random<complex<T> > {
     return get(T(0), T(1));
   }
 };
-} // end namespace fmmtl
 
-
-#include "fmmtl/numeric/Vec.hpp"
-
-namespace fmmtl {
 template <std::size_t N, typename T>
 struct random<Vec<N,T> > {
   static Vec<N,T> get(T a, T b) {
@@ -93,4 +82,5 @@ struct random<Vec<N,T> > {
     return get(T(0), T(1));
   }
 };
+
 } // end namespace fmmtl

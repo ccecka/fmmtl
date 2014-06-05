@@ -26,7 +26,7 @@ struct YukawaPotential
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    double R = norm(s - t);                //   R
+    double R = norm_2(s - t);              //   R
     double invR  = 1.0 / R;                //   1.0 / R
     if (R < 1e-10) { R = invR = 0; }       //   Exclude self interaction
     return exp(-kappa*R) * invR;           //   Potential
@@ -60,7 +60,7 @@ struct YukawaKernel
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
     Vec<3,double> dist = s - t;            //   Vector from target to source
-    double R2 = normSq(dist);              //   R^2
+    double R2 = norm_2_sq(dist);              //   R^2
     double R  = std::sqrt(R2);             //   R
     double invR  = 1.0/R;                  //   1.0 / R
     double invR2 = 1.0/R2;                 //   1.0 / R^2

@@ -319,7 +319,7 @@ class YukawaCartesian
     real_vec b(a.size(),0);
     real dx = dX[0], dy = dX[1], dz = dX[2];
 
-    auto R2 = normSq(dX);
+    auto R2 = norm_2_sq(dX);
     auto R  = sqrt(R2);
 
     int i,j,k,I,Im1x,Im2x,Im1y,Im2y,Im1z,Im2z;

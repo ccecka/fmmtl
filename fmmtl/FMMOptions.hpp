@@ -16,7 +16,7 @@ class FMMOptions {
 
     template <typename BOX>
     bool operator()(const BOX& b1, const BOX& b2) const {
-      double r0_normSq = normSq(b1.center() - b2.center());
+      double r0_normSq = norm_2_sq(b1.center() - b2.center());
       double rhs = (b1.radius() + b2.radius()) / theta_;
       return r0_normSq > rhs*rhs;
     }

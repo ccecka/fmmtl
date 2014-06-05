@@ -17,7 +17,6 @@ int main() {
   Vec<3,double> v3 = v1 * (v2 + v2);
 
   std::cout << v3 << std::endl;
-  std::cout << norm(v3) << std::endl;
   std::cout << norm_2(v3) << std::endl;
 
   Vec<4, double> v = {1, 2.1f, 3.14, 2u};

@@ -152,7 +152,7 @@ int main(int argc, char **argv)
   double min_error = std::numeric_limits<double>::max();
   double max_error = std::numeric_limits<double>::lowest();
   for (unsigned k = 0; k < result.size(); ++k) {
-    double error = norm(exact[k] - result[k]) / norm(exact[k]);
+    double error = norm_2(exact[k] - result[k]) / norm_2(exact[k]);
     if (error > 1e-15)
       log_error[k] = std::log10(error);
     else

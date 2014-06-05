@@ -28,7 +28,7 @@ struct Gaussian
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    return exp(-normSq(t-s));
+    return exp(-norm_2_sq(t-s));
   }
   FMMTL_INLINE
   kernel_value_type transpose(const kernel_value_type& kts) const {

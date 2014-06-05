@@ -6,7 +6,6 @@
  * K(t,s) = (s-t) / |s-t|^3  // Laplace force
  */
 
-#include <complex>
 #include <cmath>
 #include <cassert>
 
@@ -15,6 +14,7 @@
 #include "fmmtl/Expansion.hpp"
 // Use a library-defined Vector class that supports multiple architectures
 #include "fmmtl/numeric/Vec.hpp"
+#include "fmmtl/numeric/Complex.hpp"
 
 #include "kernel/Util/SphericalMultipole3D.hpp"
 
@@ -120,8 +120,8 @@ class BiotSpherical
    */
   void L2T(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
-    using fmmtl::real;
-    using fmmtl::imag;
+    using std::real;
+    using std::imag;
 
     real_type rho, theta, phi;
     SphOp::cart2sph(rho, theta, phi, target - center);

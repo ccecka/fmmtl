@@ -27,8 +27,6 @@ struct SphericalMultipole3D {
   inline static
   void S2M(int P, const point_type& translation, const charge_type& charge,
            multipole_type& M) {
-    using fmmtl::conj;
-
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type Z[P*(P+1)/2];   // Avoid initialization?
@@ -49,8 +47,6 @@ struct SphericalMultipole3D {
            const multipole_type& Msource,
            multipole_type& Mtarget,
            const point_type& translation) {
-    using fmmtl::conj;
-
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type Z[P*(P+1)/2];
@@ -109,8 +105,6 @@ struct SphericalMultipole3D {
            const multipole_type& Msource,
            local_type& Ltarget,
            const point_type& translation) {
-    using fmmtl::conj;
-
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type W[P*(2*P+1)];
@@ -167,8 +161,6 @@ struct SphericalMultipole3D {
            const local_type& Lsource,
            local_type& Ltarget,
            const point_type& translation) {
-    using fmmtl::conj;
-
     real_type rho, theta, phi;
     cart2sph(rho, theta, phi, translation);
     complex_type Z[P*(P+1)/2];
@@ -218,10 +210,12 @@ struct SphericalMultipole3D {
   inline static
   point_type sph2cart(real_type rho, real_type theta, real_type phi,
                       const point_type& s) {
-    real_type st = std::sin(theta);
-    real_type ct = std::cos(theta);
-    real_type sp = std::sin(phi);
-    real_type cp = std::cos(phi);
+    using std::cos;
+    using std::sin;
+    const real_type st = sin(theta);
+    const real_type ct = cos(theta);
+    const real_type sp = sin(phi);
+    const real_type cp = cos(phi);
     return point_type(s[0]*st*cp + s[1]*ct*cp/rho - s[2]*sp/(rho*st),
                       s[0]*st*sp + s[1]*ct*sp/rho + s[2]*cp/(rho*st),
                       s[0]*ct    - s[1]*st/rho);
@@ -231,10 +225,11 @@ struct SphericalMultipole3D {
   inline static
   void cart2sph(real_type& r, real_type& theta, real_type& phi,
                 const point_type& x) {
-    using fmmtl::norm;
-    r = norm(x);
-    theta = std::acos(x[2] / (r + 1e-100));
-    phi = std::atan2(x[1], x[0]);
+    using std::acos;
+    using std::atan2;
+    r = norm_2(x);
+    theta = acos(x[2] / (r + 1e-100));
+    phi = atan2(x[1], x[0]);
   }
 
   /** Computes the function

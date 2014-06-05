@@ -47,4 +47,6 @@ int main() {
 
     std::cout << N << "\t" << init_time << "\t" << time << "\n";
   }
+
+  return 0;
 }
