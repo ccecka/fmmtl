@@ -4,10 +4,11 @@
  *   codes.
  */
 
+#include <cstdint>
+#include <climits>
+
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/tree/BoundingBox.hpp"
-
-#include <cstdint>
 
 namespace fmmtl {
 
@@ -50,7 +51,7 @@ struct MortonCoder {
 
   /** The number of bits per dimension = the maximum number of levels */
   static constexpr unsigned levels() {
-    return (8*sizeof(code_type)) / DIM;
+    return std::numeric_limits<code_type>::digits / DIM;
   }
   /** The number of cells per side of the bounding box (2^L). */
   static constexpr uint64_t cells_per_side() {
@@ -62,7 +63,7 @@ struct MortonCoder {
   }
 
   /** Construct a MortonCoder with a bounding box. */
-  MortonCoder(const BoundingBox<DIM>& bb)
+  MortonCoder(const BoundingBox<point_type>& bb)
       : pmin_(bb.min()),
         cell_size_((bb.max() - bb.min()) / cells_per_side()) {
     cell_size_ *= (1.0 + 1e-14);  // Inclusive bounding box by small extension
@@ -70,24 +71,22 @@ struct MortonCoder {
   }
 
   /** Return the MortonCoder's bounding box. */
-  BoundingBox<DIM> bounding_box() const {
-    point_type pmax = pmin_ + cell_size_ * cells_per_side();
-    return BoundingBox<DIM>(pmin_, pmax);
+  BoundingBox<point_type> bounding_box() const {
+    return BoundingBox<point_type>(pmin_, pmin_ + cell_size_ * cells_per_side());
   }
 
   /** Return the bounding box of the cell with Morton code @a c.
    * @pre c < end_code */
-  BoundingBox<DIM> cell(code_type c) const {
+  BoundingBox<point_type> cell(code_type c) const {
     point_type pmin = pmin_ + cell_size_ * deinterleave(c);
-    return BoundingBox<DIM>(pmin, pmin + cell_size_);
+    return BoundingBox<point_type>(pmin, pmin + cell_size_);
   }
 
   /** Return the bounding box of the box with Morton codes @a cmin and @a cmax.
    * @pre cmin,cmax < end_code */
-  BoundingBox<DIM> cell(code_type cmin, code_type cmax) const {
-    point_type pmin = pmin_ + cell_size_ * deinterleave(cmin);
-    point_type pmax = pmin_ + cell_size_ *(deinterleave(cmax)+1);
-    return BoundingBox<DIM>(pmin, pmax);
+  BoundingBox<point_type> cell(code_type cmin, code_type cmax) const {
+    return BoundingBox<point_type>(pmin_ + cell_size_ * deinterleave(cmin),
+                                   pmin_ + cell_size_ *(deinterleave(cmax)+1));
   }
 
   /** Return the center of the Morton coders' bounding box */
@@ -112,7 +111,7 @@ struct MortonCoder {
     return interleave(s);
   }
 
- private:
+  //private:
   /** The minimum of the MortonCoder bounding box. */
   point_type pmin_;
   /** The extent of a single cell. */

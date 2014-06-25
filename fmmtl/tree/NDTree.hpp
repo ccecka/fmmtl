@@ -193,7 +193,8 @@ class NDTree {
       return data().level();
     }
     point_type extents() const {
-      return tree_->coder_.bounding_box().dimensions() / (1 << level());
+      const BoundingBox<point_type> bb = tree_->coder_.bounding_box();
+      return (bb.max() - bb.min()) / (1 << level());
     }
     double volume() const {
       point_type e = extents();
@@ -364,7 +365,7 @@ class NDTree {
   }
 
   /** Return the Bounding Box that this NDTree encompasses */
-  BoundingBox<DIM> bounding_box() const {
+  BoundingBox<point_type> bounding_box() const {
     return coder_.bounding_box();
   }
 
@@ -575,14 +576,16 @@ class NDTree {
   }
 
   template <typename PointIter>
-  BoundingBox<DIM> get_boundingbox(PointIter first, PointIter last) {
+  BoundingBox<point_type> get_boundingbox(PointIter first, PointIter last) {
     // Construct a bounding box
-    BoundingBox<DIM> bb(first, last);
+    BoundingBox<point_type> bb(first, last);
     // Determine the size of the maximum side
-    point_type extents = bb.dimensions();
+    point_type extents =  bb.max() - bb.min();
     double max_side = *std::max_element(extents.begin(), extents.end());
+    double radius = (1.0+1e-6) * max_side / 2.0;
+    point_type center =  (bb.max() + bb.min()) / 2;
     // Make it square and add some wiggle room   TODO: Generalize on square
-    return BoundingBox<DIM>(bb.center(), (1.0+1e-6) * max_side / 2.0);
+    return BoundingBox<point_type>(center - radius, center + radius);
   }
 
   // Just making sure for now

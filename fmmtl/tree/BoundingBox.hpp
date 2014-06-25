@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "fmmtl/numeric/Vec.hpp"
+#include "fmmtl/meta/dimension.hpp"
 
 namespace fmmtl {
 
@@ -19,29 +19,31 @@ namespace fmmtl {
  *
  * BoundingBoxes are implemented as boxes -- ND rectangular cuboids -- whose
  * sides are aligned with the principal axes.
+ *
+ * The point_type of a BoundingBox satisfies the concept
+ * concept point_type {
+ *   point_type();                             // Default constructible
+ *   point_type(const point_type&);            // Copy constructible
+ *   point_type& operator=(const point_type&); // Assignable
+ *   value_type& operator[](unsigned i);       // mutable access to coordinate i
+ * };
+ * and value_type is comparable and assignable.
  */
-template <unsigned DIM>
+template <typename POINT,
+          unsigned DIM = fmmtl::dimension<POINT>::value>
 class BoundingBox {
  public:
-  typedef Vec<DIM,double> point_type;
+  static_assert(DIM >= 1, "BoundingBox point_type must have DIM >= 1");
+  typedef POINT point_type;
 
   /** Construct an empty bounding box. */
   BoundingBox()
-      : empty_(true) {
+      : empty_(true), min_(), max_() {
   }
   /** Construct the minimal bounding box containing @a p.
    * @post contains(@a p) && min() == @a p && max() == @a p */
   explicit BoundingBox(const point_type& p)
       : empty_(false), min_(p), max_(p) {
-  }
-  /** Construct the minimal bounding box containing a given sphere.
-   * @param[in] center center of the sphere
-   * @param[in] radius radius of the sphere
-   * @pre radius >= 0 */
-  BoundingBox(const point_type& center, double radius)
-      : empty_(false), min_(center), max_(center) {
-    min_ -= radius;
-    max_ += radius;
   }
   /** Construct the minimal bounding box containing @a p1 and @a p2.
    * @post contains(@a p1) && contains(@a p2) */
@@ -52,7 +54,7 @@ class BoundingBox {
   /** Construct a bounding box containing the points in [first, last). */
   template <typename IT>
   BoundingBox(IT first, IT last)
-      : empty_(true) {
+      : empty_(true), min_(), max_() {
     insert(first, last);
   }
 
@@ -60,59 +62,51 @@ class BoundingBox {
   bool empty() const {
     return empty_;
   }
+
   /** Test if the bounding box is nonempty.
    *
    * This function lets you write code such as "if (b) { ... }" or
    * "if (box1 & box2) std::cout << "box1 and box2 intersect\n". */
   operator bool() const {
-    return empty_;
+    return empty();
   }
 
   /** Return the minimum corner of the bounding box.
    * @post empty() || contains(min())
    *
-   * The minimum corner has minimum x, y, and z coordinates of any corner.
+   * The minimum corner has minimum coordinates of any corner.
    * An empty box has min() == point_type(). */
   const point_type& min() const {
     return min_;
   }
+
   /** Return the maximum corner of the bounding box.
-   * @post empty() || contains(max()) */
+   * @post empty() || contains(max())
+   *
+   * The maximum corner has maximum coordinates of any corner.
+   * An empty box has max() == point_type(). */
   const point_type& max() const {
     return max_;
-  }
-  /** Return the dimensions of the bounding box.
-   * @return max() - min()
-   */
-  point_type dimensions() const {
-    return max_ - min_;
-  }
-  /** Return the center of the bounding box. */
-  point_type center() const {
-    return (min_ + max_) / 2;
   }
 
   /** Test if point @a p is in the bounding box. */
   bool contains(const point_type& p) const {
-    if (empty())
-      return false;
-    for (unsigned i = 0; i != DIM; ++i)
-      if (p[i] < min_[i] || p[i] > max_[i])
-        return false;
-    return true;
+    return !empty() && safe_contains(p);
   }
-  /** Test if @a box is entirely within this bounding box.
+
+  /** Test if @a b is entirely within this bounding box.
    *
-   * Returns false if @a box.empty(). */
-  bool contains(const BoundingBox& box) const {
-    return !box.empty() && contains(box.min()) && contains(box.max());
+   * Returns false if @a b.empty(). */
+  bool contains(const BoundingBox& b) const {
+    return !empty() && !b.empty() && safe_contains(b.min()) && safe_contains(b.max());
   }
-  /** Test if @a box intersects this bounding box. */
-  bool intersects(const BoundingBox& box) const {
-    if (empty() || box.empty())
+
+  /** Test if @a b intersects this bounding box. */
+  bool intersects(const BoundingBox& b) const {
+    if (empty() || b.empty())
       return false;
     for (unsigned i = 0; i != DIM; ++i)
-      if (box.min_[i] > max_[i] || box.max_[i] < min_[i])
+      if (b.min_[i] > max_[i] || b.max_[i] < min_[i])
         return false;
     return true;
   }
@@ -126,20 +120,22 @@ class BoundingBox {
       min_ = max_ = p;
     } else {
       for (unsigned i = 0; i != DIM; ++i) {
-        min_[i] = std::min(min_[i], p[i]);
-        max_[i] = std::max(max_[i], p[i]);
+        if (p[i] < min_[i])  min_[i] = p[i];
+        if (p[i] > max_[i])  max_[i] = p[i];
       }
     }
     return *this;
   }
-  /** Extend the bounding box to contain @a box.
-   * @post contains(@a box) is true
+
+  /** Extend the bounding box to contain @a b.
+   * @post contains(@a b) is true
    * @post if old contains(@a x) was true, then new contains(@a x) is true */
-  BoundingBox& operator|=(const BoundingBox& box) {
-    if (!box.empty())
-      (*this |= box.min()) |= box.max();
+  BoundingBox& operator|=(const BoundingBox& b) {
+    if (!b.empty())
+      (*this |= b.min()) |= b.max();
     return *this;
   }
+
   /** Extend the bounding box to contain the points in [first, last). */
   template <typename IT>
   BoundingBox& insert(IT first, IT last) {
@@ -148,17 +144,13 @@ class BoundingBox {
     return *this;
   }
 
-  /** Intersect this bounding box with @a box. */
-  BoundingBox& operator&=(const BoundingBox& box) {
-    if (empty() || box.empty())
+  /** Intersect this bounding box with another bounding box @a b. */
+  BoundingBox& operator&=(const BoundingBox& b) {
+    if (!intersects(b))
       return clear();
     for (unsigned i = 0; i != DIM; ++i) {
-      if (min_[i] > box.max_[i] || max_[i] < box.min_[i])
-        return clear();
-      if (min_[i] < box.min_[i])
-        min_[i] = box.min_[i];
-      if (max_[i] > box.max_[i])
-        max_[i] = box.max_[i];
+      if (min_[i] < b.min_[i])  min_[i] = b.min_[i];
+      if (max_[i] > b.max_[i])  max_[i] = b.max_[i];
     }
     return *this;
   }
@@ -173,49 +165,55 @@ class BoundingBox {
 
   /** Write a BoundingBox to an output stream.
    *
-   * An empty BoundingBox is written as "[]". A nonempty BoundingBox is
-   * written as "[min:max] (dim)".
+   * An empty bounding box is written as "[]".
+   * A nonempty bounding box is written as "[min:max] (dim)".
    */
-  inline friend std::ostream& operator<<(std::ostream& s,
-                                         const BoundingBox<DIM>& box) {
-    if (box.empty())
-      return (s << '[' << ']');
-    else
-      return (s << '[' << box.min() << " : " << box.max() << "] ("
-              << box.dimensions() << ')');
+  friend inline std::ostream& operator<<(std::ostream& s,
+                                         const BoundingBox<point_type>& b) {
+    if (b.empty())
+      return s << '[' << ']';
+
+    s << '[' << b.min_[0];
+    for (unsigned i = 1; i != DIM; ++i)  s << ", " << b.min_[1];
+    s << " : " << b.max_[0];
+    for (unsigned i = 1; i != DIM; ++i)  s << ", " << b.max_[1];
+    s << "] (" << b.max_[0] - b.min_[0];
+    for (unsigned i = 1; i != DIM; ++i)  s << ", " << b.max_[1] - b.min_[i];
+    return s << ')';
   }
 
  private:
   bool empty_;
   point_type min_;
   point_type max_;
+
+  /** Test if point @a p is in the bounding box without checking emptiness. */
+  bool safe_contains(const point_type& p) const {
+    for (unsigned i = 0; i != DIM; ++i)
+      if (p[i] < min_[i] || p[i] > max_[i])
+        return false;
+    return true;
+  }
 };
 
 
-
-/** Return a bounding box that contains @a box and @a p. */
-template <unsigned DIM>
-BoundingBox<DIM> operator|(BoundingBox<DIM> box,
-                           const Vec<DIM,double>& p) {
-  return box |= p;
+/** Return a bounding box that contains @a b and @a p. */
+template <typename P, unsigned D>
+BoundingBox<P,D> operator|(BoundingBox<P,D> b,
+                           const P& p) {
+  return b |= p;
 }
-/** Return the union of @a box1 and @a box2. */
-template <unsigned DIM>
-BoundingBox<DIM> operator|(BoundingBox<DIM> box1,
-                           const BoundingBox<DIM>& box2) {
-  return box1 |= box2;
+/** Return the union of @a b1 and @a b2. */
+template <typename P, unsigned D>
+BoundingBox<P,D> operator|(BoundingBox<P,D> b1,
+                           const BoundingBox<P,D>& b2) {
+  return b1 |= b2;
 }
-/** Return a bounding box that contains @a p1 and @a p2. */
-template <unsigned DIM>
-BoundingBox<DIM> operator|(const Vec<DIM,double>& p1,
-                           const Vec<DIM,double>& p2) {
-  return BoundingBox<DIM>(p1, p2);
-}
-/** Return the intersection of @a box1 and @a box2. */
-template <unsigned DIM>
-BoundingBox<DIM> operator&(BoundingBox<DIM> box1,
-                           const BoundingBox<DIM>& box2) {
-  return box1 &= box2;
+/** Return the intersection of @a b1 and @a b2. */
+template <typename P, unsigned D>
+BoundingBox<P,D> operator&(BoundingBox<P,D> b1,
+                           const BoundingBox<P,D>& b2) {
+  return b1 &= b2;
 }
 
 } // end namespace fmmtl
