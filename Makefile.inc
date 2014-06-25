@@ -7,7 +7,7 @@ BOOST_DIR = /usr/include
 
 # Optional libraries
 # Only needed if using CUDA
-CUDA_DIR = /usr/local/cuda-5.5
+CUDA_DIR = /usr/local/cuda
 
 # This FMM library
 FMMTL_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
