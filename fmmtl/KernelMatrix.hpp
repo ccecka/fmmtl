@@ -1,15 +1,14 @@
 #pragma once
 
-#include "fmmtl/config.hpp"
+#include <vector>
 
+#include "fmmtl/config.hpp"
 #include "fmmtl/util/Logger.hpp"
 
 #include "fmmtl/FMMOptions.hpp"
 #include "fmmtl/KernelMatrixPlan.hpp"
 
 #include "fmmtl/meta/kernel_traits.hpp"
-
-#include <vector>
 
 namespace fmmtl {
 
@@ -24,14 +23,16 @@ namespace fmmtl {
  *
  * TODO: Optimize on aliased source and targets
  */
-template <class E>
+template <class E,
+          class TA = std::vector<typename KernelTraits<E>::target_type>,
+          class SA = std::vector<typename KernelTraits<E>::source_type> >
 class kernel_matrix {
   typedef kernel_matrix<E>  this_type;
  public:
   FMMTL_IMPORT_EXPANSION_TRAITS(E);
 
-  typedef std::vector<target_type> target_array;
-  typedef std::vector<source_type> source_array;
+  typedef TA target_array;
+  typedef SA source_array;
 
   typedef std::size_t size_type;
 
@@ -50,19 +51,19 @@ class kernel_matrix {
   explicit kernel_matrix(size_type rows, size_type cols)
       : targets_(rows), sources_(cols), plan(nullptr) {}
 
-  template <class TA, class SA>
+  template <class TA2, class SA2>
   explicit kernel_matrix(const expansion_type& e,
-                         const TA& targets,
-                         const SA& sources)
+                         const TA2& targets,
+                         const SA2& sources)
       : e_(e),
         targets_(targets.begin(), targets.end()),
         sources_(sources.begin(), sources.end()),
         plan(nullptr) {
   }
 
-  template <class SA>
+  template <class SA2>
   explicit kernel_matrix(const expansion_type& e,
-                         const SA& sources)
+                         const SA2& sources)
       : e_(e),
         targets_(sources.begin(), sources.end()),
         sources_(sources.begin(), sources.end()),
@@ -91,9 +92,8 @@ class kernel_matrix {
   /** @brief Returns the const expansion operating in the fast MVM */
   inline const expansion_type& expansion() const { return e_.expansion(); }
 
-  /** @brief Returns a const reference to the source array */
+  /** @brief Returns a const reference to the target array */
   inline const target_array& targets() const { return targets_; }
-  // TODO: Return a proxy?
   /** @brief Returns a const reference to the ith target */
   inline const target_type& target(size_type i) const { return targets_[i]; }
   /** @brief Returns a reference to the ith target */
@@ -102,11 +102,10 @@ class kernel_matrix {
     return targets_[i];
   }
   /** @brief Returns a const reference to the permuted target array */
-  inline const target_array& permuted_targets() const { return plan->targets(); }
+  inline std::vector<target_type> permuted_targets() const { return plan->targets(); }
 
   /** @brief Returns a const reference to the source array */
   inline const source_array& sources() const { return sources_; }
-  // TODO: Return a proxy?
   /** @brief Returns a const reference to the jth source */
   inline const source_type& source(size_type j) const { return sources_[j]; }
   /** @brief Returns a reference to the ith target */
@@ -115,7 +114,7 @@ class kernel_matrix {
     return sources_[j];
   }
   /** @brief Returns a const reference to the permuted target array */
-  inline const target_array& permuted_sources() const { return plan->sources(); }
+  inline std::vector<source_type> permuted_sources() const { return plan->sources(); }
 
   /** @brief Returns the matrix element K(i,j) */
   inline value_type operator()(size_type i, size_type j) const {
