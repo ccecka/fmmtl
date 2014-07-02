@@ -21,15 +21,13 @@ namespace fmmtl {
 
     // PUBLIC PREDECLARATIONS
     public:
-
+      
+      // How to get point_type from PointIter?
+      // XXX How to template on this without knowing type?
       typedef POINT point_type;
 
       // The type of this tree
       typedef KDTree tree_type;
-
-      // Predeclarations
-      struct KDNode;
-      typedef KDNode node_type;
 
       struct Box;
       typedef Box box_type;
@@ -38,58 +36,58 @@ namespace fmmtl {
 
     // PRIVATE METHODS
     private:
+
+      /** @brief inserts all the points from p_first to p_last
+       *    into the KDTree.
+       *    Continuously partitions based on a Functor comp that splits pivots the 
+       *    midpt.
+       *
+       * @param[in]: p_first, PointIter at the start of range
+       * @param[in]: p_last, PointIter at the end of range
+       * @param[in]: comp, a Functor that takes in a midpt value and returns a comparison
+       *
+       **/
+
+       //XXX Should be done recursively
       template <typename PointIter, typename Comparator>
-      void insert(PointIter p_first, PointIter p_last, Comparator comp, unsigned NCRIT) {
+      void insert(PointIter p_first, PointIter p_last, Comparator comp, int parent = 0, int level = 0) {
         
+        // XXX: parent == idx for root! (0 == 0)
+        // XXX: how to track idx??
+       
+        // maybe can use this to track leafs?
         if (p_first == p_last) {
           return;
         }
 
+        // do we even need to do this if it's recursive?
         Point pf = p_first;
         Point pl = p_last;
 
-        // track the level of the box
-        int level = 0;
-        int idx = 0;
-        int parent = 0; // XXX: parent == idx for root! (0 == 0)
+        // get distance between the iterators (# pts)
+        int length = std::distance(pf, pl);
 
-        // maybe we do it like this, instead of recursive?
-        for ( ; pf != pl; ;) {
-          
-          // get distance between the iterators (# pts)
-          int length = std::distance(pf, pl);
+        // select the axis based on level so that the axis cycles 
+        // through all valid dimensions
+        int axis = level % DIM;
+  
+        // Get the pivot midpt
+        PointIter p_midpt = std::advance(pf, length / 2);
 
-          // select the axis based on level so that the axis cycles 
-          // through all valid dimensions
-          int axis = level % DIM;
-    
-          // Get the pivot midpt
-          PointIter p_midpt = std::advance(pf, length / 2);
+        // Use std::nth element to rearrange elements in the range [first, last), in such
+        // a way that the element in the 'nth' positon is the element that would be in that
+        // position in a sorted sequence.  
+        // No other specific order, except that none of the elements preceding 'nth' are greater 
+        // than it, and none of the elements following it are less
+        std::nth_element(pf, pm, pl, comp(axis));
 
-          // Use std::nth element to rearrange elements in the range [first, last), in such
-          // a way that the element in the 'nth' positon is the element that would be in that
-          // position in a sorted sequence.  
-          // No other specific order, except that none of the elements preceding 'nth' are greater 
-          // than it, and none of the elements following it are less
-          std::nth_element(pf, pm, pl, comp(axis));
+        // create a new box_data and track it in box_data_
+        // XXX: How to track leafs
+        box_data_.push(box_data(level, parent, std::distance(pf, p_midpt), 
+                  std::distance(p_midpt, pl), *p_midpt)
 
-          // create a new box_data and track it in box_data_
-          // XXX: How to track leafs
-          box_data_.push(box_data(level, parent, std::distance(p_first, pf), 
-                    std::distance(p_first, pl), *p_midpt)
-
-
-          // update the parent to the current idx
-          parent = idx;
-          
-          // increment the idx
-          ++idx;
-
-        }
-
-
-        level_ = level;
-        node_ = KDNode (p_midpt, KDTree(p_first, p_midpt, comp, level + 1, NCRIT), KDTree(std::advance(p_midpt, 1), p_last, comp, level + 1, NCRIT));
+        insert(p_first, p_midpt, comp, parent, level + 1);
+        insert(p_midpt, p_last, comp, parent, level + 1);
 
       }
 
