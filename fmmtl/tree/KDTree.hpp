@@ -50,8 +50,8 @@ namespace fmmtl {
 
        //XXX Should be done recursively
       template <typename PointIter, typename Comparator>
-      void insert(PointIter p_first, PointIter p_last, Comparator comp, int parent = 0, int level = 0) {
-        
+      void insert(PointIter p_first, PointIter p_last, Comparator comp, int idx = 0, int level = 0) {
+
         // XXX: parent == idx for root! (0 == 0)
         // XXX: how to track idx??
        
@@ -81,13 +81,15 @@ namespace fmmtl {
         // than it, and none of the elements following it are less
         std::nth_element(pf, pm, pl, comp(axis));
 
+        // XXX: IDEA: since each box relation is binary, then given each box idx X, then its child
+        // will be 2X and 2X + 1, and its parent will be X << 1
         // create a new box_data and track it in box_data_
         // XXX: How to track leafs
-        box_data_.push(box_data(level, parent, std::distance(pf, p_midpt), 
+        box_data_.push(box_data(level, idx / 2, std::distance(pf, p_midpt), 
                   std::distance(p_midpt, pl), *p_midpt)
 
-        insert(p_first, p_midpt, comp, parent, level + 1);
-        insert(p_midpt, p_last, comp, parent, level + 1);
+        insert(p_first, p_midpt, comp, idx * 2, level + 1);
+        insert(p_midpt, p_last, comp, idx * 2 + 1, level + 1);
 
       }
 
