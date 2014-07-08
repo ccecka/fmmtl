@@ -60,10 +60,6 @@ namespace fmmtl {
           return;
         }
 
-        // do we even need to do this if it's recursive?
-        Point pf = p_first;
-        Point pl = p_last;
-
         // get distance between the iterators (# pts)
         int length = std::distance(pf, pl);
 
@@ -73,6 +69,7 @@ namespace fmmtl {
   
         // Get the pivot midpt
         PointIter p_midpt = std::advance(pf, length / 2);
+        
 
         // Use std::nth element to rearrange elements in the range [first, last), in such
         // a way that the element in the 'nth' positon is the element that would be in that
@@ -81,6 +78,12 @@ namespace fmmtl {
         // than it, and none of the elements following it are less
         std::nth_element(pf, pm, pl, comp(axis));
 
+        // Get the new pf and new pl since the old ones might be invalidated after
+        // calling nth_element, since it could have been shuffled
+        // XXX: possible off by 1 error??
+        Point pf = std::advance(p_midpt, -1 * (length / 2));
+        Point pl = std::advance(p_midpt, length / 2);
+        
         // XXX: IDEA: since each box relation is binary, then given each box idx X, then its child
         // will be 2X and 2X + 1, and its parent will be X << 1
         // create a new box_data and track it in box_data_
@@ -90,7 +93,6 @@ namespace fmmtl {
 
         insert(p_first, p_midpt, comp, idx * 2, level + 1);
         insert(p_midpt, p_last, comp, idx * 2 + 1, level + 1);
-
       }
 
     // PUBLIC METHODS
