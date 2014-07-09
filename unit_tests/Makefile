@@ -10,7 +10,8 @@ EXEC += test_kernel
 EXEC += test_expansion
 
 EXEC += test_s2t
-EXEC += test_tree
+EXEC += test_ndtree
+EXEC += test_kdtree
 EXEC += test_direct
 EXEC += test_vec
 

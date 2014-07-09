@@ -1,8 +1,8 @@
-#include "fmmtl/tree/NDTree.hpp"
-#include "fmmtl/numeric/Vec.hpp"
-
 #include <iostream>
 #include <string>
+
+#include "fmmtl/tree/KDTree.hpp"
+#include "fmmtl/numeric/Vec.hpp"
 
 int main(int argc, char** argv)
 {
@@ -19,7 +19,7 @@ int main(int argc, char** argv)
   for (int k = 0; k < N; ++k)
     points[k] = fmmtl::random<point_type>::get();
 
-  fmmtl::NDTree<3> tree(points.begin(), points.end());
+  fmmtl::KDTree<3> tree(points);
 
   std::cout << tree.bounding_box() << std::endl;
   std::cout << tree << "\n";
