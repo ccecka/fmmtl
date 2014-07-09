@@ -226,14 +226,14 @@ class NDTree {
       if (is_leaf())
         return body_iterator(data().begin_, tree_);
       else
-	      return child_begin()->body_begin();
+        return child_begin()->body_begin();
     }
     /** The end iterator to the bodies contained in this box */
     body_iterator body_end() const {
       if (is_leaf())
         return body_iterator(data().end_, tree_);
       else
-	      return (--child_end())->body_end();
+        return (--child_end())->body_end();
     }
 
     /** The begin iterator to the child boxes contained in this box */
