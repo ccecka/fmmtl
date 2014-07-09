@@ -51,9 +51,6 @@ namespace fmmtl {
        //XXX Should be done recursively
       template <typename PointIter, typename Comparator>
       void insert(PointIter p_first, PointIter p_last, Comparator comp, int idx = 0, int level = 0) {
-
-        // XXX: parent == idx for root! (0 == 0)
-        // XXX: how to track idx??
        
         // maybe can use this to track leafs?
         if (p_first == p_last) {
@@ -142,41 +139,31 @@ namespace fmmtl {
       }
 
       struct box_data {
-        
-        // level of the box and the leaf_bit
-        unsigned level_;
-
-        // index of the parent of this box
-        unsigned parent_;
-
-        // these can be either point offsets or box offsets depending on is_leaf
-        unsigned begin_;
-        unsigned end_;
+       
+        // index into our PointIter vector
+        int idx;
 
         // precomputed center
         point_type center_;
 
-        static constexpr unsigned leaf_bit;
-
-        box_data (unsigned level, unsigned parent, unsigned begin, 
-                  unsigned end, const point_type& center, unsigned is_leaf = false)
-          : level_(level), parent_(parent), begin_(begin), end_(end),
-            center_(center) leaf_bit(is_leaf) {
+        box_data (int idx, tree_type* tree, point_type center)
+          : idx_(idx), tree_(tree), center_(center) {
 
         }
 
         // Accessors 
         unsigned parent() const {
-          return parent_;
+          return idx_ << 1;
         }
 
         // XXX: not sure how to handle is leaf, maybe just set??
         bool is_leaf() {
-          return (bool) leaf_bit;
+          return level() == tree_.max_depth();
         }
 
         unsigned level() {
-          return level_;
+          // log_2(x) == log_10(x) / log_10(2)
+          return log10(idx_ + 1) / log10(2);
         }
 
       };
