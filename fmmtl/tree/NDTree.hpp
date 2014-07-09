@@ -139,7 +139,7 @@ class NDTree {
 
   // Morton code for each point
   std::vector<code_type> mc_;
-  // Permutation: permute_[i] is the current idx of originally ith point
+  // Permutation: permute_[i] is the original index of currently ith point
   std::vector<unsigned> permute_;
   // level_offset_[i] and level_offset_[i+1] is the start and end of level i
   std::vector<unsigned> level_offset_;
