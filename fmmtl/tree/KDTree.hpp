@@ -48,38 +48,53 @@ namespace fmmtl {
        *
        **/
 
-       //XXX Should be done recursively
+       //XXX Change from recursive
       template <typename PointIter, typename Comparator>
       void insert(PointIter p_first, PointIter p_last, Comparator comp, int idx = 0, int level = 0) {
-       
-        // maybe can use this to track leafs?
-        if (p_first == p_last) {
-          return;
+
+        std::vector<box_data> boxes;
+
+        // We want to create a vector<PointIter> such that we track each of the PointIter blocks.
+        std::vector<PointIter> flags = vector<PointIter>();
+        flags.push_back(p_first);
+
+        // iterate through each of the flags and then keep creating children
+        for (auto it = flags.begin(); it != flags.end(); ++it) 
+        {
+        
+          // get distance between the iterators (# pts)
+          int length = std::distance(pf, pl);
+
+          // select the axis based on level so that the axis cycles 
+          // through all valid dimensions
+          int axis = level % DIM;
+    
+          // Get the pivot midpt
+          PointIter p_midpt = std::advance(pf, length / 2);
+        
+          // Use std::nth element to rearrange elements in the range [first, last), in such
+          // a way that the element in the 'nth' positon is the element that would be in that
+          // position in a sorted sequence.  
+          // No other specific order, except that none of the elements preceding 'nth' are greater 
+          // than it, and none of the elements following it are less
+          std::nth_element(pf, pm, pl, comp(axis));
+        
+          // Get the new pf and new pl since the old ones might be invalidated after
+          // calling nth_element, since it could have been shuffled
+          // XXX: possible off by 1 error??
+          Point pf = std::advance(p_midpt, -1 * (length / 2));
+          Point pl = std::advance(p_midpt, length / 2);
+
+          // idx = size(), center = ??? 
+          boxes.push_back(box_data_(boxes.size(), this, *it);
+
+          // add the left and right side to flags
+          // XXX: Problem!! These flags are lost when we recall nth-element
+          flags.push(pf);
+          flags.push(p_midpt);
         }
 
-        // get distance between the iterators (# pts)
-        int length = std::distance(pf, pl);
 
-        // select the axis based on level so that the axis cycles 
-        // through all valid dimensions
-        int axis = level % DIM;
-  
-        // Get the pivot midpt
-        PointIter p_midpt = std::advance(pf, length / 2);
-        
-
-        // Use std::nth element to rearrange elements in the range [first, last), in such
-        // a way that the element in the 'nth' positon is the element that would be in that
-        // position in a sorted sequence.  
-        // No other specific order, except that none of the elements preceding 'nth' are greater 
-        // than it, and none of the elements following it are less
-        std::nth_element(pf, pm, pl, comp(axis));
-
-        // Get the new pf and new pl since the old ones might be invalidated after
-        // calling nth_element, since it could have been shuffled
-        // XXX: possible off by 1 error??
-        Point pf = std::advance(p_midpt, -1 * (length / 2));
-        Point pl = std::advance(p_midpt, length / 2);
         
         // XXX: IDEA: since each box relation is binary, then given each box idx X, then its child
         // will be 2X and 2X + 1, and its parent will be X << 1
