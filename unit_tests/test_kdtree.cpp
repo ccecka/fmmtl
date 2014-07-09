@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 
-#include "fmmtl/tree/KDTree.hpp"
+#include "fmmtl/tree/KDTree2.hpp"
 #include "fmmtl/numeric/Vec.hpp"
 
 int main(int argc, char** argv)
