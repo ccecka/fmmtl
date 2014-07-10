@@ -12,59 +12,6 @@
 
 #define for_i for(std::size_t i = 0; i != N; ++i)
 
-#if !defined(__CUDACC__)
-/** This is not being compiled with CUDA, but with C++11 compatible compiler.
- * Type promotion with SFINAE selection can be accomplished with
- *   template <typename T, typename U>
- *   using prod_type = decltype(std::declval<T>() * std::declval<U>());
- * but we use a C++03 style for compatibility with the nvcc version below.
- */
-#  define FMMTL_BINARY_PROMOTE_DECLARE(NAME, OP)                            \
-  template <typename T, typename U,                                         \
-            typename R = decltype(std::declval<T>() OP std::declval<U>())>  \
-  struct NAME##_op {                                                        \
-    typedef R type;                                                         \
-    FMMTL_INLINE R operator()(const T& a, const U& b) const {               \
-      return a OP b;                                                        \
-    }                                                                       \
-  }
-
-#  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
-  template <typename T,                                                     \
-            typename R = decltype(OP(std::declval<T>()))>                   \
-  struct NAME##_op {                                                        \
-    typedef R type;                                                         \
-    FMMTL_INLINE R operator()(const T& a) const {                           \
-      return OP(a);                                                         \
-    }                                                                       \
-  }
-#else
-/** This is being compiled by CUDA, which does not have decltype.
- * Instead, a simple fix is to disallow type promotion and cross our fingers.
- * TODO: Improve.
- */
-#  define FMMTL_BINARY_PROMOTE_DECLARE(NAME, OP)                            \
-  template <typename T, typename U>                                         \
-  struct NAME##_op {};                                                      \
-  template <typename T>                                                     \
-  struct NAME##_op<T,T> {                                                   \
-    typedef T type;                                                         \
-    FMMTL_INLINE T operator()(const T& a, const T& b) const {               \
-      return a OP b;                                                        \
-    }                                                                       \
-  }
-
-#  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
-  template <typename T>                                                     \
-  struct NAME##_op {                                                        \
-    typedef T type;                                                         \
-    FMMTL_INLINE T operator()(const T& a) const {                           \
-      return OP(a);                                                         \
-    }                                                                       \
-  }
-#endif
-
-
 /** @class Vec
  * @brief Class representing ND points and vectors.
  */
@@ -118,6 +65,12 @@ struct Vec {
   FMMTL_INLINE explicit Vec(const Vec<N,U>& v) {
     std::copy(v.begin(), v.end(), this->begin());
   }
+  /*
+  template <typename Generator>
+  FMMTL_INLINE explicit Vec(const Generator& gen) {
+    for_i elem[i] = gen(i);
+  }
+  */
   template <typename U, typename OP>
   FMMTL_INLINE explicit Vec(const Vec<N,U>& v, OP op) {
     for_i elem[i] = op(v[i]);
@@ -263,6 +216,58 @@ FMMTL_INLINE const Vec<N,T>& operator+(const Vec<N,T>& a) {
 
 // ARITHEMTIC BINARY OPERATORS
 
+#if !defined(__CUDACC__)
+/** This is not being compiled with CUDA, but with C++11 compatible compiler.
+ * Type promotion with SFINAE selection can be accomplished with
+ *   template <typename T, typename U>
+ *   using prod_type = decltype(std::declval<T>() * std::declval<U>());
+ * but we use a C++03 style for compatibility with the nvcc version below.
+ */
+#  define FMMTL_BINARY_PROMOTE_DECLARE(NAME, OP)                            \
+  template <typename T, typename U,                                         \
+            typename R = decltype(std::declval<T>() OP std::declval<U>())>  \
+  struct NAME##_op {                                                        \
+    typedef R type;                                                         \
+    FMMTL_INLINE R operator()(const T& a, const U& b) const {               \
+      return a OP b;                                                        \
+    }                                                                       \
+  }
+
+#  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
+  template <typename T,                                                     \
+            typename R = decltype(OP(std::declval<T>()))>                   \
+  struct NAME##_op {                                                        \
+    typedef R type;                                                         \
+    FMMTL_INLINE R operator()(const T& a) const {                           \
+      return OP(a);                                                         \
+    }                                                                       \
+  }
+#else
+/** This is being compiled by CUDA, which does not have decltype.
+ * Instead, a simple fix is to disallow type promotion and cross our fingers.
+ * TODO: Improve.
+ */
+#  define FMMTL_BINARY_PROMOTE_DECLARE(NAME, OP)                            \
+  template <typename T, typename U>                                         \
+  struct NAME##_op {};                                                      \
+  template <typename T>                                                     \
+  struct NAME##_op<T,T> {                                                   \
+    typedef T type;                                                         \
+    FMMTL_INLINE T operator()(const T& a, const T& b) const {               \
+      return a OP b;                                                        \
+    }                                                                       \
+  }
+
+#  define FMMTL_UNARY_PROMOTE_DECLARE(NAME, OP)                             \
+  template <typename T>                                                     \
+  struct NAME##_op {                                                        \
+    typedef T type;                                                         \
+    FMMTL_INLINE T operator()(const T& a) const {                           \
+      return OP(a);                                                         \
+    }                                                                       \
+  }
+#endif
+
 namespace fmmtl {
 
 FMMTL_BINARY_PROMOTE_DECLARE(sum,+);
@@ -376,6 +381,33 @@ imag(const Vec<N,T>& a) {
 
 
 //} // end namespace fmmtl
+
+
+// Compliance with std::
+namespace std {
+
+template <std::size_t I, std::size_t N, typename T>
+typename Vec<N,T>::reference
+get(Vec<N,T>& a) {
+  FMMTL_STATIC_ASSERT(I < N, "I must be less than N.");
+  return a[I];
+}
+
+template <std::size_t I, std::size_t N, typename T>
+typename Vec<N,T>::const_reference
+get(const Vec<N,T>& a) {
+  FMMTL_STATIC_ASSERT(I < N, "I must be less than N.");
+  return a[I];
+}
+
+template <std::size_t N, typename T>
+void
+swap(Vec<N,T>& a, Vec<N,T>& b) {
+  std::swap_ranges(a.begin(), a.end(), b.begin());
+}
+
+} // end namespace std
+
 
 // META OPERATIONS
 

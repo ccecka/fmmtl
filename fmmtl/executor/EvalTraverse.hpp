@@ -55,8 +55,8 @@ class EvalTraverse
     auto near_dispatch = [&c](const source_box& s, const target_box& t) {
       S2T::eval(c,s,t,S2T::ONE_SIDED());
     };
-    Traverse::eval(c.source_tree().root(), c.target_tree().root(),
-                   near_dispatch, far_dispatch);
+    fmmtl::traverse_nearfar(c.source_tree().root(), c.target_tree().root(),
+                            near_dispatch, far_dispatch);
 
     // Perform the downward pass (not all may be needed)
     auto down_dispatch = [&c](const target_box& box) {
