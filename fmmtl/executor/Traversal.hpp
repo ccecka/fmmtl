@@ -1,110 +1,154 @@
 #pragma once
 /** @file Traversal
- * @brief A simple queue-based tree traversal that passes box pairs to
- * near and far field evaluators.
- */
-
-/**
- * concept box {
- *   int index() const;
- *   bool is_leaf() const;
- *   double volume() const;
- *   box_iterator child_begin() const;
- *   box_iterator child_end() const;
- * }
- *
- * concept NearEvaluator {
- *   // Handles a box pair with near field evaluation
- *   void operator()(source_box&, target_box&);
- * }
- * concept FarEvaluator {
- *   // @returns whether box pair will be handled as a far field or not
- *   bool operator()(source_box&, target_box&);
- * }
+ * @brief Generic dual-tree traversals for finding pairs of boxes
+ * that satisfy some criteria.
  */
 
 #include <utility>
 #include <queue>
 #include <tuple>
 
-template <typename SourceBox, typename TargetBox>
-struct Traversal {
-  typedef SourceBox source_box;
-  typedef TargetBox target_box;
+namespace fmmtl {
 
-  typedef std::pair<source_box, target_box> box_pair;
+/** Generic dual-tree traversal with near- and far-field operators.
+ *
+ * Recursively split the boxes (by volume) until either
+ *   1) @a far_eval returns true
+ *   2) both boxes are leaves
+ * If @a far_eval returns false, then the largest box is split and recursed on.
+ * If the boxes cannot be split (both are leaves and have no children), then
+ * @near_field is called on the pair.
+ *
+ * concept SourceBox/TargetBox {
+ *   box_iterator child_begin() const;
+ *   box_iterator child_end() const;
+ *   bool is_leaf() const;   // XXX, abstract on base case?
+ *   double volume() const;  // XXX, abstract on splitting criteria?
+ * }
+ *
+ * concept FarEvaluator {
+ *   // Returns true if @a s and @a t may be considered "far"
+ *   // and should not be recursed on.
+ *   bool operator()(SourceBox s, TargetBox t);
+ * }
+ * concept NearEvaluator {
+ *   // Operator to apply to two boxes that have not been proven to be "far"
+ *   // but cannot be recursed on.
+ *   void operator(SourceBox, TargetBox);
+ * }
+ */
+template <class SourceBox, class TargetBox,
+          class NearEvaluator, class FarEvaluator>
+inline void traverse_nearfar(SourceBox sbox, TargetBox tbox,
+                             NearEvaluator& near_eval, FarEvaluator& far_eval) {
 
-  typedef std::queue<box_pair> box_queue;
+  // Queue based traversal
+  typedef std::pair<SourceBox, TargetBox> BoxPair;
+  std::queue<BoxPair> pairQ;
 
-  template <class NearEvaluator, class FarEvaluator>
-  inline static void eval(source_box sbox, target_box tbox,
-                          NearEvaluator& near_eval, FarEvaluator& far_eval) {
-    // Queue based tree traversal
-    box_queue pairQ;
-    interact(sbox, tbox, far_eval, pairQ);
+  // Initialize
+  if (!far_eval(sbox, tbox))
+    pairQ.emplace(sbox, tbox);
 
-    while (!pairQ.empty()) {
-      std::tie(sbox, tbox) = pairQ.front();
-      pairQ.pop();
+  // Loop until empty
+  while (!pairQ.empty()) {
+    std::tie(sbox, tbox) = pairQ.front();
+    pairQ.pop();
 
-      char code = (sbox.is_leaf() << 1) | (tbox.is_leaf() << 0);
-      switch (code) {
-        case 0: {             // sbox and tbox are not leaves
-          // Split the larger of the two into children and interact
-          if (sbox.volume() > tbox.volume()) {
-            case 1:           // tbox is a leaf, sbox is not a leaf
-              split_source(sbox, tbox, far_eval, pairQ);
-          } else {
-            case 2:           // sbox is a leaf, tbox is not a leaf
-              split_target(sbox, tbox, far_eval, pairQ);
+    const char code = (sbox.is_leaf() << 1) | (tbox.is_leaf() << 0);
+    switch (code) {
+      case 0: {             // sbox and tbox are not leaves
+        // Split the larger of the two into children and interact
+        if (sbox.volume() > tbox.volume()) {
+          case 1:           // tbox is a leaf, sbox is not a leaf
+            // Split the source box into children
+            auto c_end = sbox.child_end();
+            for (auto cit = sbox.child_begin(); cit != c_end; ++cit) {
+              SourceBox cbox = *cit;
+              if (!far_eval(cbox, tbox))
+                pairQ.emplace(cbox, tbox);
+            }
+        } else {
+          case 2:           // sbox is a leaf, tbox is not a leaf
+            // Split the target box into children
+            auto c_end = tbox.child_end();
+            for (auto cit = tbox.child_begin(); cit != c_end; ++cit) {
+              TargetBox cbox = *cit;
+              if (!far_eval(sbox, cbox))
+                pairQ.emplace(sbox, cbox);
+            }
+        }
+      } continue;
+
+      case 3: {             // sbox and tbox are leaves
+        near_eval(sbox, tbox);
+      } continue;
+    } // end switch
+  } // end while
+}
+
+
+/** Alternative implementation dispatching all logic to the evaluator.
+ *
+ * If the evaluator returns
+ *  0: Base case, neither box is split
+ *  1: Split the source box and recurse on all pairs
+ *  2: Split the target box and recurse on all pairs
+ *  3: Split both boxes and recurse on all pairs
+ *
+ * concept SourceBox/TargetBox {
+ *   box_iterator child_begin() const;
+ *   box_iterator child_end() const;
+ * }
+ * concept Evaluator {
+ *   // Returns 0, 1, 2, or 3 as defined above.
+ *   int operator()(SourceBox s, TargetBox t);
+ * }
+ */
+template <class SourceBox, class TargetBox, class Evaluator>
+inline void traverse_if(SourceBox sbox, TargetBox tbox, Evaluator& eval) {
+
+  // Queue based traversal
+  typedef std::pair<SourceBox, TargetBox> BoxPair;
+  std::queue<BoxPair> pairQ;
+
+  // Initialize
+  pairQ.emplace(sbox, tbox);
+
+  while (!pairQ.empty()) {
+    std::tie(sbox, tbox) = pairQ.front();
+    pairQ.pop();
+
+    switch(eval(sbox, tbox)) {
+      case 0: {
+      } continue;
+      case 1: {
+        // Split the source box into children
+        auto c_end = sbox.child_end();
+        for (auto cit = sbox.child_begin(); cit != c_end; ++cit)
+          pairQ.emplace(*cit, tbox);       // traverse_if(*cit, tbox, eval)?
+      } continue;
+      case 2: {
+        // Split the target box into children
+        auto c_end = tbox.child_end();
+        for (auto cit = tbox.child_begin(); cit != c_end; ++cit)
+          pairQ.emplace(sbox, *cit);       // traverse_if(sbox, *cit, eval)?
+      } continue;
+      case 3: {
+        // Split both into children
+        auto cs_end = sbox.child_end();
+        auto ct_end = tbox.child_end();
+        auto ct_beg = tbox.child_begin();
+        for (auto csit = sbox.child_begin(); csit != cs_end; ++csit) {
+          for (auto ctit = ct_beg; ctit != ct_end; ++ctit) {
+            pairQ.emplace(*csit, *ctit);   // traverse_if(*csit, *ctit, eval)?
           }
-        } continue;
-
-        case 3: {             // sbox and tbox are leaves
-          near_eval(sbox, tbox);
-        } continue;
-      } // end switch
-    } // end while
-  }
-
- private:
-
-  template <class FarEvaluator>
-  inline static void split_source(source_box& sbox, target_box& tbox,
-                                  FarEvaluator& far_eval, box_queue& pairQ) {
-    auto c_end = sbox.child_end();
-    for (auto cit = sbox.child_begin(); cit != c_end; ++cit) {
-      source_box cbox = *cit;
-      interact(cbox, tbox, far_eval, pairQ);
-    }
-  }
-
-  template <class FarEvaluator>
-  inline static void split_target(source_box& sbox, target_box& tbox,
-                                  FarEvaluator& far_eval, box_queue& pairQ) {
-    auto c_end = tbox.child_end();
-    for (auto cit = tbox.child_begin(); cit != c_end; ++cit) {
-      target_box cbox = *cit;
-      interact(sbox, cbox, far_eval, pairQ);
-    }
-  }
-
-  template <class FarEvaluator>
-  inline static void interact(source_box& sbox, target_box& tbox,
-                              FarEvaluator& far_eval, box_queue& pairQ) {
-    if (!far_eval(sbox, tbox))
-      pairQ.emplace(sbox, tbox);
-  }
-};
+        }
+      } continue;
+    } // end switch
+  } // end while
+}
 
 
-struct Traverse {
-  template <class SBox, class TBox, class NearEvaluator, class FarEvaluator>
-  static void eval(SBox s, TBox t, NearEvaluator& n, FarEvaluator& f) {
-    Traversal<SBox, TBox>().eval(s, t, n, f);
-  }
-  template <class Box, class NearEvaluator, class FarEvaluator>
-  static void eval(Box b, NearEvaluator& n, FarEvaluator& f) {
-    Traverse::eval(b, b, n, f);
-  }
-};
+
+} // end namespace fmmtl

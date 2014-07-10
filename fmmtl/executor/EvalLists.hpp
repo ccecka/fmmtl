@@ -67,8 +67,8 @@ class EvalLists
       p2p_.insert(s,t);
     };
     // Determine the box interactions
-    Traverse::eval(c.source_tree().root(), c.target_tree().root(),
-                   near_batcher, far_batcher);
+    fmmtl::traverse_nearfar(c.source_tree().root(), c.target_tree().root(),
+                            near_batcher, far_batcher);
   }
 
   void execute(Context& c) {
