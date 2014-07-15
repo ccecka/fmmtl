@@ -9,6 +9,8 @@ using namespace boost::math;
 #include <boost/numeric/ublas/vector.hpp>
 using namespace boost::numeric::ublas;
 
+#include "fmmtl/Kernel.hpp"
+
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/numeric/Complex.hpp"
 #include "fmmtl/numeric/norm.hpp"
@@ -17,7 +19,7 @@ using namespace boost::numeric::ublas;
 
 #include "fmmtl/Direct.hpp"
 
-struct FourierKernel {
+struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
   typedef double value_type;
 
   typedef Vec<1,value_type> source_type;
@@ -36,8 +38,8 @@ struct FourierKernel {
 
 
 int main(int argc, char** argv) {
-  int N = 1000;
-  int M = 1000;
+  int N = 5000;
+  int M = 5000;
   bool checkErrors = true;
 
   // Parse custom command line args
@@ -79,15 +81,15 @@ int main(int argc, char** argv) {
     t = fmmtl::random<target_type>::get();
 
   // Init results
-  std::vector<result_type> result(M);
+  std::vector<result_type> result(M, result_type());
 
   // Dimension of the tree
   const unsigned D = fmmtl::dimension<source_type>::value;
   static_assert(D == fmmtl::dimension<target_type>::value, "Dimension mismatch");
 
   // Construct two trees
-  fmmtl::NDTree<D> source_tree(sources, 16);
-  fmmtl::NDTree<D> target_tree(targets, 16);
+  fmmtl::NDTree<D> source_tree(sources, 2);
+  fmmtl::NDTree<D> target_tree(targets, 2);
 
   typedef typename fmmtl::NDTree<D>::box_type target_box_type;
   typedef typename fmmtl::NDTree<D>::box_type source_box_type;
@@ -118,11 +120,15 @@ int main(int argc, char** argv) {
       p_op[sbox.index()].resize(std::distance(target_tree.box_begin(level),
                                               target_tree.box_end(level)));
 
+      assert(sbox.num_children() == (1 << D));
+
       // For all the boxes in this level of the target tree
       auto tb_end = target_tree.box_end(level);
       unsigned tb_offset = (*(target_tree.box_begin(level))).index();
       for (auto tbi = target_tree.box_begin(level); tbi != tb_end; ++tbi) {
         target_box_type tbox = *tbi;
+
+        assert(tbox.num_children() == (1 << D));
 
         std::cout << "Precomputing " << level << "  " << tbox.index() << "  " << sbox.index() << std::endl;
 
@@ -237,14 +243,12 @@ int main(int argc, char** argv) {
     }
   }
 
-
   // Check the result
   if (checkErrors) {
     std::cout << "Computing direct matvec..." << std::endl;
 
-    std::vector<result_type> exact(M);
-
     // Compute the result with a direct matrix-vector multiplication
+    std::vector<result_type> exact(M, result_type());
     Direct::matvec(K, sources, charges, targets, exact);
 
     double tot_error_sq = 0;

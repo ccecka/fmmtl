@@ -1,6 +1,7 @@
 Functionality
 =============
 
+[ ] Rework Kernel/Expansion concepts (.kernel(), etc)
 [ ] Integration with external linear algebra libraries and solvers.
 [ ] Use tvmet library for better Vec functionality and performance.
 [ ] Use thrust::complex?
@@ -40,5 +41,3 @@ Documentation
 
 [ ] Improved use of FMMTL_DEBUG_ONLY macros.
 [ ] Use #pragma once *and* #define fences.
-
-

@@ -11,7 +11,7 @@ template <typename Kernel>
 struct KernelTraits {
  public:
   typedef KernelTraits<Kernel>                    self_type;
-  typedef Kernel                                  kernel_type;
+  typedef typename Kernel::kernel_type            kernel_type;
 
   typedef typename kernel_type::source_type       source_type;
   typedef typename kernel_type::target_type       target_type;
