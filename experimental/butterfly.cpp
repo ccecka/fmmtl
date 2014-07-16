@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     t = fmmtl::random<target_type>::get();
 
   // Init results
-  std::vector<result_type> result(M, result_type());
+  std::vector<result_type> result(M);
 
   // Dimension of the tree
   const unsigned D = fmmtl::dimension<source_type>::value;
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
     std::cout << "Computing direct matvec..." << std::endl;
 
     // Compute the result with a direct matrix-vector multiplication
-    std::vector<result_type> exact(M, result_type());
+    std::vector<result_type> exact(M);
     Direct::matvec(K, sources, charges, targets, exact);
 
     double tot_error_sq = 0;
