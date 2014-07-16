@@ -16,6 +16,7 @@ using namespace boost::numeric::ublas;
 #include "fmmtl/numeric/norm.hpp"
 
 #include "fmmtl/tree/NDTree.hpp"
+#include "fmmtl/tree/TreeRange.hpp"
 
 #include "fmmtl/Direct.hpp"
 
@@ -93,6 +94,8 @@ int main(int argc, char** argv) {
 
   typedef typename fmmtl::NDTree<D>::box_type target_box_type;
   typedef typename fmmtl::NDTree<D>::box_type source_box_type;
+  typedef typename fmmtl::NDTree<D>::body_type target_body_type;
+  typedef typename fmmtl::NDTree<D>::body_type source_body_type;
 
   // Operators associated with the source and target boxes
   std::vector<std::vector<matrix<double>>> p_op(source_tree.boxes());
@@ -103,61 +106,62 @@ int main(int argc, char** argv) {
   //
 
   // For all the levels of the target_tree
-  //int max_level = std::min(source_tree.levels(), target_tree.levels()) - 1;
-  int max_level = 3;
+  //int max_L = std::min(source_tree.levels(), target_tree.levels()) - 1;
+  int max_L = 3;
 
-  std::cout << "max_level = " << max_level << std::endl;
-  for (int level = 0; level <= max_level; ++level) {
+  std::cout << "max_L = " << max_L << std::endl;
+  for (int L = 0; L <= max_L; ++L) {
 
-    std::cout << "Level " << level << std::endl;
+    std::cout << "Level " << L << std::endl;
 
     // For all boxes in the opposing level of the source tree
-    int slevel = max_level - level;
-    auto sb_end = source_tree.box_end(slevel);
-    for (auto sbi = source_tree.box_begin(slevel); sbi != sb_end; ++sbi) {
-      source_box_type sbox = *sbi;
+    for (source_box_type sbox : level(max_L - L, source_tree)) {
 
-      p_op[sbox.index()].resize(std::distance(target_tree.box_begin(level),
-                                              target_tree.box_end(level)));
+      p_op[sbox.index()].resize(target_tree.boxes(L));
 
       assert(sbox.num_children() == (1 << D));
 
       // For all the boxes in this level of the target tree
-      auto tb_end = target_tree.box_end(level);
-      unsigned tb_offset = (*(target_tree.box_begin(level))).index();
-      for (auto tbi = target_tree.box_begin(level); tbi != tb_end; ++tbi) {
-        target_box_type tbox = *tbi;
+      unsigned t_idx = 0;
+      for (target_box_type tbox : level(L, target_tree)) {
 
         assert(tbox.num_children() == (1 << D));
 
-        std::cout << "Precomputing " << level << "  " << tbox.index() << "  " << sbox.index() << std::endl;
+        std::cout << "Precomputing " << L << "  " << tbox.index() << "  " << sbox.index() << std::endl;
 
         // Interpolative decomposition of tbox x sbox
         // or propogation of previous interpolative decompositions
 
-        if (level == 0) {
+        if (L == 0) {
           // Form interpolative decomposition (dummy)
-          p_op[sbox.index()][tbox.index()-tb_offset] = identity_matrix<double>(sbox.num_bodies(), sbox.num_bodies());
+          p_op[sbox.index()][t_idx] = identity_matrix<double>(sbox.num_bodies(),
+                                                              sbox.num_bodies());
+          ++t_idx;
           //t_op[tbox.index()] = B-matrix... ?
         } else {
           // Get the "B"-matrix of the target's parent and partition according to child partitions
           // Form the interpolative decomposition of each partition (dummy)
-          p_op[sbox.index()][tbox.index()-tb_offset] = identity_matrix<double>(sbox.num_bodies(), sbox.num_bodies());
+          p_op[sbox.index()][t_idx] = identity_matrix<double>(sbox.num_bodies(),
+                                                              sbox.num_bodies());
+          ++t_idx;
 
           // Since we've only done dummy P-matrices, this will be the full evaluated rows
-          if (level == max_level) {
+          if (L == max_L) {
             // Construct the elements of the kernel matrix
             // Could use a ublas kernel_matrix class here...
-            auto& k = b_op[tbox.index()] = matrix<kernel_value_type>(tbox.num_bodies(), sbox.num_bodies());
+            auto& k = b_op[tbox.index()] = matrix<kernel_value_type>(tbox.num_bodies(),
+                                                                     sbox.num_bodies());
             std::cout << "Matrix " << k.size1() << "," << k.size2() << std::endl;
-            unsigned t_offset = (*(tbox.body_begin())).index();
-            unsigned s_offset = (*(sbox.body_begin())).index();
-            for (auto tb = tbox.body_begin(); tb != tbox.body_end(); ++tb) {
-              target_type& t = targets[(*tb).number()];
-              for (auto sb = sbox.body_begin(); sb != sbox.body_end(); ++sb) {
-                source_type& s = sources[(*sb).number()];
-                k((*tb).index() - t_offset, (*sb).index() - s_offset) = K(t, s);
+            unsigned tb_idx = 0;
+            for (target_body_type tb : bodies(tbox)) {
+              target_type& t = targets[tb.number()];
+              unsigned sb_idx = 0;
+              for (source_body_type sb : bodies(sbox)) {
+                source_type& s = sources[sb.number()];
+                k(tb_idx, sb_idx) = K(t, s);
+                ++sb_idx;
               }
+              ++tb_idx;
             }
           }
         }
@@ -173,57 +177,51 @@ int main(int argc, char** argv) {
   std::vector<vector<kernel_value_type>> local(target_tree.boxes());
 
   // For all the levels of the target_tree
-  for (int level = 0; level <= max_level; ++level) {
+  for (int L = 0; L <= max_L; ++L) {
 
     // For all boxes in the opposing level of the source tree
-    int slevel = max_level - level;
-    auto sb_end = source_tree.box_end(slevel);
-    for (auto sbi = source_tree.box_begin(slevel); sbi != sb_end; ++sbi) {
-      source_box_type sbox = *sbi;
+    for (source_box_type sbox : level(max_L - L, source_tree)) {
 
-      multipole[sbox.index()].resize(p_op[sbox.index()].size());
+      multipole[sbox.index()].resize(target_tree.boxes(L));
 
       // For all the boxes in this level of the target tree
-      auto tb_end = target_tree.box_end(level);
-      unsigned tb_offset = (*(target_tree.box_begin(level))).index();
-      for (auto tbi = target_tree.box_begin(level); tbi != tb_end; ++tbi) {
-        target_box_type tbox = *tbi;
+      unsigned t_idx = 0;
+      for (target_box_type tbox : level(L, target_tree)) {
 
-        std::cout << "Computing " << level << "  " << tbox.index() << "  " << sbox.index() << std::endl;
+        std::cout << "Computing " << L << "  " << tbox.index() << "  " << sbox.index() << std::endl;
 
         // Application of precomputed interpolative decompositions
-        if (level == 0) {
+        if (L == 0) {
           // Create the "multipole" from the sources (S2M)
           // Construct the local source vector explictly...
           vector<charge_type> c(sbox.num_bodies());
-          unsigned s_offset = (*(sbox.body_begin())).index();
-          for (auto si = sbox.body_begin(); si != sbox.body_end(); ++si) {
-            auto sbody = *si;
-            c[sbody.index()-s_offset] = charges[sbody.number()];
+          unsigned sb_idx = 0;
+          for (source_body_type sb : bodies(sbox)) {
+            c[sb_idx++] = charges[sb.number()];
           }
           // Compute the product (dummy)
-          multipole[sbox.index()][tbox.index()-tb_offset] = prod(p_op[sbox.index()][tbox.index()-tb_offset], c);
+          multipole[sbox.index()][t_idx] = prod(p_op[sbox.index()][t_idx], c);
         } else {
           // Concatenate the "multipoles" from the children and apply the op (M2M)
           vector<charge_type> c(sbox.num_bodies());
-          unsigned s_offset = (*(sbox.body_begin())).index();
-          unsigned tbp_offset = (*(target_tree.box_begin(level-1))).index();
-          for (auto ci = sbox.child_begin(); ci != sbox.child_end(); ++ci) {
-            auto cbox = *ci;
-            unsigned c_offset = (*(cbox.body_begin())).index();
-            for (auto cb = cbox.body_begin(); cb != cbox.body_end(); ++cb) {
-              auto cbody = *cb;
-              c[cbody.index()-s_offset] = multipole[cbox.index()][tbox.parent().index()-tbp_offset][cbody.index()-c_offset];
+          unsigned sb_idx = 0;
+          unsigned tp_idx = tbox.parent().index() - target_tree.box_begin(L-1)->index();
+          for (source_box_type cbox : children(sbox)) {
+            unsigned cb_idx = 0;
+            for (source_body_type cb : bodies(cbox)) {
+              c[sb_idx++] = multipole[cbox.index()][tp_idx][cb_idx++];
             }
           }
           // And take the product
-          multipole[sbox.index()][tbox.index()-tb_offset] = prod(p_op[sbox.index()][tbox.index()-tb_offset], c);
+          multipole[sbox.index()][t_idx] = prod(p_op[sbox.index()][t_idx], c);
         }
 
-        if (level == max_level) {
+        if (L == max_L) {
+          std::cout << "Local Product " << tbox.index() << std::endl;
           // Take the product of the ID and the "multipole" (M2L)
-          local[tbox.index()] = prod(b_op[tbox.index()], multipole[sbox.index()][tbox.index()-tb_offset]);
+          local[tbox.index()] = prod(b_op[tbox.index()], multipole[sbox.index()][t_idx]);
         }
+        ++t_idx;
       }
     }
   }
@@ -231,15 +229,11 @@ int main(int argc, char** argv) {
   // Concatenate the leaf locals for the final result (L2T)
 
   // For all the boxes in this level of the target tree
-  auto tb_end = target_tree.box_end(max_level);
-  for (auto tbi = target_tree.box_begin(max_level); tbi != tb_end; ++tbi) {
-    target_box_type tbox = *tbi;
-
+  for (target_box_type tbox : level(max_L, target_tree)) {
     // For all the bodies
-    unsigned t_offset = (*(tbox.body_begin())).index();
-    for (auto tb = tbox.body_begin(); tb != tbox.body_end(); ++tb) {
-      auto b = *tb;
-      result[b.number()] = local[tbox.index()][b.index() - t_offset];
+    unsigned tb_idx = 0;
+    for (target_body_type tb : bodies(tbox)) {
+      result[tb.number()] = local[tbox.index()][tb_idx++];
     }
   }
 

@@ -388,6 +388,11 @@ class NDTree {
     return box_data_.size();
   }
 
+  /** The number of boxes contained in level L of this tree */
+  inline unsigned boxes(unsigned L) const {
+    return level_offset_[L+1] - level_offset_[L];
+  }
+
   /** The maximum level of any box in this tree */
   inline unsigned levels() const {
     return level_offset_.size() - 1;
