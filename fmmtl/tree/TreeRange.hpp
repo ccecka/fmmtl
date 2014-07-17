@@ -34,7 +34,7 @@ struct BoxLevelRange {
 };
 
 template <class T>
-BoxLevelRange<T> level(unsigned L, const T& t) {
+BoxLevelRange<T> boxes(unsigned L, const T& t) {
   return {L,t};
 }
 
