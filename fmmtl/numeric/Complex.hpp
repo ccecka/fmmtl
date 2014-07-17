@@ -65,7 +65,7 @@ struct complex {
   template <typename X>
   FMMTL_INLINE
   complex(const complex<X>& z) {
-    real(T(z.real())); imag(T(z.imag()));
+    real(static_cast<T>(z.real())); imag(static_cast<T>(z.imag()));
   }
 
   /*! This copy constructor copies from a <tt>std::complex</tt> with a type that
@@ -78,7 +78,7 @@ struct complex {
   template <typename X>
   FMMTL_INLINE
   complex(const std::complex<X>& z) {
-    real(T(z.real())); imag(T(z.imag()));
+    real(static_cast<T>(z.real())); imag(static_cast<T>(z.imag()));
   }
 
   /* --- Compound Assignment Operators --- */
@@ -211,7 +211,7 @@ bool operator==(const complex<T>& lhs, const complex<T>& rhs) {
 template <typename T>
 FMMTL_INLINE
 bool operator==(const T& lhs, const complex<T>& rhs) {
-  return lhs == rhs.real() && 0 == rhs.imag();
+  return lhs == rhs.real() && T(0) == rhs.imag();
 }
 
 /*! Returns true if the imaginary part of the  \p complex number is zero and the real part is equal to the scalar. Returns false otherwise.
@@ -222,7 +222,7 @@ bool operator==(const T& lhs, const complex<T>& rhs) {
 template <typename T>
 FMMTL_INLINE
 bool operator==(const complex<T>& lhs, const T& rhs) {
-  return lhs.real() == rhs && lhs.imag() == 0;
+  return lhs.real() == rhs && lhs.imag() == T(0);
 }
 
 /*! Returns true if two \p complex numbers are different and false otherwise.
@@ -328,12 +328,12 @@ FMMTL_INLINE
 complex<T> operator/(const complex<T>& lhs, const complex<T>& rhs) {
   using std::abs;
   // XXX: Revisit
-  T s = T(1.0) / (abs(rhs.real()) + abs(rhs.imag()));
+  T s = T(1) / (abs(rhs.real()) + abs(rhs.imag()));
   T ars = lhs.real() * s;
   T ais = lhs.imag() * s;
   T brs = rhs.real() * s;
   T bis = rhs.imag() * s;
-  s = T(1.0) / ((brs * brs) + (bis * bis));
+  s = T(1) / ((brs * brs) + (bis * bis));
   return complex<T>(((ars * brs) + (ais * bis)) * s,
                     ((ais * brs) - (ars * bis)) * s);
 }
@@ -359,11 +359,11 @@ FMMTL_INLINE
 complex<T> operator/(const T& lhs, const complex<T>& rhs) {
   using std::abs;
   // XXX: Revisit
-  T s = T(1.0) / (abs(rhs.real()) + abs(rhs.imag()));
+  T s = T(1) / (abs(rhs.real()) + abs(rhs.imag()));
   T ars = lhs.real() * s;
   T brs = rhs.real() * s;
   T bis = rhs.imag() * s;
-  s = T(1.0) / ((brs * brs) + (bis * bis));
+  s = T(1) / ((brs * brs) + (bis * bis));
   return complex<T>((ars * brs) *  s,
                     (ars * bis) * -s);
 }
@@ -586,7 +586,7 @@ template <typename T>
 FMMTL_INLINE
 complex<T> sqrt(const complex<T>& z) {
   using std::sqrt;
-  return polar(sqrt(abs(z)), arg(z)/T(2.0));
+  return polar(sqrt(abs(z)), arg(z)/T(2));
 }
 
 
@@ -664,8 +664,8 @@ complex<T> sinh(const complex<T>& z) {
 template <typename T>
 FMMTL_INLINE
 complex<T> tanh(const complex<T>& z) {
-  const complex<T> r = exp(T(2.0) * z);
-  return (r - T(1.0)) / (r + T(1.0));
+  const complex<T> r = exp(T(2) * z);
+  return (r - T(1)) / (r + T(1));
 }
 
 
@@ -682,7 +682,7 @@ template <typename T>
 FMMTL_INLINE
 complex<T> acos(const complex<T>& z) {
   const complex<T> ret = asin(z);
-  const T pi_half = T(3.1415926535897932384626433832795) / T(2.0);
+  const T pi_half = T(3.1415926535897932384626433832795) / T(2);
   return complex<T>(pi_half - ret.real(), -ret.imag());
 }
 
@@ -729,14 +729,14 @@ complex<T> atan(const complex<T>& z) {
 template <typename T>
 FMMTL_INLINE
 complex<T> acosh(const complex<T>& z) {
-  complex<T> ret((z.real()-z.imag()) * (z.real()+z.imag()) - T(1.0),
-                 T(2.0) * z.real() * z.imag());
+  complex<T> ret((z.real()-z.imag()) * (z.real()+z.imag()) - T(1),
+                 T(2) * z.real() * z.imag());
   ret = sqrt(ret);
-  if (z.real() < T(0.0))
+  if (z.real() < T(0))
     ret = -ret;
   ret += z;
   ret = log(ret);
-  if (ret.real() < T(0.0))
+  if (ret.real() < T(0))
     ret = -ret;
   return ret;
 }
@@ -765,15 +765,15 @@ template <typename T>
 FMMTL_INLINE
 complex<T> atanh(const complex<T>& z) {
   T imag2 = z.imag()*z.imag();
-  T n = T(1.0) + z.real();
+  T n = T(1) + z.real();
   n = imag2 + n*n;
 
-  T d = T(1.0) - z.real();
+  T d = T(1) - z.real();
   d = imag2 + d*d;
-  d = T(1.0) - z.real()*z.real() - imag2;
+  d = T(1) - z.real()*z.real() - imag2;
   using std::log;
   using std::atan2;
-  return complex<T>(T(0.25)*(log(n) - log(d)), T(0.5)*atan2(T(2.0)*z.imag(),d));
+  return complex<T>(T(0.25)*(log(n) - log(d)), T(0.5)*atan2(T(2)*z.imag(),d));
 }
 
 
