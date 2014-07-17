@@ -11,7 +11,7 @@ struct BoxBind {
 
   container_type data;
 
-  BoxBind(const Tree& tree, unsigned size = tree.boxes())
+  BoxBind(const Tree&, unsigned size)
       : data(size) {
   }
 
@@ -30,7 +30,10 @@ struct BoxBind {
   }
 };
 
-
+template <typename T, typename Tree>
+BoxBind<T,Tree> make_box_binding(const Tree& tree) {
+  return {tree, tree.boxes()};
+}
 
 
 /** Maps bodies and body iterators to data and data iterators
@@ -41,8 +44,8 @@ struct BodyBind {
   typedef typename container_type::iterator iterator;
   typedef typename container_type::const_iterator const_iterator;
 
-  const Tree& tree_;
-  container_type data_;
+  //const Tree& tree;
+  container_type data;
 
   BodyBind(const Tree& tree)
       : data(tree.bodies()) {

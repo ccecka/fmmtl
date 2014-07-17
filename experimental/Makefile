@@ -1,4 +1,5 @@
 EXEC = butterfly
+EXEC += butterfly_bkp
 
 include ../Makefile.inc
 

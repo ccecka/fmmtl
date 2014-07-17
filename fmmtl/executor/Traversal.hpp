@@ -5,10 +5,45 @@
  */
 
 #include <utility>
-#include <queue>
 #include <tuple>
+#include <queue>
+#include <stack>
 
 namespace fmmtl {
+
+struct depth_first {};
+struct breadth_first {};
+
+template <class Traversal, class T>
+struct traversal_impl;
+
+template <class T>
+struct traversal_impl<depth_first,T> {
+  std::stack<T> q;
+  bool empty() const { return q.empty(); }
+  T& next() { return q.top(); }
+  const T& next() const { return q.top(); }
+  void pop() { return q.pop(); }
+  void push(const T& v) { return q.push(v); }
+  template <class... Args>
+  void emplace(Args&&... args) {
+    return q.emplace(std::forward<Args>(args)...);
+  }
+};
+
+template <class T>
+struct traversal_impl<breadth_first,T> {
+  std::deque<T> q;
+  bool empty() const { return q.empty(); }
+  T& next() { return q.front(); }
+  const T& next() const { return q.front(); }
+  void pop() { return q.pop(); }
+  void push(const T& v) { return q.push(v); }
+  template <class... Args>
+  void emplace(Args&&... args) {
+    return q.emplace(std::forward<Args>(args)...);
+  }
+};
 
 /** Generic dual-tree traversal with near- and far-field operators.
  *
@@ -37,14 +72,14 @@ namespace fmmtl {
  *   void operator(SourceBox, TargetBox);
  * }
  */
-template <class SourceBox, class TargetBox,
+template <typename TraversalOrder = breadth_first,
+          class SourceBox, class TargetBox,
           class NearEvaluator, class FarEvaluator>
 inline void traverse_nearfar(SourceBox sbox, TargetBox tbox,
                              NearEvaluator& near_eval, FarEvaluator& far_eval) {
-
   // Queue based traversal
   typedef std::pair<SourceBox, TargetBox> BoxPair;
-  std::queue<BoxPair> pairQ;
+  traversal_impl<TraversalOrder, BoxPair> pairQ;
 
   // Initialize
   if (!far_eval(sbox, tbox))
@@ -52,7 +87,7 @@ inline void traverse_nearfar(SourceBox sbox, TargetBox tbox,
 
   // Loop until empty
   while (!pairQ.empty()) {
-    std::tie(sbox, tbox) = pairQ.front();
+    std::tie(sbox, tbox) = pairQ.next();
     pairQ.pop();
 
     const char code = (sbox.is_leaf() << 1) | (tbox.is_leaf() << 0);
@@ -105,18 +140,20 @@ inline void traverse_nearfar(SourceBox sbox, TargetBox tbox,
  *   int operator()(SourceBox s, TargetBox t);
  * }
  */
-template <class SourceBox, class TargetBox, class Evaluator>
+template <class TraversalOrder = breadth_first,
+          class SourceBox, class TargetBox,
+          class Evaluator>
 inline void traverse_if(SourceBox sbox, TargetBox tbox, Evaluator& eval) {
 
   // Queue based traversal
   typedef std::pair<SourceBox, TargetBox> BoxPair;
-  std::queue<BoxPair> pairQ;
+  traversal_impl<TraversalOrder, BoxPair> pairQ;
 
   // Initialize
   pairQ.emplace(sbox, tbox);
 
   while (!pairQ.empty()) {
-    std::tie(sbox, tbox) = pairQ.front();
+    std::tie(sbox, tbox) = pairQ.next();
     pairQ.pop();
 
     switch(eval(sbox, tbox)) {
@@ -148,7 +185,6 @@ inline void traverse_if(SourceBox sbox, TargetBox tbox, Evaluator& eval) {
     } // end switch
   } // end while
 }
-
 
 
 } // end namespace fmmtl
