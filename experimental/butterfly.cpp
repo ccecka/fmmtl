@@ -43,15 +43,6 @@ struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
 };
 
 
-template <typename SourceBox, typename TargetBox>
-void butterfly_block(SourceBox sbox, TargetBox tbox) {
-
-}
-
-
-
-
-
 int main(int argc, char** argv) {
   int N = 1000;
   int M = 1000;
