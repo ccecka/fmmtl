@@ -66,7 +66,7 @@ S2T_Compressed<Kernel>::S2T_Compressed(
 
 template <typename Kernel>
 S2T_Compressed<Kernel>::~S2T_Compressed() {
-  delete data_;
+  delete reinterpret_cast<Data*>(data_);
   gpu_free(target_ranges_);
   gpu_free(source_range_ptrs_);
   gpu_free(source_ranges_);
