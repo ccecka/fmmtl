@@ -1,25 +1,24 @@
 #pragma once
-/** @file EvalP2P_GPU.hpp
- * @brief Header file for the GPU_P2P class.
+/** @brief Header file for the GPU_S2T class.
  *
- * Note: This header file is compiled with nvcc and must use C++03.
+ * Note: This header file may be compiled with nvcc and must use C++03.
  */
 
+#include <iostream>
 #include <vector>
 
-#include <iostream>
-
+#include "fmmtl/config.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
 
 template <typename Kernel>
-class P2P_Compressed {
+class S2T_Compressed {
  public:
   FMMTL_IMPORT_KERNEL_TRAITS(Kernel);
 
   // Supporting data
   void* data_;
 
-  // Device data for P2P computation
+  // Device data for S2T computation
   std::pair<unsigned,unsigned>* target_ranges_;
   unsigned* source_range_ptrs_;
   std::pair<unsigned,unsigned>* source_ranges_;
@@ -28,15 +27,15 @@ class P2P_Compressed {
   source_type* sources_;
   target_type* targets_;
 
-  P2P_Compressed();
+  S2T_Compressed();
 
-	P2P_Compressed(std::vector<std::pair<unsigned,unsigned> >& target_ranges,
+	S2T_Compressed(std::vector<std::pair<unsigned,unsigned> >& target_ranges,
                  std::vector<unsigned>& target_ptrs,
                  std::vector<std::pair<unsigned,unsigned> >& source_ranges,
                  const std::vector<source_type>& sources,
                  const std::vector<target_type>& targets);
 
-  ~P2P_Compressed();
+  ~S2T_Compressed();
 
   // Convenience function
   template <class Context>
@@ -69,7 +68,7 @@ class P2P_Compressed {
                       const std::vector<target_type>& t,
                       std::vector<result_type>& r);
 
-  /** Construct a P2P_Compressed object by taking
+  /** Construct a S2T_Compressed object by taking
    * associated source ranges and target ranges and constructing a compressed
    * representation.
    *
@@ -87,7 +86,7 @@ class P2P_Compressed {
    */
   template <class SourceRangeIter, class TargetRangeIter>
   static
-  P2P_Compressed<Kernel>*
+  S2T_Compressed<Kernel>*
   make(SourceRangeIter srfirst, SourceRangeIter srlast,
        TargetRangeIter trfirst,
        const std::vector<source_type>& sources,
@@ -146,7 +145,7 @@ class P2P_Compressed {
     FMMTL_ASSERT(target_ptr.back() == source_ranges.size());
     FMMTL_ASSERT(source_ranges_curr == source_ranges.end());
 
-    return new P2P_Compressed<Kernel>(target_ranges,
+    return new S2T_Compressed<Kernel>(target_ranges,
                                       target_ptr,
                                       source_ranges,
                                       sources,
@@ -156,7 +155,7 @@ class P2P_Compressed {
 
   template <class Context>
   static
-  P2P_Compressed<typename Context::kernel_type>*
+  S2T_Compressed<typename Context::kernel_type>*
   make(Context& c,
        const std::vector<typename Context::target_box_type> t_boxes,
        const std::vector<std::vector<typename Context::source_box_type> > s_boxes,
@@ -205,7 +204,7 @@ class P2P_Compressed {
     std::vector<source_type> sources(c.source_begin(), c.source_end());
     std::vector<target_type> targets(c.target_begin(), c.target_end());
 
-    return new P2P_Compressed<Kernel>(target_ranges,
+    return new S2T_Compressed<Kernel>(target_ranges,
                                       target_ptr,
                                       source_ranges,
                                       sources,
@@ -215,7 +214,7 @@ class P2P_Compressed {
   /*
   template <class Context, class BoxPairIter>
   static
-  P2P_Compressed<typename Context::kernel_type>*
+  S2T_Compressed<typename Context::kernel_type>*
   make(Context& c, BoxPairIter first, BoxPairIter last) {
     typename Context::source_iterator first_source = c.source_begin();
     typename Context::source_iterator first_target = c.target_begin();
@@ -285,7 +284,7 @@ class P2P_Compressed {
     std::vector<source_type> sources(c.source_begin(), c.source_end());
     std::vector<target_type> targets(c.target_begin(), c.target_end());
 
-    return new P2P_Compressed<Kernel>(target_ranges,
+    return new S2T_Compressed<Kernel>(target_ranges,
                                       target_ptr,
                                       source_ranges,
                                       sources,
@@ -293,3 +292,12 @@ class P2P_Compressed {
   }
   */
 };
+
+
+#if defined(FMMTL_KERNEL)   // If compiling the .kern, include implementations
+#  if defined(__CUDACC__)    // If compiling the .kern with nvcc
+#    include "fmmtl/dispatch/S2T/S2T_Compressed.cu"
+#  else                      // If not compiling the .kern with nvcc
+#    include "fmmtl/dispatch/S2T/S2T_Compressed.cpp"
+#  endif
+#endif

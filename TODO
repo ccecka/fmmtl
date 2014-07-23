@@ -1,0 +1,44 @@
+Functionality
+=============
+
+[ ] Integration with external linear algebra libraries and solvers.
+[ ] Use tvmet library for better Vec functionality and performance.
+[ ] Use thrust::complex?
+[ ] Automagically detect .kern inclusion and nvcc to generate needed CUDA obj files.
+[ ] - Removes need for ugly FMMTL_KERNEL_EXTRAS macro for explicit instantiation.
+[ ] Kernel-specific MACs. Static and Dynamic versions.
+[ ] - Optimization of traversals and algorithms based on static and/or dynamic choices.
+[ ] Python interface
+[ ] Fast ND Gauss transform.
+[ ] Integrate Helmholtz kernel.
+
+==Applications==
+[ ] NBody demo example.
+[ ] BEM Kernel and example (from dev repo).
+[x] Visualization of 2D kernel error.
+[x] BiotSavart kernel and spherical expansion.
+
+Performance
+===========
+
+[ ] On-demand tree/child construction.
+[ ] Automatic balancing of near-field and far-field -- deprecate ncrit.
+[ ] Autotuning for choosing between computational pathways, e.g M2L+L2L+L2T => M2T.
+[ ] Investigate use of KD-trees rather than 2k-trees.
+[ ] Cached-optimal and communication-optimal distributed p2p library.
+[x] Optimization of A2B algorithms in the case of unused arguments.
+[x] Optimized and generalized spherical harmonic expansions.
+
+Maintenance
+===========
+
+[ ] More logging and better logging structure/style.
+[ ] Means of easily tracking/plotting heap memory usage over time.
+
+Documentation
+=============
+
+[ ] Improved use of FMMTL_DEBUG_ONLY macros.
+[ ] Use #pragma once *and* #define fences.
+
+

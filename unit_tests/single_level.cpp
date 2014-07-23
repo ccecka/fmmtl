@@ -1,7 +1,6 @@
 /** A useful suite for testing Kernel Expansions */
 
-#include "fmmtl/executor/INITM.hpp"
-#include "fmmtl/executor/INITL.hpp"
+#include "fmmtl/dispatch/Dispatchers.hpp"
 #include "fmmtl/Direct.hpp"
 
 #include "LaplaceSpherical.hpp"
@@ -46,21 +45,21 @@ void single_level_test(const Expansion& K) {
   multipole_type M;
   point_type M_center(0.1, 0.1, 0.1);
   point_type M_extent(0.2, 0.2, 0.2);
-  INITM::eval(K, M, M_extent, 1u);
-  K.P2M(s[0], c[0], M_center, M);
+  INITM::apply(K, M, M_extent, 1u);
+  K.S2M(s[0], c[0], M_center, M);
 
-  // test M2P
-  K.M2P(M, M_center, t[0], rm2p);
+  // test M2T
+  //K.M2T(M, M_center, t[0], rm2p);
 
-  // test M2L, L2P
+  // test M2L, L2T
   local_type L;
   point_type L_center(0.9, 0.9, 0.9);
   point_type L_extent(0.2, 0.2, 0.2);
   auto d = L_center - M_center;
-  printf("DIST: (%lg, %lg, %lg) : %lg\n",d[0],d[1],d[2],norm(d));
-  INITL::eval(K, L, L_extent, 1u);
+  printf("DIST: (%lg, %lg, %lg) : %lg\n", d[0], d[1], d[2], norm_2(d));
+  INITL::apply(K, L, L_extent, 1u);
   K.M2L(M, L, L_center - M_center);
-  K.L2P(L, L_center, t[0], rfmm);
+  K.L2T(L, L_center, t[0], rfmm);
 
   // check errors
   std::cout << "rexact = " << rexact[0] << std::endl;

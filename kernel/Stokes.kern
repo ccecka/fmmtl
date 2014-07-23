@@ -28,7 +28,7 @@ struct Stokeslet
 
     FMMTL_INLINE
     result_type operator*(const charge_type& c) const {
-      double invR2 = 1.0 / normSq(r);
+      double invR2 = 1.0 / norm_2_sq(r);
       if (invR2 > 1e20) invR2 = 0;
       double invR = std::sqrt(invR2);
       double rcInvR3 = inner_prod(r,c) * invR * invR2;

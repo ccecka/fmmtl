@@ -1,71 +1,50 @@
 #pragma once
 
+#include <limits>
+
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
+#include <boost/type_traits/is_integral.hpp>
+#include <boost/type_traits/is_floating_point.hpp>
 
-#include <limits>
-
-#include "fmmtl/numeric/Complex.hpp"
 #include "fmmtl/numeric/Vec.hpp"
+#include "fmmtl/numeric/Complex.hpp"
 
 namespace fmmtl {
 
 static boost::random::mt19937 default_genenerator;
 
-template <typename T>
+using boost::enable_if;
+using boost::is_integral;
+using boost::is_floating_point;
+
+
+template <typename T, class Enable = void>
 struct random;
 
-template <>
-struct random<double> {
-  static double get(double a, double b) {
-    boost::random::uniform_real_distribution<double> dist(a, b);
+template <typename T>
+struct random<T, typename enable_if<is_integral<T> >::type> {
+  static T get(T a, T b) {
+    boost::random::uniform_int_distribution<T> dist(a, b);
     return dist(default_genenerator);
   }
-  static double get() {
-    return get(0,1);
+  static T get() {
+    return get(T(0), std::numeric_limits<T>::max());
   }
 };
 
-template <>
-struct random<float> {
-  static float get(float a, float b) {
-    boost::random::uniform_real_distribution<float> dist(a, b);
+template <typename T>
+struct random<T, typename enable_if<is_floating_point<T> >::type> {
+  static T get(T a, T b) {
+    boost::random::uniform_real_distribution<T> dist(a, b);
     return dist(default_genenerator);
   }
-  static float get() {
-    return get(0,1);
+  static T get() {
+    return get(T(0), T(1));
   }
 };
 
-template <>
-struct random<unsigned> {
-  static unsigned get(unsigned a, unsigned b) {
-    boost::random::uniform_int_distribution<unsigned> dist(a, b);
-    return dist(default_genenerator);
-  }
-  static unsigned get() {
-    return get(0, std::numeric_limits<unsigned>::max());
-  }
-};
-
-template <>
-struct random<int> {
-  static int get(int a, int b) {
-    boost::random::uniform_int_distribution<int> dist(a, b);
-    return dist(default_genenerator);
-  }
-  static int get() {
-    return get(0, std::numeric_limits<int>::max());
-  }
-};
-
-} // end namepsace fmmtl
-
-
-#include "fmmtl/numeric/Complex.hpp"
-
-namespace fmmtl {
 template <typename T>
 struct random<complex<T> > {
   static complex<T> get(T a, T b) {
@@ -75,12 +54,7 @@ struct random<complex<T> > {
     return get(T(0), T(1));
   }
 };
-} // end namespace fmmtl
 
-
-#include "fmmtl/numeric/Vec.hpp"
-
-namespace fmmtl {
 template <std::size_t N, typename T>
 struct random<Vec<N,T> > {
   static Vec<N,T> get(T a, T b) {
@@ -93,4 +67,5 @@ struct random<Vec<N,T> > {
     return get(T(0), T(1));
   }
 };
+
 } // end namespace fmmtl

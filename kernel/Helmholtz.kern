@@ -19,9 +19,7 @@ struct HelmholtzPotential
   double kappa;
 
   FMMTL_INLINE
-  HelmholtzPotential() : kappa(1) {}
-  FMMTL_INLINE
-  HelmholtzPotential(double _kappa) : kappa(_kappa) {}
+  HelmholtzPotential(double _kappa = 1) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  exp(ikR)/R  if R >= 1e-10
@@ -31,9 +29,9 @@ struct HelmholtzPotential
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    double R = norm(s - t);                //   R
+    double R = norm_2(s - t);              //   R
     double invR = 1.0 / R;                 //   1.0 / R
-    if (R < 1e-10) { invR = 0; };          //   Exclude self interaction
+    if (R < 1e-10) invR = 0;               //   Exclude self interaction
     R *= kappa;                            //   R <- kappa*R
     return complex(cos(R), sin(R)) * invR; //   Potential
   }
@@ -58,9 +56,7 @@ struct HelmholtzKernel
   double kappa;
 
   FMMTL_INLINE
-  HelmholtzKernel() : kappa(1) {}
-  FMMTL_INLINE
-  HelmholtzKernel(double _kappa) : kappa(_kappa) {}
+  HelmholtzKernel(double _kappa = 1) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  {exp(ikR)/R, (s-t)(1-ikR)exp(ikR)/R^3}  if R >= 1e-10
@@ -70,15 +66,15 @@ struct HelmholtzKernel
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    Vec<3,double> dist = s - t;            //   Vector from target to source
-    double R2 = normSq(dist);              //   R^2
-    double R  = std::sqrt(R2);             //   R
-    double invR  = 1.0/R;                  //   1.0 / R
-    double invR2 = 1.0/R2;                 //   1.0 / R^2
-    if (R2 < 1e-20) { invR = invR2 = 0; }; //   Exclude self interaction
-    R *= kappa;                            //   R <- kappa*R
+    Vec<3,double> dist = s - t;                   //   Vector from target to source
+    double R2 = norm_2_sq(dist);                  //   R^2
+    double R  = std::sqrt(R2);                    //   R
+    double invR  = 1.0/R;                         //   1.0 / R
+    double invR2 = 1.0/R2;                        //   1.0 / R^2
+    if (R2 < 1e-20) invR = invR2 = 0;             //   Exclude self interaction
+    R *= kappa;                                   //   R <- kappa*R
     complex pot = complex(cos(R), sin(R)) * invR; //   Potential
-    complex a = pot * complex(1,-R) * invR2;   //   Force
+    complex a = pot * complex(1,-R) * invR2;      //   Force
     return kernel_value_type(pot, a*dist[0], a*dist[1], a*dist[2]);
   }
   FMMTL_INLINE

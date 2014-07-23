@@ -1,21 +1,4 @@
-EXEC = compiles
-
-EXEC += correctness
-EXEC += dual_correctness
-
-EXEC += multi_level
-EXEC += single_level
-
-EXEC += test_kernel
-EXEC += test_expansion
-
-EXEC += test_p2p
-EXEC += test_tree
-EXEC += test_direct
-EXEC += test_vec
-
-EXEC += version
-
+EXEC = $(basename $(wildcard *.cpp) $(wildcard *.cu))
 
 include ../Makefile.inc
 
@@ -32,4 +15,4 @@ compiles:         $(KERNEL_DIR)/KernelSkeleton.o
 correctness:      $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
 dual_correctness: $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
 
-test_p2p:         $(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
+test_s2t:         $(KERNEL_DIR)/Laplace.o #$(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))

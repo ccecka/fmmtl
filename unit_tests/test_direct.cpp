@@ -34,15 +34,15 @@ struct TempKernel
     return kernel_value_type(1);
   }
 
-  // A fake P2P that shouldn't be called
-  void P2P(int a) const {
+  // A fake S2T that shouldn't be called
+  void S2T(int a) const {
     (void) a;
-    std::cout << "In P2P(int)\n";
+    std::cout << "In S2T(int)\n";
   }
 
 #if 0
   template <typename PointIter, typename ChargeIter, typename ResultIter>
-  void P2P(PointIter s_begin, PointIter s_end, ChargeIter c_begin,
+  void S2T(PointIter s_begin, PointIter s_end, ChargeIter c_begin,
            PointIter t_begin, PointIter t_end, ResultIter r_begin) const {
     (void) s_begin;
     (void) s_end;
@@ -51,7 +51,7 @@ struct TempKernel
     (void) t_end;
     (void) r_begin;
 
-    std::cout << "In vector P2P\n";
+    std::cout << "In vector S2T\n";
   }
 #endif
 };

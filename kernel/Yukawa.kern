@@ -16,9 +16,7 @@ struct YukawaPotential
   double kappa;
 
   FMMTL_INLINE
-  YukawaPotential() : kappa(1) {}
-  FMMTL_INLINE
-  YukawaPotential(double _kappa) : kappa(_kappa) {}
+  YukawaPotential(double _kappa = 1) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  exp(-kR)/R  if R >= 1e-10
@@ -28,7 +26,7 @@ struct YukawaPotential
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    double R = norm(s - t);                //   R
+    double R = norm_2(s - t);              //   R
     double invR  = 1.0 / R;                //   1.0 / R
     if (R < 1e-10) { R = invR = 0; }       //   Exclude self interaction
     return exp(-kappa*R) * invR;           //   Potential
@@ -51,9 +49,7 @@ struct YukawaKernel
   double kappa;
 
   FMMTL_INLINE
-  YukawaKernel() : kappa(1) {}
-  FMMTL_INLINE
-  YukawaKernel(double _kappa) : kappa(_kappa) {}
+  YukawaKernel(double _kappa = 1) : kappa(_kappa) {}
 
   /** Kernel evaluation
    * K(t,s) =  {exp(-kR)/R, (s-t)(kR+1)exp(-kR)/R^3}  if R >= 1e-10
@@ -64,7 +60,7 @@ struct YukawaKernel
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
     Vec<3,double> dist = s - t;            //   Vector from target to source
-    double R2 = normSq(dist);              //   R^2
+    double R2 = norm_2_sq(dist);              //   R^2
     double R  = std::sqrt(R2);             //   R
     double invR  = 1.0/R;                  //   1.0 / R
     double invR2 = 1.0/R2;                 //   1.0 / R^2

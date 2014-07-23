@@ -50,14 +50,14 @@ struct UnitExpansion
   //! Local expansion type
   typedef double local_type;
 
-  /** Kernel P2M operation */
-  void P2M(const point_type&, const charge_type& charge,
+  /** Kernel S2M operation */
+  void S2M(const point_type&, const charge_type& charge,
            const point_type&, multipole_type& M) const {
     M += charge;
   }
 
-  /** Kernel P2L operation */
-  void P2L(const source_type&, const charge_type& charge,
+  /** Kernel S2L operation */
+  void S2L(const source_type&, const charge_type& charge,
            const point_type&, local_type& L) const {
     L += charge;
   }
@@ -76,8 +76,8 @@ struct UnitExpansion
     target += source;
   }
 
-  /** Kernel M2P operation */
-  void M2P(const multipole_type& M, const point_type&,
+  /** Kernel M2T operation */
+  void M2T(const multipole_type& M, const point_type&,
            const target_type&, result_type& result) const {
     result += M;
   }
@@ -89,8 +89,8 @@ struct UnitExpansion
     target += source;
   }
 
-  /** Kernel L2P operation */
-  void L2P(const local_type& L, const point_type&,
+  /** Kernel L2T operation */
+  void L2T(const local_type& L, const point_type&,
            const target_type&, result_type& result) const {
     result += L;
   }

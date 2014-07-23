@@ -1,0 +1,44 @@
+#ifndef FMMTL_GAUSSIAN_KERN
+#define FMMTL_GAUSSIAN_KERN
+/** @file Gaussian
+ * @brief Implements the separable exponential kernel defined by
+ * K(t,s) = exp(sum_i t_i - s_i)
+ *
+ * Note: Mostly for testing purposes.
+ */
+
+#include "fmmtl/Kernel.hpp"
+
+// Use a library-defined Vector class that supports multiple architectures
+#include "fmmtl/numeric/Vec.hpp"
+
+template <std::size_t D>
+struct Gaussian
+    : public fmmtl::Kernel<Gaussian<D> >
+{
+  typedef Vec<D,double>  source_type;
+  typedef double         charge_type;
+  typedef Vec<D,double>  target_type;
+  typedef double         result_type;
+  typedef double         kernel_value_type;
+
+  /** Kernel evaluation
+   * K(t,s) = exp(sum_i t_i - s_i)
+   */
+  FMMTL_INLINE
+  kernel_value_type operator()(const target_type& t,
+                               const source_type& s) const {
+    return exp(-norm_2_sq(t-s));
+  }
+  FMMTL_INLINE
+  kernel_value_type transpose(const kernel_value_type& kts) const {
+    return kts;
+  }
+};
+// XXX: Need to fix the build system...
+FMMTL_KERNEL_EXTRAS(Gaussian<1>);
+FMMTL_KERNEL_EXTRAS(Gaussian<2>);
+FMMTL_KERNEL_EXTRAS(Gaussian<3>);
+FMMTL_KERNEL_EXTRAS(Gaussian<4>);
+
+#endif

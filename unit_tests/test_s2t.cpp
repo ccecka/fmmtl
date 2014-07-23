@@ -7,7 +7,7 @@
 #include "Helmholtz.kern"
 #include "Stokes.kern"
 
-#include "fmmtl/executor/P2P.hpp"
+#include "fmmtl/dispatch/S2T.hpp"
 
 #include <vector>
 #include <set>
@@ -57,14 +57,16 @@ void print_results(const std::vector<T1>& exact, const std::vector<T2>& result) 
   double max_ind_rel_err = 0;
   for (unsigned k = 0; k < result.size(); ++k) {
     // Individual relative error
-    double rel_error = norm(exact[k] - result[k]) / norm(exact[k]);
+    double rel_error = norm_2(exact[k] - result[k]) / norm_2(exact[k]);
+    //if (rel_error > 1e-14) std::cout << k << std::endl;
+
     tot_ind_rel_err += rel_error;
     // Maximum relative error
     max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
 
     // Total relative error
-    tot_error_sq += normSq(exact[k] - result[k]);
-    tot_norm_sq  += normSq(exact[k]);
+    tot_error_sq += norm_2_sq(exact[k] - result[k]);
+    tot_norm_sq  += norm_2_sq(exact[k]);
   }
   double tot_rel_err = sqrt(tot_error_sq/tot_norm_sq);
   std::cout << "  Vector  relative error: " << tot_rel_err << std::endl;
@@ -78,13 +80,18 @@ void print_results(const std::vector<T1>& exact, const std::vector<T2>& result) 
 
 
 int main(int argc, char** argv) {
-  // Hush compiler
-  (void) argc;
-  (void) argv;
-
   unsigned N = 10000;           // N rows (# targets)
   unsigned M = 10000;           // M cols (# sources)
   unsigned range_size = 256;    // Maximum block size
+
+  // Parse custom command line args
+  for (int i = 1; i < argc; ++i) {
+    if (strcmp(argv[i],"-N") == 0) {
+      N = atoi(argv[++i]);
+    } else if (strcmp(argv[i],"-M") == 0) {
+      M = atoi(argv[++i]);
+    }
+  }
 
   // Define the Kernel function we'll be testing
   typedef LaplaceKernel kernel_type;
@@ -117,15 +124,14 @@ int main(int argc, char** argv) {
   // Create a vector of results
   std::vector<result_type> r_cpu(N);
 
-  // Compute the full P2P on the CPU.
-  P2P::block_eval(K,
+  // Compute the full S2T on the CPU.
+  S2T::block_eval(K,
                   s.begin(), s.end(), c.begin(),
                   t.begin(), t.end(), r_cpu.begin());
 
 #if defined(FMMTL_DEBUG)
   std::cout << "CPU:" << std::endl;
-  for (result_type& ri : r_cpu)
-    std::cout << ri << std::endl;
+  for (result_type& ri : r_cpu) std::cout << ri << std::endl;
 #endif
 
   //**************************************//
@@ -133,13 +139,12 @@ int main(int argc, char** argv) {
   // Create a vector of results
   std::vector<result_type> r_gpu(N);
 
-  // Compute the full P2P on the GPU
-  P2P_Compressed<kernel_type>::execute(K, s, c, t, r_gpu);
+  // Compute the full S2T on the GPU
+  S2T_Compressed<kernel_type>::execute(K, s, c, t, r_gpu);
 
 #if defined(FMMTL_DEBUG)
   std::cout << "GPU:" << std::endl;
-  for (result_type& ri : r_gpu)
-    std::cout << ri << std::endl;
+  for (result_type& ri : r_gpu) std::cout << ri << std::endl;
 #endif
 
   //**************************************//
@@ -173,21 +178,20 @@ int main(int argc, char** argv) {
   }
 #endif
 
-  // Create the blocked P2P on the GPU
-  P2P_Compressed<kernel_type>* p2p
-      = P2P_Compressed<kernel_type>::make(sr_list.begin(), sr_list.end(),
+  // Create the blocked S2T on the GPU
+  S2T_Compressed<kernel_type>* p2p
+      = S2T_Compressed<kernel_type>::make(sr_list.begin(), sr_list.end(),
                                           tr_list.begin(),
                                           s, t);
   // Create a vector of results
   std::vector<result_type> r_gpu_b(N);
 
-  // Execute the blocked P2P on the GPU
+  // Execute the blocked S2T on the GPU
   p2p->execute(K, c, r_gpu_b);
 
 #if defined(FMMTL_DEBUG)
   std::cout << "GPU Blocked:" << std::endl;
-  for (result_type& ri : r_gpu_b)
-    std::cout << ri << std::endl;
+  for (result_type& ri : r_gpu_b) std::cout << ri << std::endl;
 #endif
 
   // Print results

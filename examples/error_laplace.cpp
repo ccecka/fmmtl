@@ -5,12 +5,13 @@
 
 #include "fmmtl/KernelMatrix.hpp"
 #include "fmmtl/Direct.hpp"
+#include "fmmtl/util/Clock.hpp"
 
 #include "UnitKernel.kern"
 #include "ExpKernel.kern"
 
 #include "LaplaceSpherical.hpp"
-#include "YukawaCartesian.hpp"
+
 
 int main(int argc, char **argv)
 {
@@ -28,15 +29,12 @@ int main(int argc, char **argv)
 
   // Init the FMM Kernel and options
   FMMOptions opts = get_options(argc, argv);
-  //typedef UnitExpansion kernel_type;
-  //typedef ExpExpansion kernel_type;
-  typedef LaplaceSpherical kernel_type;
-  //typedef YukawaCartesian kernel_type;
 
   // Init kernel
+  typedef LaplaceSpherical kernel_type;
   kernel_type K;
 
-  typedef kernel_type::point_type point_type;
+  typedef kernel_type::point_type  point_type;
   typedef kernel_type::source_type source_type;
   typedef kernel_type::target_type target_type;
   typedef kernel_type::charge_type charge_type;
@@ -56,7 +54,22 @@ int main(int argc, char **argv)
   A.set_options(opts);
 
   // Execute the FMM
+  Clock t1;
   std::vector<result_type> result = A * charges;
+  double time1 = t1.seconds();
+  std::cout << "FMM in " << time1 << " secs" << std::endl;
+
+  // Execute the FMM
+  Clock t2;
+  result = A * charges;
+  double time2 = t2.seconds();
+  std::cout << "FMM in " << time2 << " secs" << std::endl;
+
+  // Execute the FMM
+  Clock t3;
+  result = A * charges;
+  double time3 = t3.seconds();
+  std::cout << "FMM in " << time3 << " secs" << std::endl;
 
   // Check the result
   if (checkErrors) {
@@ -73,14 +86,14 @@ int main(int argc, char **argv)
     double max_ind_rel_err = 0;
     for (unsigned k = 0; k < result.size(); ++k) {
       // Individual relative error
-      double rel_error = norm(exact[k] - result[k]) / norm(exact[k]);
+      double rel_error = norm_2(exact[k] - result[k]) / norm_2(exact[k]);
       tot_ind_rel_err += rel_error;
       // Maximum relative error
       max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
 
       // Total relative error
-      tot_error_sq += normSq(exact[k] - result[k]);
-      tot_norm_sq  += normSq(exact[k]);
+      tot_error_sq += norm_2_sq(exact[k] - result[k]);
+      tot_norm_sq  += norm_2_sq(exact[k]);
     }
     double tot_rel_err = sqrt(tot_error_sq/tot_norm_sq);
     std::cout << "Vector  relative error: " << tot_rel_err << std::endl;

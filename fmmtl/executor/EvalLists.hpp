@@ -6,7 +6,7 @@
 #include "Traversal.hpp"
 #include "Downward.hpp"
 
-#include "Dispatchers.hpp"
+#include "fmmtl/dispatch/Dispatchers.hpp"
 
 
 template <class Context>
@@ -16,7 +16,7 @@ class EvalLists
   typedef typename Context::source_box_type source_box;
   typedef typename Context::target_box_type target_box;
 
-  P2P_Batch<Context> p2p_;
+  S2T_Batch<Context> p2p_;
   M2L_Batch<Context> m2l_;
 
   struct UpDispatch {
@@ -25,8 +25,8 @@ class EvalLists
 
     inline void operator()(const source_box& box) {
       if (box.is_leaf()) {
-        // If leaf, make P2M calls
-        P2M::eval(c_, box);
+        // If leaf, make S2M calls
+        S2M::eval(c_, box);
       } else {
         // If not leaf, then for all the children M2M
         auto c_end = box.child_end();
@@ -41,8 +41,8 @@ class EvalLists
 
     inline void operator()(const target_box& box) {
       if (box.is_leaf()) {
-        // If leaf, make L2P calls
-        L2P::eval(c_, box);
+        // If leaf, make L2T calls
+        L2T::eval(c_, box);
       } else {
         // If not leaf, then for all children L2L
         auto c_end = box.child_end();
@@ -67,11 +67,14 @@ class EvalLists
       p2p_.insert(s,t);
     };
     // Determine the box interactions
-    Traverse::eval(c.source_tree().root(), c.target_tree().root(),
-                   near_batcher, far_batcher);
+    fmmtl::traverse_nearfar(c.source_tree().root(), c.target_tree().root(),
+                            near_batcher, far_batcher);
   }
 
   void execute(Context& c) {
+    // Launch the p2p early (potentially asynchronously?)
+    p2p_.execute(c);
+
     // Initialize all the multipoles and locals (not all may be needed)
     auto s_end = c.source_tree().box_end();
     for (auto bi = c.source_tree().box_begin(); bi != s_end; ++bi)
@@ -86,7 +89,6 @@ class EvalLists
 
     // Perform the source-target box interactions
     m2l_.execute(c);
-    p2p_.execute(c);
 
     // Perform the downward pass (not all may be needed)
     DownDispatch down(c);

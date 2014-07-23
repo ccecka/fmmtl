@@ -41,23 +41,23 @@ struct KernelTraits {
   typedef dumb_iterator<result_type> result_iterator;
 
  public:
-  HAS_MEM_FUNC(HasP2Psymm,
-               void, P2P,
+  HAS_MEM_FUNC(HasS2Tsymm,
+               void, S2T,
                source_iterator, source_iterator, charge_iterator,
                target_iterator, target_iterator, charge_iterator,
                result_iterator, result_iterator);
-  static const bool has_vector_P2P_symm = HasP2Psymm<Kernel>::value;
-  HAS_MEM_FUNC(HasP2Pasymm,
-               void, P2P,
+  static const bool has_vector_S2T_symm = HasS2Tsymm<Kernel>::value;
+  HAS_MEM_FUNC(HasS2Tasymm,
+               void, S2T,
                source_iterator, source_iterator, charge_iterator,
                target_iterator, target_iterator, result_iterator);
-  static const bool has_vector_P2P_asymm = HasP2Pasymm<Kernel>::value;
+  static const bool has_vector_S2T_asymm = HasS2Tasymm<Kernel>::value;
 
   friend std::ostream& operator<<(std::ostream& s, const self_type& traits) {
     s << "has_eval_op: "           << traits.has_eval_op           << std::endl;
     s << "has_transpose: "         << traits.has_transpose         << std::endl;
-    s << "has_vector_P2P_symm: "   << traits.has_vector_P2P_symm   << std::endl;
-    s << "has_vector_P2P_asymm: "  << traits.has_vector_P2P_asymm;
+    s << "has_vector_S2T_symm: "   << traits.has_vector_S2T_symm   << std::endl;
+    s << "has_vector_S2T_asymm: "  << traits.has_vector_S2T_asymm;
     return s;
   }
 };
@@ -90,16 +90,6 @@ struct ExpansionTraits
   typedef typename expansion_type::multipole_type multipole_type;
   typedef typename expansion_type::local_type     local_type;
 
-  // Converters
-  HAS_MEM_FUNC(HasSourcePoint,
-               point_type, source_point,
-               const source_type&);
-  static const bool has_source_point = HasSourcePoint<Expansion>::value;
-  HAS_MEM_FUNC(HasTargetPoint,
-               point_type, target_point,
-               const target_type&);
-  static const bool has_target_point = HasTargetPoint<Expansion>::value;
-
   // Initializers
   HAS_MEM_FUNC(HasInitMultipole,
                void, init_multipole,
@@ -110,31 +100,41 @@ struct ExpansionTraits
                local_type&, const point_type&, unsigned);
   static const bool has_init_local = HasInitLocal<Expansion>::value;
 
-  // P2M
-  HAS_MEM_FUNC(HasScalarP2M,
-               void, P2M,
-               const source_type&, const charge_type&,
-               const point_type&, multipole_type&);
-  static const bool has_scalar_P2M = HasScalarP2M<Expansion>::value;
-  HAS_MEM_FUNC(HasVectorP2M,
-               void, P2M,
-               source_iterator, source_iterator, charge_iterator,
-               const point_type&, multipole_type&);
-  static const bool has_vector_P2M = HasVectorP2M<Expansion>::value;
-  static const bool has_P2M = (has_scalar_P2M || has_vector_P2M);
+  // S2P, T2P
+  HAS_MEM_FUNC(HasS2P,
+               point_type, S2P,
+               const source_type&);
+  static const bool has_S2P = HasS2P<Expansion>::value;
+  HAS_MEM_FUNC(HasT2P,
+               point_type, T2P,
+               const target_type&);
+  static const bool has_T2P = HasT2P<Expansion>::value;
 
-  // P2L
-  HAS_MEM_FUNC(HasScalarP2L,
-               void, P2L,
+  // S2M
+  HAS_MEM_FUNC(HasScalarS2M,
+               void, S2M,
+               const source_type&, const charge_type&,
+               const point_type&, multipole_type&);
+  static const bool has_scalar_S2M = HasScalarS2M<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorS2M,
+               void, S2M,
+               source_iterator, source_iterator, charge_iterator,
+               const point_type&, multipole_type&);
+  static const bool has_vector_S2M = HasVectorS2M<Expansion>::value;
+  static const bool has_S2M = (has_scalar_S2M || has_vector_S2M);
+
+  // S2L
+  HAS_MEM_FUNC(HasScalarS2L,
+               void, S2L,
                const source_type&, const charge_type&,
                const point_type&, local_type&);
-  static const bool has_scalar_P2L = HasScalarP2L<Expansion>::value;
-  HAS_MEM_FUNC(HasVectorP2L,
-               void, P2L,
+  static const bool has_scalar_S2L = HasScalarS2L<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorS2L,
+               void, S2L,
                source_iterator, source_iterator, charge_iterator,
                const point_type&, local_type&);
-  static const bool has_vector_P2L = HasVectorP2L<Expansion>::value;
-  static const bool has_P2L = (has_scalar_P2L || has_vector_P2L);
+  static const bool has_vector_S2L = HasVectorS2L<Expansion>::value;
+  static const bool has_S2L = (has_scalar_S2L || has_vector_S2L);
 
   // M2M
   HAS_MEM_FUNC(HasM2M,
@@ -160,51 +160,51 @@ struct ExpansionTraits
                const local_type&, local_type&, const point_type&);
   static const bool has_L2L = HasL2L<Expansion>::value;
 
-  // M2P
-  HAS_MEM_FUNC(HasScalarM2P,
-               void, M2P,
+  // M2T
+  HAS_MEM_FUNC(HasScalarM2T,
+               void, M2T,
                const multipole_type&, const point_type&,
                const target_type&, result_type&);
-  static const bool has_scalar_M2P = HasScalarM2P<Expansion>::value;
-  HAS_MEM_FUNC(HasVectorM2P,
-               void, M2P,
+  static const bool has_scalar_M2T = HasScalarM2T<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorM2T,
+               void, M2T,
                const multipole_type&, const point_type&,
                target_iterator, target_iterator, result_iterator);
-  static const bool has_vector_M2P = HasVectorM2P<Expansion>::value;
-  static const bool has_M2P = (has_scalar_M2P || has_vector_M2P);
+  static const bool has_vector_M2T = HasVectorM2T<Expansion>::value;
+  static const bool has_M2T = (has_scalar_M2T || has_vector_M2T);
 
-  // L2P
-  HAS_MEM_FUNC(HasScalarL2P,
-               void, L2P,
+  // L2T
+  HAS_MEM_FUNC(HasScalarL2T,
+               void, L2T,
                const local_type&, const point_type&,
                const target_type&, result_type&);
-  static const bool has_scalar_L2P = HasScalarL2P<Expansion>::value;
-  HAS_MEM_FUNC(HasVectorL2P,
-               void, L2P,
+  static const bool has_scalar_L2T = HasScalarL2T<Expansion>::value;
+  HAS_MEM_FUNC(HasVectorL2T,
+               void, L2T,
                const local_type&, const point_type&,
                target_iterator, target_iterator, result_iterator);
-  static const bool has_vector_L2P = HasVectorL2P<Expansion>::value;
-  static const bool has_L2P = (has_scalar_L2P || has_vector_L2P);
+  static const bool has_vector_L2T = HasVectorL2T<Expansion>::value;
+  static const bool has_L2T = (has_scalar_L2T || has_vector_L2T);
 
   friend std::ostream& operator<<(std::ostream& s, const self_type& traits) {
     s << static_cast<super_type>(traits)                     << std::endl;
     s << "has_init_multipole: " << traits.has_init_multipole << std::endl;
     s << "has_init_local: "     << traits.has_init_local     << std::endl;
-    s << "has_P2M: "            << traits.has_P2M            << std::endl;
-    s << "  has_scalar_P2M: "   << traits.has_scalar_P2M     << std::endl;
-    s << "  has_vector_P2M: "   << traits.has_vector_P2M     << std::endl;
-    s << "has_P2L: "            << traits.has_P2L            << std::endl;
-    s << "  has_scalar_P2L: "   << traits.has_scalar_P2L     << std::endl;
-    s << "  has_vector_P2L: "   << traits.has_vector_P2L     << std::endl;
+    s << "has_S2M: "            << traits.has_S2M            << std::endl;
+    s << "  has_scalar_S2M: "   << traits.has_scalar_S2M     << std::endl;
+    s << "  has_vector_S2M: "   << traits.has_vector_S2M     << std::endl;
+    s << "has_S2L: "            << traits.has_S2L            << std::endl;
+    s << "  has_scalar_S2L: "   << traits.has_scalar_S2L     << std::endl;
+    s << "  has_vector_S2L: "   << traits.has_vector_S2L     << std::endl;
     s << "has_M2M: "            << traits.has_M2M            << std::endl;
     s << "has_M2L: "            << traits.has_M2L            << std::endl;
     s << "has_L2L: "            << traits.has_L2L            << std::endl;
-    s << "has_M2P: "            << traits.has_M2P            << std::endl;
-    s << "  has_scalar_M2P: "   << traits.has_scalar_M2P     << std::endl;
-    s << "  has_vector_M2P: "   << traits.has_vector_M2P     << std::endl;
-    s << "has_L2P: "            << traits.has_M2P            << std::endl;
-    s << "  has_scalar_L2P: "   << traits.has_scalar_L2P     << std::endl;
-    s << "  has_vector_L2P: "   << traits.has_vector_L2P     << std::endl;
+    s << "has_M2T: "            << traits.has_M2T            << std::endl;
+    s << "  has_scalar_M2T: "   << traits.has_scalar_M2T     << std::endl;
+    s << "  has_vector_M2T: "   << traits.has_vector_M2T     << std::endl;
+    s << "has_L2T: "            << traits.has_M2T            << std::endl;
+    s << "  has_scalar_L2T: "   << traits.has_scalar_L2T     << std::endl;
+    s << "  has_vector_L2T: "   << traits.has_vector_L2T     << std::endl;
     s << "has_dynamic_MAC: "    << traits.has_dynamic_MAC;
     return s;
   }

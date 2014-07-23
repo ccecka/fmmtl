@@ -1,5 +1,8 @@
 #pragma once
 
+#include "fmmtl/dispatch/Dispatchers.hpp"
+
+
 /** @brief Process the boxes from bottom to top
  * concept Tree {
  *   unsigned levels();                       // Levels in the tree, root:0
@@ -25,11 +28,6 @@ struct UpwardPass {
 	}
 };
 
-
-#include "INITM.hpp"
-#include "P2M.hpp"
-#include "M2M.hpp"
-
 /** Helper for computing the multipole for a box and all sub-boxes
  */
 struct ComputeM {
@@ -40,7 +38,7 @@ struct ComputeM {
 
     if (sbox.is_leaf()) {
       // Compute the multipole from the box's sources
-      P2M::eval(c, sbox);
+      S2M::eval(c, sbox);
     } else {
       auto c_end = sbox.child_end();
       for (auto cit = sbox.child_begin(); cit != c_end; ++cit) {

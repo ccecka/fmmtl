@@ -12,11 +12,12 @@
 #include "ExpKernel.kern"
 
 #include "LaplaceSpherical.hpp"
+#include "BiotSpherical.hpp"
 #include "YukawaCartesian.hpp"
+
 
 #define png_infopp_NULL (png_infopp)NULL
 #define int_p_NULL (int*)NULL
-
 #include <boost/gil/gil_all.hpp>
 #include <boost/gil/extension/io/png_dynamic_io.hpp>
 
@@ -94,7 +95,7 @@ int main(int argc, char **argv)
   // Init kernel
   kernel_type K;
 
-  typedef kernel_type::point_type point_type;
+  typedef kernel_type::point_type  point_type;
   typedef kernel_type::source_type source_type;
   typedef kernel_type::target_type target_type;
   typedef kernel_type::charge_type charge_type;
@@ -116,7 +117,8 @@ int main(int argc, char **argv)
                                     ymin + m * (ymax-ymin) / (n_side-1)));
     }
   }
-  int middle = n_side/2 * n_side + n_side/2;
+  //int middle = n_side/2 * n_side + n_side/2;
+  int middle = fmmtl::random<unsigned>::get(0, N);
 
   // Init charges, only the middle source has a charge
   std::vector<charge_type> charges(N);
@@ -139,8 +141,10 @@ int main(int argc, char **argv)
   // Compute the result with a direct matrix-vector multiplication
   std::vector<result_type> exact(N);
   Direct::matvec(K,
-                 targets.begin()+middle, targets.begin()+middle+1, charges.begin()+middle,
-                 targets.begin(), targets.end(), exact.begin());
+                 targets.begin()+middle, targets.begin()+middle+1,
+                 charges.begin()+middle,
+                 targets.begin(), targets.end(),
+                 exact.begin());
 
   std::cout << "Computing the errors..." << std::endl;
 
@@ -148,7 +152,7 @@ int main(int argc, char **argv)
   double min_error = std::numeric_limits<double>::max();
   double max_error = std::numeric_limits<double>::lowest();
   for (unsigned k = 0; k < result.size(); ++k) {
-    double error = norm(exact[k] - result[k]) / norm(exact[k]);
+    double error = norm_2(exact[k] - result[k]) / norm_2(exact[k]);
     if (error > 1e-15)
       log_error[k] = std::log10(error);
     else

@@ -21,7 +21,7 @@ struct LaplacePotential
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    double R2 = normSq(s - t);             //   R^2
+    double R2 = norm_2_sq(s - t);             //   R^2
     double invR2 = 1.0 / R2;               //   1 / R^2
     if (R2 < 1e-20) invR2 = 0;             //   Exclude self interaction
     return std::sqrt(invR2);               //   Potential
@@ -50,7 +50,7 @@ struct LaplaceKernel
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
     Vec<3,double> dist = s - t;            //   Vector from target to source
-    double R2 = normSq(dist);              //   R^2
+    double R2 = norm_2_sq(dist);              //   R^2
     double invR2 = 1.0 / R2;               //   1 / R^2
     if (R2 < 1e-20) invR2 = 0;             //   Exclude self interaction
     double invR = std::sqrt(invR2);        //   Potential

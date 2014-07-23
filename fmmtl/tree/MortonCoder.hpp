@@ -4,8 +4,13 @@
  *   codes.
  */
 
+#include <cstdint>
+#include <climits>
+
 #include "fmmtl/numeric/Vec.hpp"
-#include "BoundingBox.hpp"
+#include "fmmtl/tree/BoundingBox.hpp"
+
+namespace fmmtl {
 
 /** @class MortonCoder
  * @brief Class representing Z-order-curve values, aka Morton codes.
@@ -42,11 +47,11 @@ struct MortonCoder {
 
   // Using a 32-bit unsigned int for the code_type,
   // means we will resolve 32 1D levels, 16 2D levels, 10 3D levels, 8 4D levels.
-  typedef unsigned code_type;
+  typedef uint32_t code_type;
 
   /** The number of bits per dimension = the maximum number of levels */
   static constexpr unsigned levels() {
-    return (8*sizeof(code_type)) / DIM;
+    return std::numeric_limits<code_type>::digits / DIM;
   }
   /** The number of cells per side of the bounding box (2^L). */
   static constexpr uint64_t cells_per_side() {
@@ -58,7 +63,7 @@ struct MortonCoder {
   }
 
   /** Construct a MortonCoder with a bounding box. */
-  MortonCoder(const BoundingBox<DIM>& bb)
+  MortonCoder(const BoundingBox<point_type>& bb)
       : pmin_(bb.min()),
         cell_size_((bb.max() - bb.min()) / cells_per_side()) {
     cell_size_ *= (1.0 + 1e-14);  // Inclusive bounding box by small extension
@@ -66,27 +71,30 @@ struct MortonCoder {
   }
 
   /** Return the MortonCoder's bounding box. */
-  BoundingBox<DIM> bounding_box() const {
-    point_type pmax = pmin_ + cell_size_ * cells_per_side();
-    return BoundingBox<DIM>(pmin_, pmax);
+  BoundingBox<point_type> bounding_box() const {
+    return BoundingBox<point_type>(pmin_, pmin_ + cell_size_ * cells_per_side());
   }
 
   /** Return the bounding box of the cell with Morton code @a c.
    * @pre c < end_code */
-  BoundingBox<DIM> cell(code_type c) const {
+  BoundingBox<point_type> cell(code_type c) const {
     point_type pmin = pmin_ + cell_size_ * deinterleave(c);
-    return BoundingBox<DIM>(pmin, pmin + cell_size_);
+    return BoundingBox<point_type>(pmin, pmin + cell_size_);
   }
 
-  /** Return the bounding box of the box with Morton codes @a cmin and @cmax.
+  /** Return the bounding box of the box with Morton codes @a cmin and @a cmax.
    * @pre cmin,cmax < end_code */
-  BoundingBox<DIM> cell(code_type cmin, code_type cmax) const {
-    point_type pmin = pmin_ + cell_size_ * deinterleave(cmin);
-    point_type pmax = pmin_ + cell_size_ *(deinterleave(cmax)+1);
-    return BoundingBox<DIM>(pmin, pmax);
+  BoundingBox<point_type> cell(code_type cmin, code_type cmax) const {
+    return BoundingBox<point_type>(pmin_ + cell_size_ * deinterleave(cmin),
+                                   pmin_ + cell_size_ *(deinterleave(cmax)+1));
   }
 
-  /** Return the center of the box with Morton codes @a cmin and @cmax.
+  /** Return the center of the Morton coders' bounding box */
+  point_type center() const {
+    return pmin_ + cell_size_ * (cells_per_side()/2);
+  }
+
+  /** Return the center of the box with Morton codes @a cmin and @a cmax.
    * @pre cmin,cmax < end_code */
   point_type center(code_type cmin, code_type cmax) const {
     return pmin_ + (cell_size_/2)*(deinterleave(cmax)+deinterleave(cmin)+1);
@@ -103,17 +111,17 @@ struct MortonCoder {
     return interleave(s);
   }
 
- private:
+  //private:
   /** The minimum of the MortonCoder bounding box. */
   point_type pmin_;
   /** The extent of a single cell. */
   point_type cell_size_;
 
   /** Spreads the bits of a number for interleaving */
-  inline unsigned spread_bits(unsigned x) const;
+  static inline unsigned spread_bits(unsigned x);
 
   /** Interleave the bits of s[0], s[1], ... */
-  inline code_type interleave(const point_type& s) const {
+  static inline code_type interleave(const point_type& s) {
     code_type code = code_type(0);
     for (unsigned i = 0; i < DIM; ++i) {
       FMMTL_ASSERT(unsigned(s[i]) < cells_per_side());
@@ -123,10 +131,10 @@ struct MortonCoder {
   }
 
   /** Compact the bits of a number for deinterleaving */
-  inline unsigned compact_bits(unsigned x) const;
+  static inline unsigned compact_bits(unsigned x);
 
   /** Deinterleave the bits from @a c into a point. */
-  inline point_type deinterleave(code_type c) const {
+  static inline point_type deinterleave(code_type c) {
     typedef typename point_type::value_type value_type;
     point_type p;
     for (unsigned i = 0; i < DIM; ++i)
@@ -145,7 +153,7 @@ struct MortonCoder {
  * @return 32-bit integer
  */
 template <>
-inline unsigned MortonCoder<1>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<1>::spread_bits(unsigned x) {
   return x;
 }
 
@@ -154,7 +162,7 @@ inline unsigned MortonCoder<1>::spread_bits(unsigned x) const {
  * @return 32-bit integer
  */
 template <>
-inline unsigned MortonCoder<1>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<1>::compact_bits(unsigned x) {
   return x;
 }
 
@@ -165,7 +173,7 @@ inline unsigned MortonCoder<1>::compact_bits(unsigned x) const {
  * where the X's are the original bits of @a x
  */
 template <>
-inline unsigned MortonCoder<2>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<2>::spread_bits(unsigned x) {
   x = (x | (x << 8)) & 0b00000000111111110000000011111111;
   x = (x | (x << 4)) & 0b00001111000011110000111100001111;
   x = (x | (x << 2)) & 0b00110011001100110011001100110011;
@@ -179,7 +187,7 @@ inline unsigned MortonCoder<2>::spread_bits(unsigned x) const {
  * where the X's are every-other bit of @a x
  */
 template <>
-inline unsigned MortonCoder<2>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<2>::compact_bits(unsigned x) {
   x &= 0b01010101010101010101010101010101;
   x = (x | (x >> 1)) & 0b00110011001100110011001100110011;
   x = (x | (x >> 2)) & 0b00001111000011110000111100001111;
@@ -195,7 +203,7 @@ inline unsigned MortonCoder<2>::compact_bits(unsigned x) const {
  * where the X's are the original bits of @a x
  */
 template <>
-inline unsigned MortonCoder<3>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<3>::spread_bits(unsigned x) {
   x = (x | (x << 16)) & 0b00000011000000000000000011111111;
   x = (x | (x <<  8)) & 0b00000011000000001111000000001111;
   x = (x | (x <<  4)) & 0b00000011000011000011000011000011;
@@ -209,7 +217,7 @@ inline unsigned MortonCoder<3>::spread_bits(unsigned x) const {
  * where the X's are every third bit of @a x
  */
 template <>
-inline unsigned MortonCoder<3>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<3>::compact_bits(unsigned x) {
   x &= 0b00001001001001001001001001001001;
   x = (x | (x >>  2)) & 0b00000011000011000011000011000011;
   x = (x | (x >>  4)) & 0b00000011000000001111000000001111;
@@ -225,7 +233,7 @@ inline unsigned MortonCoder<3>::compact_bits(unsigned x) const {
  * where the X's are the original bits of @a x
  */
 template <>
-inline unsigned MortonCoder<4>::spread_bits(unsigned x) const {
+inline unsigned MortonCoder<4>::spread_bits(unsigned x) {
   x = (x | (x << 12)) & 0b00000000000011110000000000001111;
   x = (x | (x <<  6)) & 0b00000011000000110000001100000011;
   x = (x | (x <<  3)) & 0b00010001000100010001000100010001;
@@ -238,10 +246,12 @@ inline unsigned MortonCoder<4>::spread_bits(unsigned x) const {
  * where the X's are every fourth bit of @a x
  */
 template <>
-inline unsigned MortonCoder<4>::compact_bits(unsigned x) const {
+inline unsigned MortonCoder<4>::compact_bits(unsigned x) {
   x &= 0b00010001000100010001000100010001;
   x = (x | (x >>  3)) & 0b00000011000000110000001100000011;
   x = (x | (x >>  6)) & 0b00000000000011110000000000001111;
   x = (x | (x >> 12)) & 0b00000000000000000000000011111111;
   return x;
 }
+
+} // end namespace fmmtl

@@ -1,7 +1,7 @@
 #include "fmmtl/KernelMatrix.hpp"
-#include "LaplaceSpherical.hpp"
+#include "fmmtl/util/Clock.hpp"
 
-#include "fmmtl/Logger.hpp"
+#include "LaplaceSpherical.hpp"
 
 int main() {
   typedef LaplaceSpherical expansion_type;
@@ -13,7 +13,7 @@ int main() {
 
   FMMOptions opts;
 
-  for (double n = 4; n <= 6; n += 0.125) {
+  for (double n = 4; n <= 7; n += 0.125) {
     int N = int(pow(10,n));
 
     std::vector<source_type> points(N);
@@ -29,13 +29,24 @@ int main() {
     A.set_options(opts);
 
     // Warm up
+    double time = 0;
+    Clock clock;
+
+    clock.start();
     std::vector<result_type> r = A * charges;
+    double init_time = clock.seconds();
 
     // Compute the product
-    Ticker tick;
-    std::vector<result_type> result = A * charges;
-    double time = tick.seconds();
+    const unsigned ITER = 10;
+    for (unsigned iter = 0; iter < ITER; ++iter) {
+      clock.start();
+      std::vector<result_type> result = A * charges;
+      time += clock.seconds();
+    }
+    time /= ITER;
 
-    std::cout << N << "\t" << time << "\n";
+    std::cout << N << "\t" << init_time << "\t" << time << "\n";
   }
+
+  return 0;
 }
