@@ -3,7 +3,7 @@
 
 #include <boost/math/special_functions/sin_pi.hpp>
 #include <boost/math/special_functions/cos_pi.hpp>
-#include <boost/math/constants/constants.hpp>
+using namespace boost::math;
 
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
@@ -38,17 +38,7 @@ struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
     const value_type r = 2*inner_prod(t,s);
-    return kernel_value_type(boost::math::cos_pi(r), boost::math::sin_pi(r));
-  }
-
-  value_type phase(const target_type& t,
-                   const source_type& s) const {
-    return 2 * boost::math::constants::pi<value_type>() * inner_prod(t,s);
-  }
-
-  value_type ampl(const target_type& t,
-                  const source_type& s) const {
-    return 1;
+    return kernel_value_type(cos_pi(r), sin_pi(r));
   }
 };
 
@@ -112,70 +102,148 @@ int main(int argc, char** argv) {
   typedef typename fmmtl::NDTree<D>::body_type target_body_type;
   typedef typename fmmtl::NDTree<D>::body_type source_body_type;
 
+  // Operators associated with the source and target boxes
+  auto p_op = make_box_binding<std::vector<matrix<double>>>(source_tree);
+  auto b_op = make_box_binding<std::vector<matrix<kernel_value_type>>>(target_tree);
+
+  //
+  // Butterfly precomputation
+  //
+
+  // For all the levels of the target_tree
+  int max_L = std::min(source_tree.levels(), target_tree.levels()) - 1;
+  //int max_L = 3;
+
+  // if maxL == L, apply direct evaluation
+
+  std::cout << "max_L = " << max_L << std::endl;
+  for (int L = 0; L <= max_L; ++L) {
+
+    std::cout << "Level " << L << std::endl;
+
+    // For all boxes in the opposing level of the source tree
+    for (source_box_type sbox : boxes(max_L - L, source_tree)) {
+
+      p_op[sbox].reserve(target_tree.boxes(L));
+
+      // For all the boxes in this level of the target tree
+      for (target_box_type tbox : boxes(L, target_tree)) {
+
+        std::cout << "Precomputing " << L << "  " << tbox.index() << "  " << sbox.index() << std::endl;
+
+        // Interpolative decomposition of tbox x sbox
+        // or propogation of previous interpolative decompositions
+
+        if (L == 0 || sbox.is_leaf()) {
+          // Form interpolative decomposition from sources/targets (dummy)
+          p_op[sbox].push_back(identity_matrix<double>(sbox.num_bodies(),
+                                                       sbox.num_bodies()));
+          //t_op[tbox.index()] = B-matrix... ?
+        } else {
+          // Get the "B"-matrix of the target's parent and partition according to child partitions
+          // Form the interpolative decomposition of each partition (dummy)
+          p_op[sbox].push_back(identity_matrix<double>(sbox.num_bodies(),
+                                                       sbox.num_bodies()));
+
+          // Since we've only done dummy P-matrices, this will be the full evaluated rows
+        }
+
+        if (L == max_L || tbox.is_leaf()) {
+          b_op[tbox].reserve(source_tree.boxes(max_L - L));
+
+          // Construct the elements of the kernel matrix
+          // Could use a ublas kernel_matrix class here...
+
+          b_op[tbox].push_back(matrix<kernel_value_type>(tbox.num_bodies(),
+                                                         sbox.num_bodies()));
+          auto& k = b_op[tbox].back();
+
+          std::cout << "Matrix " << k.size1() << "," << k.size2() << std::endl;
+          int tb_idx = -1;
+          for (target_body_type tb : bodies(tbox)) {
+            ++tb_idx;
+            target_type& t = targets[tb.number()];
+
+            int sb_idx = -1;
+            for (source_body_type sb : bodies(sbox)) {
+              ++sb_idx;
+              source_type& s = sources[sb.number()];
+              k(tb_idx, sb_idx) = K(t, s);
+            }
+          }
+        }
+      }
+    }
+  }
+
   //
   // Butterfly Application
   //
 
-  // Associate a multipoleAB with each source box
   typedef std::vector<vector<charge_type>> multipole_type;
   auto multipole = make_box_binding<multipole_type>(source_tree);
 
-  // Associate a localAB with each target box
-  typedef std::vector<vector<result_type>> local_type;
-  auto local = make_box_binding<local_type>(target_tree);
-
-  // The maximum level of interaction
-  int max_L = std::min(source_tree.levels(), target_tree.levels()) - 1;
-
-  // Initialize all multipole/local    TODO: improve memory requirements
+  // For all the levels of the target_tree
   for (int L = 0; L <= max_L; ++L) {
-    for (source_box_type sbox : boxes(max_L - L, source_tree))
-      multipole[sbox].resize(target_tree.boxes(L));
-    for (target_box_type tbox : boxes(L, target_tree))
-      local[tbox].resize(source_tree.boxes(max_L - L));
-  }
-
-
-  int L_split = max_L / 2;
-  assert(L_split > 0);
-
-  // For all levels up to the split
-  for (int L = 0; L < L_split; ++L) {
 
     // For all boxes in the opposing level of the source tree
     int s_idx = -1;
     for (source_box_type sbox : boxes(max_L - L, source_tree)) {
       ++s_idx;
 
+      multipole[sbox].resize(target_tree.boxes(L));
+
       // For all the boxes in this level of the target tree
       int t_idx = -1;
       for (target_box_type tbox : boxes(L, target_tree)) {
         ++t_idx;
 
-        if (L == 0 || sbox.is_leaf()) {
-          // S2M
-        } else if (L < L_split) {
-          // M2M
-        } else {
-          // S2L
-        }
+        std::cout << "Computing " << L << "  " << tbox.index() << "  " << sbox.index() << std::endl;
 
-        if (L == L_split) {
-          // M2L
+        // Application of precomputed interpolative decompositions
+        if (L == 0 || sbox.is_leaf()) {
+          // Create the "multipole" from the sources (S2M)
+          // Construct the local source vector explictly...
+          vector<charge_type> c(sbox.num_bodies());
+          int sb_idx = -1;
+          for (source_body_type sb : bodies(sbox)) {
+            ++sb_idx;
+            c[sb_idx] = charges[sb.number()];
+          }
+          // Compute the product (dummy)
+          multipole[sbox][t_idx] = prod(p_op[sbox][t_idx], c);
+        } else {
+          // Concatenate the "multipoles" from the children and apply op (M2M)
+          vector<charge_type> c(sbox.num_bodies());
+          auto ci = c.begin();
+
+          int tp_idx = tbox.parent().index() - target_tree.box_begin(L-1)->index();
+          for (source_box_type cbox : children(sbox)) {
+            auto& M = multipole[cbox][tp_idx];
+            ci = std::copy(M.begin(), M.end(), ci);
+          }
+          // And take the product
+          multipole[sbox][t_idx] = prod(p_op[sbox][t_idx], c);
         }
 
         if (L == max_L || tbox.is_leaf()) {
-          // L2T
-        } else if (L > L_split) {
-          // L2L
-        } else {
-          // M2T
+          std::cout << "Local Product " << tbox.index() << " - "
+                    << b_op[tbox][s_idx].size1() << "x" << b_op[tbox][s_idx].size2()
+                    << " . " << multipole[sbox][t_idx].size() << std::endl;
+          // Take the product of the ID and the "multipole" (M2L)
+          vector<result_type> c = prod(b_op[tbox][s_idx], multipole[sbox][t_idx]);
+
+          // Concat the leaf locals for the final result (L2T)
+          // Permuted copy again
+          int tb_idx = -1;
+          for (target_body_type tb : bodies(tbox)) {
+            ++tb_idx;
+            result[tb.number()] += c[tb_idx];
+          }
         }
       }
     }
   }
-
-
 
   // Check the result
   if (checkErrors) {
