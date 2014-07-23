@@ -2,9 +2,13 @@
 
 // Whole suite of system configuration flags
 #include <boost/version.hpp>
+
+#if defined(__CUDACC__)
+#  define BOOST_NOINLINE __attribute__ ((noinline))
+#endif
 #include <boost/config.hpp>
 
-#include <omp.h>
+//#include <omp.h>
 
 #if defined(__CUDACC__)
 #  define FMMTL_WITH_CUDA
@@ -44,6 +48,9 @@
 #  include <cassert>
 #  define FMMTL_ASSERT(expr) assert(expr)
 #endif
+
+
+
 // FMMTL_STATIC_ASSERT (for C++03 regions)
 #include <boost/static_assert.hpp>
 #define FMMTL_STATIC_ASSERT BOOST_STATIC_ASSERT_MSG

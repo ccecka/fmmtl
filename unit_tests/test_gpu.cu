@@ -1,8 +1,8 @@
+#include <iostream>
+
 #include <thrust/device_vector.h>
 
 #include "fmmtl/numeric/Vec.hpp"
-
-#include <iostream>
 
 int main() {
   typedef Vec<3,double> source_type;

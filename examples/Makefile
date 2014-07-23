@@ -1,7 +1,4 @@
-EXEC += scaling
-EXEC += error_laplace
-EXEC += error_biot
-EXEC += error_img
+EXEC = $(basename $(wildcard *.cpp) $(wildcard *.cu))
 
 include ../Makefile.inc
 
@@ -18,5 +15,3 @@ error_biot:     $(KERNEL_DIR)/BiotSavart.o
 
 error_img: LDLIBS += -lpng  # Extra png dependency for making images
 error_img: $(KERNEL_DIR)/Laplace.o $(KERNEL_DIR)/BiotSavart.o $(KERNEL_DIR)/Yukawa.o $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
-
-
