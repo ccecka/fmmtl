@@ -33,7 +33,7 @@ struct traversal_impl<depth_first,T> {
 
 template <class T>
 struct traversal_impl<breadth_first,T> {
-  std::deque<T> q;
+  std::queue<T> q;
   bool empty() const { return q.empty(); }
   T& next() { return q.front(); }
   const T& next() const { return q.front(); }
