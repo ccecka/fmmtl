@@ -1,21 +1,4 @@
-EXEC = compiles
-
-EXEC += correctness
-EXEC += dual_correctness
-
-EXEC += multi_level
-EXEC += single_level
-
-EXEC += test_kernel
-EXEC += test_expansion
-
-EXEC += test_s2t
-EXEC += test_tree
-EXEC += test_direct
-EXEC += test_vec
-
-EXEC += version
-
+EXEC = $(basename $(wildcard *.cpp) $(wildcard *.cu))
 
 include ../Makefile.inc
 

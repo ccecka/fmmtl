@@ -51,6 +51,7 @@ struct RosenheadMoore
 
   struct kernel_value_type {
     Vec<3,double> v;
+    FMMTL_INLINE
     kernel_value_type(const Vec<3,double>& _v) : v(_v) {}
 
     FMMTL_INLINE
