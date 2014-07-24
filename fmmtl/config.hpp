@@ -1,14 +1,12 @@
 #pragma once
 
-// Whole suite of system configuration flags
-#include <boost/version.hpp>
-
+// Kludge for nvcc with g++-4.6 and boost
 #if defined(__CUDACC__)
 #  define BOOST_NOINLINE __attribute__ ((noinline))
 #endif
+// Whole suite of system configuration flags
+#include <boost/version.hpp>
 #include <boost/config.hpp>
-
-//#include <omp.h>
 
 #if defined(__CUDACC__)
 #  define FMMTL_WITH_CUDA
@@ -48,9 +46,6 @@
 #  include <cassert>
 #  define FMMTL_ASSERT(expr) assert(expr)
 #endif
-
-
-
 // FMMTL_STATIC_ASSERT (for C++03 regions)
 #include <boost/static_assert.hpp>
 #define FMMTL_STATIC_ASSERT BOOST_STATIC_ASSERT_MSG
@@ -74,4 +69,14 @@ inline void cuda_check(char* file, int line) {
   }
 }
 #  define FMMTL_CUDA_CHECK cuda_check(__FILE__, __LINE__)
+#endif
+
+// Load OpenMP support if available
+#if defined(_OPENMP)
+#  include <omp.h>
+#else
+#  warning Compiler does not support OpenMP
+typedef int omp_int_t;
+inline omp_int_t omp_get_thread_num() { return 0;}
+inline omp_int_t omp_get_max_threads() { return 1;}
 #endif
