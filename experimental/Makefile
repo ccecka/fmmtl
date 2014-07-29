@@ -1,5 +1,4 @@
-EXEC = butterfly
-EXEC += butterfly_bkp
+EXEC = $(basename $(wildcard *.cpp) $(wildcard *.cu))
 
 include ../Makefile.inc
 

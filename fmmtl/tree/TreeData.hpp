@@ -64,13 +64,20 @@ struct BodyBind {
   }
 
   iterator operator[](const typename Tree::body_iterator& bi) {
-    return data.begin() + (*bi).index();
+    return data.begin() + bi.index();
   }
   const_iterator operator[](const typename Tree::body_iterator& bi) const {
-    return data.begin() + (*bi).index();
+    return data.begin() + bi.index();
   }
 
+  // XXX
   std::pair<iterator,iterator> operator[](const typename Tree::box_type& box) {
     return {(*this)[box.body_begin()], (*this)[box.body_end()]};
   }
 };
+
+template <typename Tree, typename Range>
+BodyBind<typename Range::value_type,Tree>
+make_body_binding(const Tree& tree, const Range& range) {
+  return {tree, range};
+}
