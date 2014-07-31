@@ -10,8 +10,10 @@
 template <typename T, std::size_t N>
 struct Chebyshev {
   static_assert(N > 1, "More than 1 please");
+  //! Nodes of the Chebyshev grid
   static const std::array<T,N> x;
 
+  /** Define the nodes of the Chebyshev grid */
   static std::array<T,N> make() {
     std::array<T,N> x;
     for (std::size_t k = 0; k != N; ++k)

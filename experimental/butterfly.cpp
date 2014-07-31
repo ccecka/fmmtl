@@ -83,28 +83,31 @@ struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
  */
 template <std::size_t DIM, std::size_t Q>
 struct TensorIndexGridRange {
-  std::array<std::size_t,DIM> i_;
+  typedef std::array<unsigned,DIM> value_type;
+  value_type i_ = {{}};
 
-  // Current != end of the range
-  template <typename T>
-  bool operator!=(T&&) const {
-    return i_[DIM-1] != Q;
-  }
-  // Increment the grid index and carry into the next dimensions
-  void operator++() {
-    auto it = i_.begin();
-    while (++(*it) == Q && it != i_.end()-1) {
-      *it = 0;
-      ++it;
+  // Prevent copying the value_type when iterating
+  struct Reference {
+    TensorIndexGridRange<DIM, Q>& t;
+
+    // Increment the grid index and carry into the next dimensions
+    void operator++() {
+      for (std::size_t k = 0; ++t.i_[k] == Q && k != DIM-1; ++k)
+        t.i_[k] = 0;
     }
-  }
-  // Return the grid index
-  const std::array<std::size_t,DIM>& operator*() const {
-    return i_;
-  }
+    // Current != end of the range
+    template <typename T>
+    bool operator!=(T&&) const {
+      return t.i_[DIM-1] != Q;
+    }
+    // Return the grid index
+    const value_type& operator*() const {
+      return t.i_;
+    }
+  };
 
-  TensorIndexGridRange<DIM,Q>& begin() { return *this; }
-  TensorIndexGridRange<DIM,Q>& end()   { return *this; }
+  Reference begin() { return Reference{*this}; }
+  Reference end()   { return Reference{*this}; }
 };
 
 
@@ -195,6 +198,9 @@ int main(int argc, char** argv) {
   // The maximum level of interaction
   //int L_max = std::min(source_tree.levels(), target_tree.levels()) - 1;
   int L_max = 2;
+  // Compute the level of the split
+  //int L_split = L_max / 2;
+  //assert(L_split > 0);
 
   std::cout << "L_max = " << L_max << std::endl;
 
@@ -206,9 +212,6 @@ int main(int argc, char** argv) {
       local[tbox].resize(source_tree.boxes(L_max - L));
   }
 
-  // Compute the level of the split
-  //int L_split = L_max / 2;
-  //assert(L_split > 0);
 
   // Begin traversal
   int L = 0;
@@ -222,7 +225,7 @@ int main(int argc, char** argv) {
     const point_type& s_center = sbox.center();
     const point_type& s_extent = sbox.extents();
 
-    // Transform sources to reference grid
+    // Copy and transform sources to reference grid
     std::vector<source_type> s_ref(p_sources[sbox.body_begin()],
                                    p_sources[sbox.body_end()]);
     for (auto&& s : s_ref) {
@@ -230,13 +233,17 @@ int main(int argc, char** argv) {
       s /= s_extent;
     }
 
+    // Precompute the Lagrange interpolation matrix
+    // TODO: Transform iterator to reference grid
+    auto LgInterp = LagrangeMatrix<D,Q>(s_ref.begin(), s_ref.end());
+
     // For each multiindex
     int i_idx = -1;
     for (auto&& i : TensorIndexGridRange<D,Q>()) {
       ++i_idx;
 
       // Precompute the Lagrange coefficients for the multi-index i
-      std::vector<double> ls = Lagrange<Q>::coeff(i, s_ref);
+      //std::vector<double> ls = Lagrange<Q>::coeff(i, s_ref);
 
       // For all the boxes in this level of the target tree
       int t_idx = -1;
@@ -248,12 +255,12 @@ int main(int argc, char** argv) {
         // Accumulate into M_AB_i
         complex_type& M_AB_i = multipole[sbox][t_idx][i_idx];
 
-        auto si = p_sources[sbox.body_begin()];
+        //auto li = ls.begin();
         auto ci = p_charges[sbox.body_begin()];
-        auto li = ls.begin();
-        auto li_end = ls.end();
-        for ( ; li != li_end; ++si, ++ci, ++li) {
-          M_AB_i += (*li) * unit_polar(_M_ * K.phase(t_center, *si)) * (*ci);
+        std::size_t j = 0;   // XXX, Abstract as mat-vec
+        for (auto&& s : p_sources[sbox]) {
+          M_AB_i += unit_polar(_M_ * K.phase(t_center, s)) * LgInterp(i,j) * (*ci);
+          ++ci; ++j;
         }
       }
     }
@@ -265,6 +272,7 @@ int main(int argc, char** argv) {
   ++L;
 
   std::cout << "M2M" << std::endl;
+  { ScopeClock timer("M2M: ");
 
   // For all levels up to the split
   for ( ; L < L_split; ++L) {
@@ -339,6 +347,7 @@ int main(int argc, char** argv) {
     }
   }
 
+  }
 
   // For L == L_split
 
@@ -477,13 +486,17 @@ int main(int argc, char** argv) {
       t /= t_extent;
     }
 
+    // Precompute the Lagrange interpolation matrix
+    // TODO: Transform iterator to reference grid
+    auto LgInterp = LagrangeMatrix<D,Q>(t_ref.begin(), t_ref.end());
+
     // For each multiindex
     int i_idx = -1;
     for (auto&& i : TensorIndexGridRange<D,Q>()) {
       ++i_idx;
 
       // Precompute the Lagrange coefficients for the multi-index i
-      std::vector<double> ls = Lagrange<Q>::coeff(i, t_ref);
+      //std::vector<double> ls = Lagrange<Q>::coeff(i, t_ref);
 
       // For all the boxes in this level of the source tree
       int s_idx = -1;
@@ -495,12 +508,12 @@ int main(int argc, char** argv) {
         // Accumulate
         complex_type& L_AB_i = local[tbox][s_idx][i_idx];
 
-        auto ti = p_targets[tbox.body_begin()];
         auto ri = p_results[tbox.body_begin()];
-        auto li = ls.begin();
-        auto li_end = ls.end();
-        for ( ; li != li_end; ++ri, ++ti, ++li)
-          *ri += (*li) * L_AB_i * unit_polar(_M_ * K.phase(*ti,s_center));
+        std::size_t j = 0;     // XXX, Abstract as mat-vec
+        for (auto&& t : p_targets[tbox]) {
+          *ri += LgInterp(i,j) * L_AB_i * unit_polar(_M_ * K.phase(t, s_center));
+          ++j; ++ri;
+        }
       }
     }
   }

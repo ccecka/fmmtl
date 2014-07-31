@@ -47,6 +47,12 @@ struct BodyBind {
   //const Tree& tree;
   container_type data;
 
+  struct BodyDataRange {
+    iterator b, e;
+    iterator begin() { return b; }
+    iterator end()   { return e; }
+  };
+
   BodyBind(const Tree& tree)
       : data(tree.bodies()) {
   }
@@ -70,8 +76,7 @@ struct BodyBind {
     return data.begin() + bi.index();
   }
 
-  // XXX
-  std::pair<iterator,iterator> operator[](const typename Tree::box_type& box) {
+  BodyDataRange operator[](const typename Tree::box_type& box) {
     return {(*this)[box.body_begin()], (*this)[box.body_end()]};
   }
 };
