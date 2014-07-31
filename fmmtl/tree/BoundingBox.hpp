@@ -73,35 +73,43 @@ class BoundingBox {
 
   /** Return the minimum corner of the bounding box.
    * @post empty() || contains(min())
-   *
-   * The minimum corner has minimum coordinates of any corner.
-   * An empty box has min() == point_type(). */
+   * @note An empty box has min() == point_type(). */
   const point_type& min() const {
     return min_;
   }
 
   /** Return the maximum corner of the bounding box.
    * @post empty() || contains(max())
-   *
-   * The maximum corner has maximum coordinates of any corner.
-   * An empty box has max() == point_type(). */
+   * @note An empty box has max() == point_type(). */
   const point_type& max() const {
     return max_;
   }
 
   /** Test if point @a p is in the bounding box. */
   bool contains(const point_type& p) const {
-    return !empty() && safe_contains(p);
+    if (empty())
+      return false;
+    for (unsigned i = 0; i != DIM; ++i)
+      if (p[i] < min_[i] || p[i] > max_[i])
+        return false;
+    return true;
   }
 
   /** Test if @a b is entirely within this bounding box.
-   *
-   * Returns false if @a b.empty(). */
+   * @returns true if all @a p with @a b.contains(@a p) implies contains(@a p) */
   bool contains(const BoundingBox& b) const {
-    return !empty() && !b.empty() && safe_contains(b.min()) && safe_contains(b.max());
+    if (empty() || b.empty())
+      return false;
+    for (unsigned i = 0; i != DIM; ++i)
+      if (b.min_[i] < min_[i] || b.min_[i] > max_[i] ||
+          b.max_[i] < min_[i] || b.max_[i] > max_[i])
+        return false;
+    return true;
   }
 
-  /** Test if @a b intersects this bounding box. */
+  /** Test if @a b intersects this bounding box.
+   * @returns true if there exists @a p such that
+   *            contains(@a p) && b.contains(@a p) */
   bool intersects(const BoundingBox& b) const {
     if (empty() || b.empty())
       return false;
@@ -113,7 +121,8 @@ class BoundingBox {
 
   /** Extend the bounding box to contain @a p.
    * @post contains(@a p) is true
-   * @post if old contains(@a x) was true, then new contains(@a x) is true */
+   * @post For all @a x with old contains(@a x),
+             then new contains(@a x) is true. */
   BoundingBox& operator|=(const point_type& p) {
     if (empty()) {
       empty_ = false;
@@ -128,15 +137,19 @@ class BoundingBox {
   }
 
   /** Extend the bounding box to contain @a b.
-   * @post contains(@a b) is true
-   * @post if old contains(@a x) was true, then new contains(@a x) is true */
+   * @post contains(@a b) || @a b.empty()
+   * @post For all @a x with old contains(@a x) or @a b.contains(@a x),
+   *         then new contains(@a x) is true. */
   BoundingBox& operator|=(const BoundingBox& b) {
     if (!b.empty())
       (*this |= b.min()) |= b.max();
     return *this;
   }
 
-  /** Extend the bounding box to contain the points in [first, last). */
+  /** Extend the bounding box to contain the points in [first, last).
+   * @post For all @a p in [@a first, @a last), contains(@a p) is true.
+   * @post For all @a x with old contains(@a x),
+   *         then new contains(@a x) is true. */
   template <typename IT>
   BoundingBox& insert(IT first, IT last) {
     for ( ; first != last; ++first)
@@ -144,7 +157,9 @@ class BoundingBox {
     return *this;
   }
 
-  /** Intersect this bounding box with another bounding box @a b. */
+  /** Intersect this bounding box with another bounding box @a b.
+   * @post For all @a x with old contains(@a x) and @a b.contains(@a x),
+   *         then new contains(@a x) is true. */
   BoundingBox& operator&=(const BoundingBox& b) {
     if (!intersects(b))
       return clear();
@@ -186,14 +201,6 @@ class BoundingBox {
   bool empty_;
   point_type min_;
   point_type max_;
-
-  /** Test if point @a p is in the bounding box without checking emptiness. */
-  bool safe_contains(const point_type& p) const {
-    for (unsigned i = 0; i != DIM; ++i)
-      if (p[i] < min_[i] || p[i] > max_[i])
-        return false;
-    return true;
-  }
 };
 
 
