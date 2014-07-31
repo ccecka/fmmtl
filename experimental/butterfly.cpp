@@ -115,8 +115,8 @@ struct TensorIndexGridRange {
 
 
 int main(int argc, char** argv) {
-  int N = 10000;
-  int M = 10000;
+  int N = 1000;
+  int M = 1000;
   bool checkErrors = true;
 
   // Parse custom command line args
@@ -197,9 +197,9 @@ int main(int argc, char** argv) {
 
   // The maximum level of interaction
   //int L_max = std::min(source_tree.levels(), target_tree.levels()) - 1;
-  int L_max = 2;
+  int L_max = 4;
   // Compute the level of the split
-  //int L_split = L_max / 2;
+  int L_split = 2;
   //assert(L_split > 0);
 
   std::cout << "L_max = " << L_max << std::endl;
@@ -268,14 +268,13 @@ int main(int argc, char** argv) {
 
   } // timer
 
-#if 0
   ++L;
 
   std::cout << "M2M" << std::endl;
   { ScopeClock timer("M2M: ");
 
   // For all levels up to the split
-  for ( ; L < L_split; ++L) {
+  for ( ; L <= L_split; ++L) {
 
     // For all source boxes
     for (source_box_type sbox : boxes(L_max - L, source_tree)) {
@@ -283,7 +282,7 @@ int main(int argc, char** argv) {
       const point_type& s_center = sbox.center();
       const point_type& s_extent = sbox.extents();
 
-      // TOFO: Fix
+      // TODO: Fix
       assert(!sbox.is_leaf());
 
       // For all the children of this source box
@@ -310,6 +309,10 @@ int main(int argc, char** argv) {
           r /= s_extent;
         }
 
+        // Create Lagrange interpolation matrix
+        // XXX: Need to be careful about barycentric values
+        //auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
+
         // Accumulate
         int i_idx = -1;
         for (auto&& i : TensorIndexGridRange<D,Q>()) {
@@ -317,7 +320,7 @@ int main(int argc, char** argv) {
 
           // Precompute Lagrange interpolants for this i
           // XXX Optimize, this can't be evaluated explicitly everytime
-          std::array<double,pow_(Q,D)> ls = Lagrange<Q>::coeff(i, ref_cheb);
+          std::array<double,pow_(Q,D)> LgM = Lagrange<Q>::coeff(i, ref_cheb);
 
           // Accumulate into M_AB_t
           int t_idx = -1;
@@ -327,20 +330,24 @@ int main(int argc, char** argv) {
             const point_type& t_center  = tbox.center();
             target_box_type pbox = tbox.parent();
             const point_type& p_center = pbox.center();
-            int p_idx = pbox.index() - boxes(L-1, target_tree).begin()->index();
+            int p_idx = pbox.index() - boxes(pbox.level(), target_tree).begin()->index();
 
             // Accumulate into M_AB_i
-            complex_type& M_AB_i = multipole[sbox][t_idx][i_idx];
+            complex_type& M_AB_i   = multipole[sbox][t_idx][i_idx];
 
             // For each element of i_prime
-            auto li = ls.begin();
-            auto li_end = ls.end();
+            //auto li = ls.begin();
+            //auto li_end = ls.end();
             auto yi = c_cheb.begin();
-            auto mi = multipole[cbox][p_idx].begin();
-            for ( ; li != li_end; ++li, ++yi, ++mi)
-              M_AB_i += (*li) * (*mi)
+            //std::size_t j = 0;  // Lift the matvec
+            auto li = LgM.begin();
+            for (auto&& M_ApBc_ip : multipole[cbox][p_idx]) {
+              M_AB_i += (*li) * M_ApBc_ip
                   * unit_polar(_M_ * (K.phase(t_center, *yi) -
                                       K.phase(p_center, *yi)));
+              ++yi; ++li;
+              //++j;
+            }
           }
         }
       }
@@ -349,63 +356,10 @@ int main(int argc, char** argv) {
 
   }
 
-  // For L == L_split
-
-  // For all levels past L_split
-  for ( ; L <= L_max; ++L) {
-
-  }
-#endif
-
-
-#if 0
-  // For all levels up to the split
-  for (int L = 0; L <= L_max; ++L) {
-
-    // For all boxes in the opposing level of the source tree
-    int s_idx = -1;
-    for (source_box_type sbox : boxes(L_max - L, source_tree)) {
-      ++s_idx;
-
-      // For all the boxes in this level of the target tree
-      int t_idx = -1;
-      for (target_box_type tbox : boxes(L, target_tree)) {
-        ++t_idx;
-
-        // TODO: Add condition for S2T...
-
-        if (L == 0 || (L <= L_split && sbox.is_leaf())) {
-          // sbox is a leaf with a multipole
-          // S2M
-        } else if (L <= L_split) {
-          // sbox has a multipole and children
-          // M2M
-        } else if (sbox.is_leaf()) {
-          // sbox is a leaf without a multipole
-          // S2L
-        }
-
-        if (L == L_split) {
-          // M2L
-        }
-
-        if (L == L_max || (L >= L_split && tbox.is_leaf())) {
-          // tbox is a leaf with a local
-          // L2T
-        } else if (L >= L_split) {
-          // tbox has a local and children
-          // L2L
-        } else if (tbox.is_leaf()) {
-          // tbox is a leaf without a local
-          // M2T
-        }
-      }
-    }
-  }
-#endif
+  // M2L on the last level that was M2Med
+  --L;
 
   std::cout << "M2L" << std::endl;
-
   { ScopeClock timer("M2L: ");
 
   // M2L and check the result
@@ -461,15 +415,106 @@ int main(int argc, char** argv) {
               * unit_polar(_M_ * (K.phase(*ti,*si) - K.phase(t_center,*si)));
         }
         *li *= unit_polar(-_M_ * K.phase(*ti, s_center));
-
       }
     }
   }
 
   } // timer
 
-  std::cout << "L2T" << std::endl;
 
+  std::cout << "L2L" << std::endl;
+  { ScopeClock timer("L2L: ");
+
+  // For all levels up to the max
+  for ( ; L <= L_max; ++L) {
+
+    // For all source boxes
+    for (target_box_type tbox : boxes(L, target_tree)) {
+
+      const point_type& t_center = tbox.center();
+      const point_type& t_extent = tbox.extents();
+
+      // Define the target box Chebyshev grid
+      std::array<point_type,pow_(Q,D)> t_cheb;
+      auto cbi = t_cheb.begin();
+      for (auto&& i : TensorIndexGridRange<D,Q>()) {
+        for (unsigned d = 0; d < D; ++d)
+          (*cbi)[d] = t_center[d]
+              + Chebyshev<double,Q>::x[i[d]] * t_extent[d];
+        ++cbi;
+      }
+
+      // Get the target box's parent
+      target_box_type pbox = tbox.parent();
+
+      const point_type& p_center = pbox.center();
+      const point_type& p_extent = pbox.extents();
+
+      // Define the reference Chebyshev grid on the parent box
+      // TODO: encapsulate and optimize by putting into interpolant computation
+      std::array<point_type,pow_(Q,D)> ref_cheb = t_cheb;
+      for (auto&& r : ref_cheb) {
+        r -= p_center;
+        r /= p_extent;
+      }
+
+      // Create Lagrange interpolation matrix
+      // XXX: Need to be careful about barycentric values
+      //auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
+
+      // Accumulate
+      int i_idx = -1;
+      for (auto&& i : TensorIndexGridRange<D,Q>()) {
+        ++i_idx;
+
+        // Precompute Lagrange interpolants for this i
+        // XXX Optimize, this can't be evaluated explicitly everytime
+        std::array<double,pow_(Q,D)> LgM = Lagrange<Q>::coeff(i, ref_cheb);
+
+        // Accumulate into L_AB_t
+        int s_idx = -1;
+        for (source_box_type sbox : boxes(L_max - L, source_tree)) {
+          ++s_idx;
+
+          const point_type& s_center  = sbox.center();
+
+          // TODO: Fix
+          assert(!sbox.is_leaf());
+
+          int c_idx = -1;
+          for (source_box_type cbox : children(sbox)) {
+            ++c_idx;
+
+            const point_type& c_center = cbox.center();
+            int c_idx = cbox.index() - boxes(cbox.level(), source_tree).begin()->index();
+
+            complex_type& L_ApBc_ip = local[pbox][c_idx][i_idx];
+
+            // For each element of i_prime
+            //auto li = ls.begin();
+            //auto li_end = ls.end();
+            auto xi = t_cheb.begin();
+            //std::size_t j = 0;  // Lift the matvec
+            auto li = LgM.begin();
+            for (auto&& L_AB_i : local[tbox][s_idx]) {
+              L_AB_i += (*li) * L_ApBc_ip
+                  * unit_polar(_M_ * (K.phase(*xi, c_center) -
+                                      K.phase(*xi, s_center)));
+              ++li; ++xi;
+              //++j;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  } // timer
+
+  --L;
+
+
+  std::cout << "L2T" << std::endl;
   { ScopeClock timer("L2T: ");
 
   // L2T
@@ -528,6 +573,60 @@ int main(int argc, char** argv) {
        ++ri, ++pri) {
     *pri += *ri;
   }
+
+
+
+
+
+#if 0
+  // For all levels up to the split
+  for (int L = 0; L <= L_max; ++L) {
+
+    // For all boxes in the opposing level of the source tree
+    int s_idx = -1;
+    for (source_box_type sbox : boxes(L_max - L, source_tree)) {
+      ++s_idx;
+
+      // For all the boxes in this level of the target tree
+      int t_idx = -1;
+      for (target_box_type tbox : boxes(L, target_tree)) {
+        ++t_idx;
+
+        // TODO: Add condition for S2T?
+
+        if (L == 0 || (L <= L_split && sbox.is_leaf())) {
+          // sbox is a leaf with a multipole
+          // S2M
+        } else if (L <= L_split) {
+          // sbox has a multipole and children
+          // M2M
+        } else if (sbox.is_leaf()) {
+          // sbox is a leaf without a multipole
+          // S2L
+        }
+
+        if (L == L_split) {
+          // M2L
+        }
+
+        if (L == L_max || (L >= L_split && tbox.is_leaf())) {
+          // tbox is a leaf with a local
+          // L2T
+        } else if (L >= L_split) {
+          // tbox has a local and children
+          // L2L
+        } else if (tbox.is_leaf()) {
+          // tbox is a leaf without a local
+          // M2T
+        }
+      }
+    }
+  }
+#endif
+
+
+
+
 
   // Check the result
   if (checkErrors) {
