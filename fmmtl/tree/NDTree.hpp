@@ -462,7 +462,7 @@ class NDTree {
    */
   template <typename RandomAccessIter>
   typename body_permuted_iterator<RandomAccessIter>::type
-  body_permute(RandomAccessIter&& it, const body_iterator& bi) const {
+  body_permute(RandomAccessIter it, const body_iterator& bi) const {
     return boost::make_permutation_iterator(it, permute_.cbegin() + bi.index());
   }
 
