@@ -43,8 +43,8 @@ constexpr T pow_(const T& base, const unsigned exponent) {
 struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
   typedef double value_type;
 
-  typedef Vec<1,value_type> source_type;
-  typedef Vec<1,value_type> target_type;
+  typedef Vec<2,value_type> source_type;
+  typedef Vec<2,value_type> target_type;
   typedef fmmtl::complex<value_type> charge_type;
   typedef fmmtl::complex<value_type> result_type;
 
@@ -70,7 +70,7 @@ struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
   value_type ampl(const target_type& t,
                   const source_type& s) const {
     (void) t; (void) s;
-    return 1 + t[0] + s[0];
+    return 1 + t[0] + s[0] + t[1] + s[1];
   }
 };
 
@@ -160,8 +160,8 @@ int main(int argc, char** argv) {
   static_assert(D == fmmtl::dimension<target_type>::value, "Dimension mismatch");
 
   // Construct two trees
-  fmmtl::NDTree<D> source_tree(sources, 16);
-  fmmtl::NDTree<D> target_tree(targets, 16);
+  fmmtl::NDTree<D> source_tree(sources, 1);
+  fmmtl::NDTree<D> target_tree(targets, 1);
 
   typedef typename fmmtl::NDTree<D>::box_type target_box_type;
   typedef typename fmmtl::NDTree<D>::box_type source_box_type;
@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
 
     // Precompute the Lagrange interpolation matrix
     // TODO: Transform iterator to reference grid
-    auto LgInterp = LagrangeMatrix<D,Q>(s_ref.begin(), s_ref.end());
+    auto LgM = LagrangeMatrix<D,Q>(s_ref.begin(), s_ref.end());
 
     // For each multiindex
     int i_idx = -1;
@@ -259,7 +259,7 @@ int main(int argc, char** argv) {
         auto ci = p_charges[sbox.body_begin()];
         std::size_t j = 0;   // XXX, Abstract as mat-vec
         for (auto&& s : p_sources[sbox]) {
-          M_AB_i += unit_polar(_M_ * K.phase(t_center, s)) * LgInterp(i,j) * (*ci);
+          M_AB_i += unit_polar(_M_ * K.phase(t_center, s)) * LgM(i,j) * (*ci);
           ++ci; ++j;
         }
       }
@@ -310,17 +310,13 @@ int main(int argc, char** argv) {
         }
 
         // Create Lagrange interpolation matrix
-        // XXX: Need to be careful about barycentric values
-        //auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
+        // XXX: Avoid computing at all for quad/octrees
+        auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
 
         // Accumulate
         int i_idx = -1;
         for (auto&& i : TensorIndexGridRange<D,Q>()) {
           ++i_idx;
-
-          // Precompute Lagrange interpolants for this i
-          // XXX Optimize, this can't be evaluated explicitly everytime
-          std::array<double,pow_(Q,D)> LgM = Lagrange<Q>::coeff(i, ref_cheb);
 
           // Accumulate into M_AB_t
           int t_idx = -1;
@@ -336,17 +332,13 @@ int main(int argc, char** argv) {
             complex_type& M_AB_i   = multipole[sbox][t_idx][i_idx];
 
             // For each element of i_prime
-            //auto li = ls.begin();
-            //auto li_end = ls.end();
             auto yi = c_cheb.begin();
-            //std::size_t j = 0;  // Lift the matvec
-            auto li = LgM.begin();
+            std::size_t j = 0;  // Lift the matvec
             for (auto&& M_ApBc_ip : multipole[cbox][p_idx]) {
-              M_AB_i += (*li) * M_ApBc_ip
+              M_AB_i += M_ApBc_ip  * LgM(i,j)
                   * unit_polar(_M_ * (K.phase(t_center, *yi) -
                                       K.phase(p_center, *yi)));
-              ++yi; ++li;
-              //++j;
+              ++yi; ++j;
             }
           }
         }
@@ -460,16 +452,12 @@ int main(int argc, char** argv) {
 
       // Create Lagrange interpolation matrix
       // XXX: Need to be careful about barycentric values
-      //auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
+      auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
 
       // Accumulate
       int i_idx = -1;
       for (auto&& i : TensorIndexGridRange<D,Q>()) {
         ++i_idx;
-
-        // Precompute Lagrange interpolants for this i
-        // XXX Optimize, this can't be evaluated explicitly everytime
-        std::array<double,pow_(Q,D)> LgM = Lagrange<Q>::coeff(i, ref_cheb);
 
         // Accumulate into L_AB_t
         int s_idx = -1;
@@ -491,17 +479,14 @@ int main(int argc, char** argv) {
             complex_type& L_ApBc_ip = local[pbox][c_idx][i_idx];
 
             // For each element of i_prime
-            //auto li = ls.begin();
-            //auto li_end = ls.end();
             auto xi = t_cheb.begin();
-            //std::size_t j = 0;  // Lift the matvec
-            auto li = LgM.begin();
+            std::size_t j = 0;  // Lift the matvec
             for (auto&& L_AB_i : local[tbox][s_idx]) {
-              L_AB_i += (*li) * L_ApBc_ip
+              L_AB_i += L_ApBc_ip * LgM(i,j)
                   * unit_polar(_M_ * (K.phase(*xi, c_center) -
                                       K.phase(*xi, s_center)));
-              ++li; ++xi;
-              //++j;
+              ++xi;
+              ++j;
             }
           }
         }
