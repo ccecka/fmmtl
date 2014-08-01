@@ -62,6 +62,9 @@ struct BodyBind {
              tree.body_permute(range.begin(), tree.body_end())) {
   }
 
+  iterator begin() { return data.begin(); }
+  iterator end()   { return data.end(); }
+
   T& operator[](const typename Tree::body_type& body) {
     return data[body.index()];
   }
@@ -77,7 +80,7 @@ struct BodyBind {
   }
 
   BodyDataRange operator[](const typename Tree::box_type& box) {
-    return {(*this)[box.body_begin()], (*this)[box.body_end()]};
+    return {operator[](box.body_begin()), operator[](box.body_end())};
   }
 };
 
