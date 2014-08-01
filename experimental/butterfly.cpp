@@ -242,9 +242,6 @@ int main(int argc, char** argv) {
     for (auto&& i : TensorIndexGridRange<D,Q>()) {
       ++i_idx;
 
-      // Precompute the Lagrange coefficients for the multi-index i
-      //std::vector<double> ls = Lagrange<Q>::coeff(i, s_ref);
-
       // For all the boxes in this level of the target tree
       int t_idx = -1;
       for (target_box_type tbox : boxes(L, target_tree)) {
@@ -451,7 +448,6 @@ int main(int argc, char** argv) {
       }
 
       // Create Lagrange interpolation matrix
-      // XXX: Need to be careful about barycentric values
       auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
 
       // Accumulate
@@ -459,35 +455,29 @@ int main(int argc, char** argv) {
       for (auto&& i : TensorIndexGridRange<D,Q>()) {
         ++i_idx;
 
-        // Accumulate into L_AB_t
-        int s_idx = -1;
-        for (source_box_type sbox : boxes(L_max - L, source_tree)) {
-          ++s_idx;
+        // For all the child boxes
+        int c_idx = -1;
+        for (source_box_type cbox : boxes(L_max - L + 1, source_tree)) {
+          ++c_idx;
 
-          const point_type& s_center  = sbox.center();
+          const point_type& c_center = cbox.center();
 
-          // TODO: Fix
-          assert(!sbox.is_leaf());
+          // Get the parent
+          source_box_type sbox = cbox.parent();
+          int s_idx = sbox.index() - boxes(L_max - L, source_tree).begin()->index();
+          const point_type& s_center = sbox.center();
 
-          int c_idx = -1;
-          for (source_box_type cbox : children(sbox)) {
-            ++c_idx;
+          complex_type& L_ApBc_ip = local[pbox][c_idx][i_idx];
 
-            const point_type& c_center = cbox.center();
-            int c_idx = cbox.index() - boxes(cbox.level(), source_tree).begin()->index();
-
-            complex_type& L_ApBc_ip = local[pbox][c_idx][i_idx];
-
-            // For each element of i_prime
-            auto xi = t_cheb.begin();
-            std::size_t j = 0;  // Lift the matvec
-            for (auto&& L_AB_i : local[tbox][s_idx]) {
-              L_AB_i += L_ApBc_ip * LgM(i,j)
-                  * unit_polar(_M_ * (K.phase(*xi, c_center) -
-                                      K.phase(*xi, s_center)));
-              ++xi;
-              ++j;
-            }
+          // For each element of i_prime
+          auto xi = t_cheb.begin();
+          std::size_t j = 0;  // Lift the matvec
+          for (auto&& L_AB_i : local[tbox][s_idx]) {
+            L_AB_i += L_ApBc_ip * LgM(i,j)
+                * unit_polar(_M_ * (K.phase(*xi, c_center) -
+                                    K.phase(*xi, s_center)));
+            ++xi;
+            ++j;
           }
         }
       }
