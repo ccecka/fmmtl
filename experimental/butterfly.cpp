@@ -400,7 +400,7 @@ int main(int argc, char** argv) {
     for (source_box_type sbox : boxes(L_max - L, source_tree)) {
 
       const point_type& s_center = sbox.center();
-      const point_type& s_extent = sbox.extents();
+      const point_type  s_scale  = 1. / sbox.extents();
 
       // TODO: Fix
       assert(!sbox.is_leaf());
@@ -421,17 +421,14 @@ int main(int argc, char** argv) {
           ++cbi;
         }
 
-        // Define the reference Chebyshev grid on the child box
-        // TODO: encapsulate and optimize by putting into interpolant computation
-        std::array<point_type,pow_(Q,D)> ref_cheb = c_cheb;
-        for (auto&& r : ref_cheb) {
-          r -= s_center;
-          r /= s_extent;
-        }
-
-        // Create Lagrange interpolation matrix
+        // Precompute Lagrange interp matrix with points transformed to ref grid
         // XXX: Avoid computing at all for quad/octrees
-        auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
+        auto make_ref = [&](const point_type& c) {
+          return (c - s_center) * s_scale;
+        };
+        auto LgM = LagrangeMatrix<D,Q>(
+            boost::make_transform_iterator(c_cheb.begin(), make_ref),
+            boost::make_transform_iterator(c_cheb.end(),   make_ref));
 
         // Accumulate into M_AB_t
         int t_idx = -1;
@@ -560,18 +557,16 @@ int main(int argc, char** argv) {
       target_box_type pbox = tbox.parent();
 
       const point_type& p_center = pbox.center();
-      const point_type& p_extent = pbox.extents();
+      const point_type  p_scale  = 1. / pbox.extents();
 
-      // Define the reference Chebyshev grid on the parent box
-      // TODO: encapsulate and optimize by putting into interpolant computation
-      std::array<point_type,pow_(Q,D)> ref_cheb = t_cheb;
-      for (auto&& r : ref_cheb) {
-        r -= p_center;
-        r /= p_extent;
-      }
-
-      // Create Lagrange interpolation matrix
-      auto LgM = LagrangeMatrix<D,Q>(ref_cheb.begin(), ref_cheb.end());
+      // Precompute Lagrange interp matrix with points transformed to ref grid
+      // XXX: Avoid computing at all for quad/octrees
+      auto make_ref = [&](const point_type& c) {
+        return (c - p_center) * p_scale;
+      };
+      auto LgM = LagrangeMatrix<D,Q>(
+          boost::make_transform_iterator(t_cheb.begin(), make_ref),
+          boost::make_transform_iterator(t_cheb.end(),   make_ref));
 
       // For all the child boxes
       int c_idx = -1;

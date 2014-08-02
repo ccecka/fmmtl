@@ -176,3 +176,46 @@ struct LagrangeMatrix {
 };
 template <std::size_t D, std::size_t Q, typename T>
 const std::array<T,Q> LagrangeMatrix<D,Q,T>::w = LagrangeMatrix<D,Q,T>::make();
+
+
+/** Type representing the transpose of a LagrangeMatrix. Allows code like
+ *    prod(trans(LagrangeM), ...);
+ */
+template <std::size_t D, std::size_t Q, typename T = double>
+struct LagrangeMatrixTranspose {
+  const LagrangeMatrix<D,Q,T>& L_;
+};
+
+template <std::size_t D, std::size_t Q, typename T>
+LagrangeMatrixTranspose<D,Q,T> trans(const LagrangeMatrix<D,Q,T>& L) {
+  return {L};
+}
+
+template <std::size_t D, std::size_t Q, typename T>
+const LagrangeMatrix<D,Q,T>& trans(const LagrangeMatrixTranspose<D,Q,T>& L) {
+  return L.L_;
+}
+
+
+
+
+
+/** Compute the product of this matrix and a range of values */
+template <std::size_t D, std::size_t Q, typename T,
+          typename InRange, typename OutRange>
+void prod(const LagrangeMatrix<D,Q,T>& L,
+          InRange&& in, OutRange&& out) {
+  // Trivial implementation for now
+
+
+}
+
+/** Compute the product of this matrix and a range of values */
+template <std::size_t D, std::size_t Q, typename T,
+          typename InRange, typename OutRange>
+void prod(const LagrangeMatrixTranspose<D,Q,T>& L,
+          InRange&& in, OutRange&& out) {
+  // Trivial implementation for now
+
+
+}
