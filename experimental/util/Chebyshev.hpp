@@ -6,61 +6,55 @@
 
 #include "fmmtl/numeric/Vec.hpp"
 
+
+/** Index range generation
+ * TODO: Use C++14 std::integer_sequence
+ */
+template <class T, T... Ints>
+struct integer_sequence {};
+template <std::size_t... Ints>
+using index_sequence = integer_sequence<std::size_t, Ints...>;
+
+template <class T, std::size_t N, T... Is>
+struct generate_integer_sequence {
+  using type = typename generate_integer_sequence<T, N-1, N-1, Is...>::type;
+};
+template <class T, T... Is>
+struct generate_integer_sequence<T, 0, Is...> {
+  using type = integer_sequence<T, Is...>;
+};
+
+template <class T, T N>
+using make_integer_sequence = typename generate_integer_sequence<T, N>::type;
+template <std::size_t N>
+using make_index_sequence = make_integer_sequence<std::size_t, N>;
+
+
+/** Computes the ith Chebyshev node of an N-sized quadrature on [-1/2, 1/2] */
+template <typename T>
+constexpr T chebyshev_node(std::size_t i, std::size_t N) {
+  using boost::math::constants::pi;
+  return
+      (i ==   0)        ? -0.5 :
+      (i == N-1)        ?  0.5 :
+      (i == N/2 && N%2) ?  0.0 :
+      (i <  N/2)        ? -std::cos(     i  * pi<T>()/(N-1)) / 2 :
+      (i >= N/2)        ?  std::cos((N-1-i) * pi<T>()/(N-1)) / 2 :
+      0;
+}
+
+
+template <typename T, typename Seq>
+struct ChebyshevImpl;
+
+template <typename T, std::size_t... Is>
+struct ChebyshevImpl<T,index_sequence<Is...>> {
+  static constexpr std::size_t N = sizeof...(Is);
+  static constexpr T x[N] = { chebyshev_node<T>(Is, N)... };
+};
+template <typename T, std::size_t... Is>
+constexpr T ChebyshevImpl<T,index_sequence<Is...>>::x[];
+
 /** Precompute N Chebyshev nodes of type T in the range [-1/2, 1/2] */
 template <typename T, std::size_t N>
-struct Chebyshev {
-  static_assert(N > 1, "More than 1 please");
-  //! Nodes of the Chebyshev grid
-  static const std::array<T,N> x;
-
-  /** Define the nodes of the Chebyshev grid */
-  static std::array<T,N> make() {
-    std::array<T,N> x;
-    for (std::size_t k = 0; k != N; ++k)
-      x[k] = boost::math::cos_pi(T(k)/(N-1)) / T(2);
-    return x;
-  }
-};
-template <typename T, std::size_t N>
-const std::array<T,N> Chebyshev<T,N>::x = Chebyshev<T,N>::make();
-
-
-
-/** A lazy Chebyshev grid with custom center and width */
-template <std::size_t Q, std::size_t DIM = 1, typename T = double>
-struct ChebyshevGrid {
-  typedef T value_type;
-
-  typedef std::array<T,Q> container_type;
-  typedef typename container_type::const_iterator const_iterator;
-  typedef typename container_type::iterator iterator;
-
-  container_type nodes_;   // XXX: Precompute and/or static+const initialization
-
-  /** Default constructor
-   * Define Chebyshev grid with Q points on [-1/2, 1/2]
-   */
-  ChebyshevGrid() : nodes_(Chebyshev<T,Q>::x) {
-  }
-  /** Shifted constructor
-   * Define Chebyshev grid with Q points on [center-width/2,center+width/2]
-   */
-  ChebyshevGrid(const T& center, const T& width) {
-    for (std::size_t k = 0; k != Q; ++k)
-      nodes_[k] = center + Chebyshev<T,Q>::x[k] * width;
-  }
-
-  constexpr std::size_t size() const {
-    return Q;
-  }
-
-  const T& operator[](unsigned i) const {
-    return nodes_[i];
-  }
-  const T& operator()(unsigned i) const {
-    return nodes_[i];
-  }
-
-  const_iterator begin() const { return nodes_.begin(); }
-  const_iterator end()   const { return nodes_.end();   }
-};
+struct Chebyshev : public ChebyshevImpl<T,make_index_sequence<N>> {};
