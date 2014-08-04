@@ -58,3 +58,11 @@ constexpr T ChebyshevImpl<T,index_sequence<Is...>>::x[];
 /** Precompute N Chebyshev nodes of type T in the range [-1/2, 1/2] */
 template <typename T, std::size_t N>
 struct Chebyshev : public ChebyshevImpl<T,make_index_sequence<N>> {};
+
+
+
+
+template <std::size_t Q, std::size_t D = 1>
+struct ChebyshevGrid {
+
+};
