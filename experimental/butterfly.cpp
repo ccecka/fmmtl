@@ -212,13 +212,11 @@ int main(int argc, char** argv) {
 
     if (L == L_max) {
       for (target_box_type tbox : boxes(L, target_tree)) {
-        L2L(L, tbox);
         L2T(L, tbox);
       }
-    } else if (L > L_split) {
+    } else if (L >= L_split) {
       for (target_box_type tbox : boxes(L, target_tree)) {
         if (tbox.is_leaf()) {
-          L2L(L, tbox);
           L2T(L, tbox);
         } else {
           L2L(L, tbox);
@@ -276,13 +274,13 @@ int main(int argc, char** argv) {
 
   } // timer
 
-  ++L;
+  //++L;
 
   std::cout << "L2L" << std::endl;
   { ScopeClock timer("L2L: ");
 
   // For all levels up to the max
-  for ( ; L <= L_max; ++L) {
+  for ( ; L < L_max; ++L) {
 
     // For all target boxes
     for (target_box_type tbox : boxes(L, target_tree)) {
@@ -291,8 +289,6 @@ int main(int argc, char** argv) {
   }
 
   } // timer
-
-  --L;
 
 
   std::cout << "L2T" << std::endl;

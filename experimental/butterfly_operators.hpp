@@ -153,56 +153,58 @@ auto M2L = [&](int L) {
 
 auto L2L = [&](int L, const target_box_type& tbox) {
   const point_type& t_center = tbox.center();
-  const point_type& t_extent = tbox.extents();
+  const point_type  t_scale  = 1. / tbox.extents();
 
-  // Define the target box Chebyshev grid
-  std::array<point_type,pow_(Q,D)> t_cheb;
-  auto cbi = t_cheb.begin();
-  for (auto&& i : TensorIndexGridRange<D,Q>()) {
-    for (unsigned d = 0; d < D; ++d)
-      (*cbi)[d] = t_center[d]
-          + Chebyshev<double,Q>::x[i[d]] * t_extent[d];
-    ++cbi;
-  }
-
-  // Get the target box's parent
-  target_box_type pbox = tbox.parent();
-
-  const point_type& p_center = pbox.center();
-  const point_type  p_scale  = 1. / pbox.extents();
-
-  // Precompute Lagrange interp matrix with points transformed to ref grid
-  // XXX: Avoid computing at all for quad/octrees
-  auto make_ref = [&](const point_type& c) {
-    return (c - p_center) * p_scale;
-  };
-  auto LgM = LagrangeMatrix<D,Q>(
-      boost::make_transform_iterator(t_cheb.begin(), make_ref),
-      boost::make_transform_iterator(t_cheb.end(),   make_ref));
-
-  std::array<complex_type,pow_(Q,D)> rhs;
-
-  int c_idx = -1;
-  for (source_box_type cbox : boxes(L_max - L + 1, source_tree)) {
-    ++c_idx;
+  for (target_box_type cbox : children(tbox)) {
 
     const point_type& c_center = cbox.center();
+    const point_type& c_extent = cbox.extents();
 
-    // Get the parent
-    source_box_type sbox = cbox.parent();
-    int s_idx = sbox.index() - boxes(L_max - L, source_tree).begin()->index();
-    const point_type& s_center = sbox.center();
-
-    // Precompute phase * L_ApBc   TODO: can reuse L_ApBc?
-    rhs = local[pbox][c_idx];
-    auto ri = std::begin(rhs);
-    for (auto&& xi : t_cheb) {
-      *ri *= unit_polar(_M_ * (K.phase(xi, c_center) - K.phase(xi, s_center)));
-      ++ri;
+    // Define the child box chebyshev grid
+    std::array<point_type,pow_(Q,D)> c_cheb;
+    auto cbi = c_cheb.begin();
+    for (auto&& i : TensorIndexGridRange<D,Q>()) {
+      for (unsigned d = 0; d < D; ++d)
+        (*cbi)[d] = c_center[d] + Chebyshev<double,Q>::x[i[d]] * c_extent[d];
+      ++cbi;
     }
 
-    // Multiply  L_AB_i += LgM_ij rhs_j
-    prod(trans(LgM), rhs, local[tbox][s_idx]);
+    // Precompute Lagrange interp matrix with points transformed to ref grid
+    // XXX: Avoid computing at all for quad/octrees
+    auto make_ref = [&](const point_type& c) {
+      return (c - t_center) * t_scale;
+    };
+    auto LgM = LagrangeMatrix<D,Q>(
+        boost::make_transform_iterator(c_cheb.begin(), make_ref),
+        boost::make_transform_iterator(c_cheb.end(),   make_ref));
+
+    std::array<complex_type,pow_(Q,D)> lhs;
+
+    // Accumulate from L_AB_t
+    auto sboxi = source_tree.box_begin(L_max - L);
+    for (auto&& L_AB : local[tbox]) {
+
+      source_box_type sbox = *sboxi;
+      ++sboxi;
+      const point_type& s_center  = sbox.center();
+
+      target_box_type pbox = sbox.parent();
+      const point_type& p_center = pbox.center();
+      int p_idx = pbox.index() - source_tree.box_begin(pbox.level())->index();
+
+      // Multiply  lhs_j += LgM_ij L_AB_i
+      lhs.fill(0);
+      prod(trans(LgM), L_AB, lhs);
+
+      // Precompute phase * L_AB   TODO: can reuse L_AB?
+      auto li = std::begin(lhs);
+      auto ci = std::begin(c_cheb);
+      for (auto&& L_AcBp_i : local[cbox][p_idx]) {
+        L_AcBp_i += *li *  unit_polar(_M_ * (K.phase(*ci, s_center) -
+                                             K.phase(*ci, p_center)));
+        ++li; ++ci;
+      }
+    }
   }
 };
 
