@@ -5,7 +5,6 @@
 
 #include "Chebyshev.hpp"
 
-
 /** An interpolater for the tensor range [-1/2, 1/2]^D using Chebyshev nodes
  */
 template <std::size_t Q>
@@ -119,7 +118,7 @@ struct LagrangeMatrix {
   std::vector<std::array<T,D>> q;
 
   /** Define w[i] = prod_{k != i}(1 / (x_i - x_k))
-   * where z_i are the Chebyshev nodes
+   * where x_i are the Chebyshev nodes
    */
   static std::array<T,Q> make() {
     std::array<T,Q> w;
@@ -197,25 +196,50 @@ const LagrangeMatrix<D,Q,T>& trans(const LagrangeMatrixTranspose<D,Q,T>& L) {
 }
 
 
-
+#include "util/TensorIndexGridRange.hpp"   // TEMP?
 
 
 /** Compute the product of this matrix and a range of values */
 template <std::size_t D, std::size_t Q, typename T,
           typename InRange, typename OutRange>
 void prod(const LagrangeMatrix<D,Q,T>& L,
-          InRange&& in, OutRange&& out) {
+          InRange&& in, OutRange& out) {
   // Trivial implementation for now
 
+  auto out_i = std::begin(out);
+  for (auto&& i : TensorIndexGridRange<D,Q>()) {
+    // Accumulate into y
+    auto& yi = *out_i;
+    ++out_i;
 
+    // For each element of i_prime
+    std::size_t j = 0;  // Lift the matvec
+    for (auto&& xj : in) {
+      yi += L(i,j) * xj;
+      ++j;
+    }
+  }
 }
 
-/** Compute the product of this matrix and a range of values */
+/** Compute the product of this transposed matrix and a range of values */
 template <std::size_t D, std::size_t Q, typename T,
           typename InRange, typename OutRange>
-void prod(const LagrangeMatrixTranspose<D,Q,T>& L,
+void prod(const LagrangeMatrixTranspose<D,Q,T>& LT,
           InRange&& in, OutRange&& out) {
   // Trivial implementation for now
+  const LagrangeMatrix<D,Q,T>& L = LT.L_;
 
+  auto in_i = std::begin(in);
+  for (auto&& i : TensorIndexGridRange<D,Q>()) {
 
+    auto& xi = *in_i;
+    ++in_i;
+
+    // For each element of i_prime
+    std::size_t j = 0;  // Lift the matvec
+    for (auto&& yj : out) {
+      yj += L(i,j) * xi;
+      ++j;
+    }
+  }
 }

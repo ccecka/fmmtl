@@ -1,3 +1,5 @@
+
+
 auto S2M = [&](int L, const source_box_type& sbox) {
   const point_type& s_center = sbox.center();
   const point_type s_scale = 1. / sbox.extents();
@@ -10,6 +12,8 @@ auto S2M = [&](int L, const source_box_type& sbox) {
       boost::make_transform_iterator(p_sources[sbox.body_begin()], make_ref),
       boost::make_transform_iterator(p_sources[sbox.body_end()],   make_ref));
 
+  std::vector<complex_type> rhs;
+
   // For all the boxes in this level of the target tree
   auto tboxi = target_tree.box_begin(L);
   for (auto& M_AB : multipole[sbox]) {
@@ -17,83 +21,71 @@ auto S2M = [&](int L, const source_box_type& sbox) {
     const point_type& t_center = (*tboxi).center();
     ++tboxi;
 
-    // TODO: Precompute the phase * charge
-
-    // For each multiindex
-    auto mabi = M_AB.begin();
-    for (auto&& i : TensorIndexGridRange<D,Q>()) {
-
-      // Accumulate into M_AB_i
-      complex_type& M_AB_i = *mabi;
-      ++mabi;
-
-      auto ci = p_charges[sbox.body_begin()];
-      std::size_t j = 0;   // XXX, Abstract as mat-vec
-      for (auto&& s : p_sources[sbox]) {
-        M_AB_i += unit_polar(_M_ * K.phase(t_center, s)) * LgM(i,j) * (*ci);
-        ++ci; ++j;
-      }
+    // Precompute the phase * charge
+    rhs.assign(p_charges[sbox.body_begin()], p_charges[sbox.body_end()]);
+    auto ri = std::begin(rhs);
+    for (auto&& s : p_sources[sbox]) {
+      *ri *= unit_polar(_M_ * K.phase(t_center, s));
+      ++ri;
     }
+
+    // Multiply  M_AB_i += LgM_ij rhs_j
+    prod(LgM, rhs, M_AB);
   }
 };
 
 
-auto M2M = [&](int L, const source_box_type& cbox) {
-  const point_type& c_center = cbox.center();
-  const point_type& c_extent = cbox.extents();
-
-  // Define the child box chebyshev grid
-  std::array<point_type,pow_(Q,D)> c_cheb;
-  auto cbi = c_cheb.begin();
-  for (auto&& i : TensorIndexGridRange<D,Q>()) {
-    for (unsigned d = 0; d < D; ++d)
-      (*cbi)[d] = c_center[d] + Chebyshev<double,Q>::x[i[d]] * c_extent[d];
-    ++cbi;
-  }
-
-  source_box_type sbox = cbox.parent();
-
+auto M2M = [&](int L, const source_box_type& sbox) {
   const point_type& s_center = sbox.center();
   const point_type  s_scale  = 1. / sbox.extents();
 
-  // Precompute Lagrange interp matrix with points transformed to ref grid
-  // XXX: Avoid computing at all for quad/octrees
-  auto make_ref = [&](const point_type& c) {
-    return (c - s_center) * s_scale;
-  };
-  auto LgM = LagrangeMatrix<D,Q>(
-      boost::make_transform_iterator(c_cheb.begin(), make_ref),
-      boost::make_transform_iterator(c_cheb.end(),   make_ref));
+  for (source_box_type cbox : children(sbox)) {
 
-  // Accumulate into M_AB_t
-  auto tboxi = target_tree.box_begin(L);
-  for (auto&& M_AB : multipole[sbox]) {
+    const point_type& c_center = cbox.center();
+    const point_type& c_extent = cbox.extents();
 
-    target_box_type tbox = *tboxi;
-    ++tboxi;
-    const point_type& t_center  = tbox.center();
-
-    target_box_type pbox = tbox.parent();
-    const point_type& p_center = pbox.center();
-    int p_idx = pbox.index() - target_tree.box_begin(pbox.level())->index();
-
-    // Accumulate
-    auto mabi = M_AB.begin();
+    // Define the child box chebyshev grid
+    std::array<point_type,pow_(Q,D)> c_cheb;
+    auto cbi = c_cheb.begin();
     for (auto&& i : TensorIndexGridRange<D,Q>()) {
+      for (unsigned d = 0; d < D; ++d)
+        (*cbi)[d] = c_center[d] + Chebyshev<double,Q>::x[i[d]] * c_extent[d];
+      ++cbi;
+    }
 
-      // Accumulate into M_AB_i
-      complex_type& M_AB_i = *mabi;
-      ++mabi;
+    // Precompute Lagrange interp matrix with points transformed to ref grid
+    // XXX: Avoid computing at all for quad/octrees
+    auto make_ref = [&](const point_type& c) {
+      return (c - s_center) * s_scale;
+    };
+    auto LgM = LagrangeMatrix<D,Q>(
+        boost::make_transform_iterator(c_cheb.begin(), make_ref),
+        boost::make_transform_iterator(c_cheb.end(),   make_ref));
 
-      // For each element of i_prime
-      auto yi = c_cheb.begin();
-      std::size_t j = 0;  // Lift the matvec
-      for (auto&& M_ApBc_ip : multipole[cbox][p_idx]) {
-        M_AB_i += M_ApBc_ip  * LgM(i,j)
-            * unit_polar(_M_ * (K.phase(t_center, *yi) -
-                                K.phase(p_center, *yi)));
-        ++yi; ++j;
+    std::array<complex_type,pow_(Q,D)> rhs;
+
+    // Accumulate into M_AB_t
+    auto tboxi = target_tree.box_begin(L);
+    for (auto&& M_AB : multipole[sbox]) {
+
+      target_box_type tbox = *tboxi;
+      ++tboxi;
+      const point_type& t_center  = tbox.center();
+
+      target_box_type pbox = tbox.parent();
+      const point_type& p_center = pbox.center();
+      int p_idx = pbox.index() - target_tree.box_begin(pbox.level())->index();
+
+      // Precompute phase * M_ApBc   TODO: can reuse M_AB?
+      rhs = multipole[cbox][p_idx];
+      auto ri = std::begin(rhs);
+      for (auto&& yi : c_cheb) {
+        *ri *= unit_polar(_M_ * (K.phase(t_center, yi) - K.phase(p_center, yi)));
+        ++ri;
       }
+
+      // Multiply  M_AB_i += LgM_ij rhs_j
+      prod(LgM, rhs, M_AB);
     }
   }
 };
@@ -141,15 +133,17 @@ auto M2L = [&](int L) {
 
       auto ti = t_cheb.begin();
       for (auto&& L_AB_i : local[tbox][s_idx]) {
+        complex_type temp = 0;
 
         // Grab the multipole
         auto si = s_cheb.begin();
         for (auto&& M_AB_i : multipole[sbox][t_idx]) {
-          L_AB_i += K.ampl(*ti,*si) * M_AB_i
-              * unit_polar(_M_ * (K.phase(*ti,*si) - K.phase(t_center,*si)));
+          temp += K.ampl(*ti,*si) * M_AB_i
+              * unit_polar(_M_ * (K.phase(*ti,*si) -
+                                  K.phase(t_center,*si)));
           ++si;
         }
-        L_AB_i *= unit_polar(-_M_ * K.phase(*ti, s_center));
+        L_AB_i += temp * unit_polar(-_M_ * K.phase(*ti, s_center));
         ++ti;
       }
     }
@@ -186,7 +180,8 @@ auto L2L = [&](int L, const target_box_type& tbox) {
       boost::make_transform_iterator(t_cheb.begin(), make_ref),
       boost::make_transform_iterator(t_cheb.end(),   make_ref));
 
-  // For all the child boxes
+  std::array<complex_type,pow_(Q,D)> rhs;
+
   int c_idx = -1;
   for (source_box_type cbox : boxes(L_max - L + 1, source_tree)) {
     ++c_idx;
@@ -198,24 +193,16 @@ auto L2L = [&](int L, const target_box_type& tbox) {
     int s_idx = sbox.index() - boxes(L_max - L, source_tree).begin()->index();
     const point_type& s_center = sbox.center();
 
-    // Accumulate
-    int i_idx = -1;
-    for (auto&& i : TensorIndexGridRange<D,Q>()) {
-      ++i_idx;
-
-      complex_type& L_ApBc_ip = local[pbox][c_idx][i_idx];
-
-      // For each element of i_prime
-      auto xi = t_cheb.begin();
-      std::size_t j = 0;  // Lift the matvec
-      for (auto&& L_AB_i : local[tbox][s_idx]) {
-        L_AB_i += L_ApBc_ip * LgM(i,j)
-            * unit_polar(_M_ * (K.phase(*xi, c_center) -
-                                K.phase(*xi, s_center)));
-        ++xi;
-        ++j;
-      }
+    // Precompute phase * L_ApBc   TODO: can reuse L_ApBc?
+    rhs = local[pbox][c_idx];
+    auto ri = std::begin(rhs);
+    for (auto&& xi : t_cheb) {
+      *ri *= unit_polar(_M_ * (K.phase(xi, c_center) - K.phase(xi, s_center)));
+      ++ri;
     }
+
+    // Multiply  L_AB_i += LgM_ij rhs_j
+    prod(trans(LgM), rhs, local[tbox][s_idx]);
   }
 };
 
@@ -233,6 +220,8 @@ auto L2T = [&](int L, const target_box_type& tbox) {
       boost::make_transform_iterator(p_targets[tbox.body_begin()], make_ref),
       boost::make_transform_iterator(p_targets[tbox.body_end()],   make_ref));
 
+  std::vector<result_type> temp(tbox.num_bodies());
+
   // For all the boxes in this level of the source tree
   auto sbi = source_tree.box_begin(L_max - L);
   for (const auto& L_AB : local[tbox]) {
@@ -240,20 +229,17 @@ auto L2T = [&](int L, const target_box_type& tbox) {
     const point_type& s_center = (*sbi).center();
     ++sbi;
 
-    // For each multiindex
-    auto labi = L_AB.begin();
-    for (auto&& i : TensorIndexGridRange<D,Q>()) {
+    temp.assign(temp.size(), 0);
 
-      // Compute from L_AB_i
-      const complex_type& L_AB_i = *labi;
-      ++labi;
+    // Multiply  temp_i += LgM_ij rhs_j
+    prod(trans(LgM), L_AB, temp);
 
-      auto ri = p_results[tbox.body_begin()];
-      std::size_t j = 0;     // XXX, Abstract as mat-vec
-      for (auto&& t : p_targets[tbox]) {
-        *ri += LgM(i,j) * L_AB_i * unit_polar(_M_ * K.phase(t, s_center));
-        ++j; ++ri;
-      }
+    auto ti = p_targets[tbox.body_begin()];
+    auto tempi = std::begin(temp);
+    for (auto&& ri : p_results[tbox]) {
+      ri += *tempi * unit_polar(_M_ * (K.phase(*ti, s_center)));
+      ++tempi;
+      ++ti;
     }
   }
 };

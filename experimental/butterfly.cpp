@@ -16,7 +16,7 @@
 
 #include "util/Chebyshev.hpp"
 #include "util/Lagrange.hpp"
-
+#include "util/TensorIndexGridRange.hpp"
 
 
 #include <boost/math/special_functions/sin_pi.hpp>
@@ -67,39 +67,6 @@ struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
   }
 };
 
-
-/** Quickie class for iterating over the integer tensor range
- * (0,0,...,0) x (Q,Q,...,Q)    (where cardinality is DIM)
- */
-template <std::size_t DIM, std::size_t Q>
-struct TensorIndexGridRange {
-  typedef std::array<unsigned,DIM> value_type;
-  value_type i_ = {{}};
-
-  // Prevent copying the value_type when iterating
-  struct Reference {
-    TensorIndexGridRange<DIM, Q>& t;
-
-    // Increment the grid index and carry into the next dimensions
-    void operator++() {
-      for (std::size_t k = 0; ++t.i_[k] == Q && k != DIM-1; ++k)
-        t.i_[k] = 0;
-    }
-    // Current != end of the range
-    template <typename T>
-    bool operator!=(T&&) const {
-      return t.i_[DIM-1] != Q;
-    }
-    // Return the grid index
-    const value_type& operator*() const {
-      return t.i_;
-    }
-  };
-
-  Reference begin() { return Reference{*this}; }
-  Reference end()   { return Reference{*this}; }
-};
-
 template <typename T>
 fmmtl::complex<T> unit_polar(const T& theta) {
   using std::sin;  using std::cos;
@@ -115,8 +82,8 @@ constexpr T pow_(const T& base, const unsigned exponent) {
 
 
 int main(int argc, char** argv) {
-  int N = 20000;
-  int M = 20000;
+  int N = 10000;
+  int M = 10000;
   bool checkErrors = true;
 
   // Parse custom command line args
@@ -156,9 +123,14 @@ int main(int argc, char** argv) {
   // Init results
   std::vector<result_type> results(M);
 
+  std::cout << "Tree Construction" << std::endl;
+  Clock timer;
+
   // Construct two trees
   fmmtl::NDTree<D> source_tree(sources, 16);
   fmmtl::NDTree<D> target_tree(targets, 16);
+
+  std::cout << "Tree Construction: " << timer.seconds() << std::endl;
 
   typedef typename fmmtl::NDTree<D>::box_type target_box_type;
   typedef typename fmmtl::NDTree<D>::box_type source_box_type;
@@ -206,9 +178,65 @@ int main(int argc, char** argv) {
       local[tbox].resize(source_tree.boxes(L_max - L));
   }
 
+  // HACKY way to define S2M, M2M, M2L, L2L, L2T
 #include "butterfly_operators.hpp"
 
 
+#if 0
+  for (int L = 0; L <= L_max; ++L) {
+
+    if (L == 0) {
+      for (source_box_type sbox : boxes(L_max - L, source_tree))
+        S2M(L, sbox);
+    } else if (L <= L_split) {
+      for (source_box_type sbox : boxes(L_max - L, source_tree)) {
+        if (sbox.is_leaf())
+          S2M(L, sbox);
+        else
+          M2M(L, sbox);
+      }
+    } else {
+      for (source_box_type sbox : boxes(L_max - L, source_tree)) {
+        if (sbox.is_leaf()) {
+          std::cerr << "Unimplemented" << std::endl;
+          exit(0);
+          // S2M(L, sbox);
+          // M2L(L, sbox);  // need sbox parameter
+          // Replace with S2L
+        }
+      }
+    }
+
+    if (L == L_split)
+      M2L(L);
+
+    if (L == L_max) {
+      for (target_box_type tbox : boxes(L, target_tree)) {
+        L2L(L, tbox);
+        L2T(L, tbox);
+      }
+    } else if (L > L_split) {
+      for (target_box_type tbox : boxes(L, target_tree)) {
+        if (tbox.is_leaf()) {
+          L2L(L, tbox);
+          L2T(L, tbox);
+        } else {
+          L2L(L, tbox);
+        }
+      }
+    } else {
+      for (target_box_type tbox : boxes(L, target_tree)) {
+        if (tbox.is_leaf()) {
+          std::cerr << "Unimplemented M2T" << std::endl;
+          exit(0);
+          // Replace with M2T
+        }
+      }
+    }
+  }
+#endif
+
+#if 1
   // Begin traversal
   int L = 0;
 
@@ -223,7 +251,6 @@ int main(int argc, char** argv) {
   } // timer
 
 
-
   std::cout << "M2M" << std::endl;
   { ScopeClock timer("M2M: ");
 
@@ -231,8 +258,8 @@ int main(int argc, char** argv) {
   for (++L; L <= L_split; ++L) {
 
     // For all child boxes
-    for (source_box_type cbox : boxes(L_max - L + 1, source_tree)) {
-      M2M(L, cbox);
+    for (source_box_type sbox : boxes(L_max - L, source_tree)) {
+      M2M(L, sbox);
     }
 
   }
@@ -249,6 +276,7 @@ int main(int argc, char** argv) {
 
   } // timer
 
+  ++L;
 
   std::cout << "L2L" << std::endl;
   { ScopeClock timer("L2L: ");
@@ -276,7 +304,7 @@ int main(int argc, char** argv) {
   }
 
   } // timer
-
+#endif
 
 
   // Copy back permuted
