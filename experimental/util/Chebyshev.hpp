@@ -35,12 +35,12 @@ template <typename T>
 constexpr T chebyshev_node(std::size_t i, std::size_t N) {
   using boost::math::constants::pi;
   return
-      (i ==   0)        ? -0.5 :
-      (i == N-1)        ?  0.5 :
-      (i == N/2 && N%2) ?  0.0 :
-      (i <  N/2)        ? -std::cos(     i  * pi<T>()/(N-1)) / 2 :
-      (i >= N/2)        ?  std::cos((N-1-i) * pi<T>()/(N-1)) / 2 :
-      0;
+      (i     == 0  ) ? -0.5 :    // left point
+      (i     == N-1) ?  0.5 :    // right point
+      (2*i+1 == N  ) ?  0.0 :    // N is odd and i is middle
+      (i     <  N/2) ? -std::cos(     i  * pi<T>()/(N-1)) / 2 :  // Force symmetry
+      (i     >= N/2) ?  std::cos((N-1-i) * pi<T>()/(N-1)) / 2 :
+      T();
 }
 
 

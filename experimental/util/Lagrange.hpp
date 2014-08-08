@@ -5,6 +5,40 @@
 
 #include "Chebyshev.hpp"
 
+/** Compute the inverse Barycentric weights at compile-time
+ * w_inv[i] = prod_{k!=i} (x[i] - x[k])
+ */
+template <typename T, std::size_t N>
+constexpr T lagrange_weight(std::size_t i, std::size_t k = 0) {
+  using Cheb = Chebyshev<T,N>;
+  return
+      (k == i) ? lagrange_weight<T,N>(i,k+1) :
+      (k <  N) ? lagrange_weight<T,N>(i,k+1) * (Cheb::x[i] - Cheb::x[k]) :
+      T(1);
+}
+
+
+template <typename T, typename Seq>
+struct LagrangeWeightImpl;
+
+template <typename T, std::size_t... Is>
+struct LagrangeWeightImpl<T,index_sequence<Is...>> {
+  static constexpr std::size_t N = sizeof...(Is);
+  static constexpr T w[N] = { (T(1) / lagrange_weight<T,N>(Is))... };
+};
+template <typename T, std::size_t... Is>
+constexpr T LagrangeWeightImpl<T,index_sequence<Is...>>::w[];
+
+/** Precompute N Chebyshev nodes of type T in the range [-1/2, 1/2] */
+template <typename T, std::size_t N>
+struct LagrangeWeight : public LagrangeWeightImpl<T,make_index_sequence<N>> {};
+
+
+
+
+
+
+
 /** An interpolater for the tensor range [-1/2, 1/2]^D using Chebyshev nodes
  */
 template <std::size_t Q>
@@ -107,30 +141,11 @@ struct Lagrange {
 template <std::size_t D, std::size_t Q, typename T = double>
 struct LagrangeMatrix {
   using value_type = T;
-  using Cheb = Chebyshev<T,Q>;
 
-  //! Precomputed interpolation weights
-  static const std::array<T,Q> w;
   //! The points this matrix is defined over
   std::vector<std::array<T,D>> p;
   //! Precomputed   q[i] = prod_{k} (p[i] - x_k)
-  //std::vector<std::array<T,D>> q;
   std::vector<std::array<T,D>> q;
-
-  /** Define w[i] = prod_{k != i}(1 / (x_i - x_k))
-   * where x_i are the Chebyshev nodes
-   */
-  static std::array<T,Q> make() {
-    std::array<T,Q> w;
-    w.fill(T(1));
-    for (std::size_t i = 0; i != Q; ++i) {
-      for (std::size_t k = 0; k != Q; ++k)
-        if (i != k)
-          w[i] *= (Cheb::x[i] - Cheb::x[k]);
-      w[i] = T(1) / w[i];
-    }
-    return w;
-  }
 
   template <typename PointIter>
   LagrangeMatrix(PointIter first, PointIter last) {
@@ -149,7 +164,7 @@ struct LagrangeMatrix {
       qi.fill(value_type(1));
       for (std::size_t k = 0; k != Q; ++k) {
         for (std::size_t d = 0; d != D; ++d) {
-          qi[d] *= (pi[d] - Cheb::x[k]);
+          qi[d] *= (pi[d] - Chebyshev<T,Q>::x[k]);
         }
       }
     }
@@ -157,9 +172,9 @@ struct LagrangeMatrix {
 
   value_type operator()(const std::size_t i, const std::size_t d,
                         const std::size_t j) const {
-    if (std::abs(p[j][d] - Cheb::x[i]) < 1e-200)
+    if (std::abs(p[j][d] - Chebyshev<T,Q>::x[i]) < 1e-200)
       return value_type(1);
-    return w[i] * q[j][d] / (p[j][d] - Cheb::x[i]);
+    return LagrangeWeight<T,Q>::w[i] * q[j][d] / (p[j][d] - Chebyshev<T,Q>::x[i]);
   }
 
   template <typename MultiIndex>
@@ -170,11 +185,7 @@ struct LagrangeMatrix {
     }
     return result;
   }
-
-  // TODO: Define matvec and transposed matvec
 };
-template <std::size_t D, std::size_t Q, typename T>
-const std::array<T,Q> LagrangeMatrix<D,Q,T>::w = LagrangeMatrix<D,Q,T>::make();
 
 
 /** Type representing the transpose of a LagrangeMatrix. Allows code like
@@ -212,8 +223,7 @@ void prod(const LagrangeMatrix<D,Q,T>& L,
     auto& yi = *out_i;
     ++out_i;
 
-    // For each element of i_prime
-    std::size_t j = 0;  // Lift the matvec
+    std::size_t j = 0;
     for (auto&& xj : in) {
       yi += L(i,j) * xj;
       ++j;
@@ -235,8 +245,7 @@ void prod(const LagrangeMatrixTranspose<D,Q,T>& LT,
     auto& xi = *in_i;
     ++in_i;
 
-    // For each element of i_prime
-    std::size_t j = 0;  // Lift the matvec
+    std::size_t j = 0;
     for (auto&& yj : out) {
       yj += L(i,j) * xi;
       ++j;
