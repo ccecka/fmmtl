@@ -81,8 +81,8 @@ int main() {
   std::vector<result_type> exact(targets.size());
 
   // test direct
-  Direct::matvec(K, sources, charges, targets, exact);
+  fmmtl::direct(K, sources, charges, targets, exact);
   std::cout << exact[0] << "\n";
-  Direct::matvec(K, sources, charges, exact);
+  fmmtl::direct(K, sources, charges, exact);
   std::cout << exact[0] << "\n";
 }

@@ -39,7 +39,7 @@ void single_level_test(const Expansion& K) {
   result_type rfmm = result_type(0);
 
   // test direct
-  Direct::matvec(K, s, c, t, rexact);
+  fmmtl::direct(K, s, c, t, rexact);
 
   // setup initial multipole expansion
   multipole_type M;

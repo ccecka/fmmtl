@@ -2,7 +2,7 @@
 #define FMMTL_GAUSSIAN_KERN
 /** @file Gaussian
  * @brief Implements the separable exponential kernel defined by
- * K(t,s) = exp(sum_i t_i - s_i)
+ * K(t,s) = exp(-||t - s||^2)
  *
  * Note: Mostly for testing purposes.
  */
@@ -22,14 +22,13 @@ struct Gaussian
   typedef double         result_type;
   typedef double         kernel_value_type;
 
-  /** Kernel evaluation
-   * K(t,s) = exp(sum_i t_i - s_i)
-   */
+  /** Kernel evaluation */
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
     return exp(-norm_2_sq(t-s));
   }
+  /** Fast transpose */
   FMMTL_INLINE
   kernel_value_type transpose(const kernel_value_type& kts) const {
     return kts;

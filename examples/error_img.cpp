@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 
   // Compute the result with a direct matrix-vector multiplication
   std::vector<result_type> exact(N);
-  Direct::matvec(K,
+  fmmtl::direct(K,
                  targets.begin()+middle, targets.begin()+middle+1,
                  charges.begin()+middle,
                  targets.begin(), targets.end(),

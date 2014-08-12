@@ -250,7 +250,7 @@ int main(int argc, char** argv) {
 
     // Compute the result with a direct matrix-vector multiplication
     std::vector<result_type> exact(M);
-    Direct::matvec(K, sources, charges, targets, exact);
+    fmmtl::direct(K, sources, charges, targets, exact);
 
     double tot_error_sq = 0;
     double tot_norm_sq = 0;

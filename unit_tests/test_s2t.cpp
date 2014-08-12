@@ -105,19 +105,13 @@ int main(int argc, char** argv) {
   typedef typename kernel_type::result_type result_type;
 
   // Create a vector of sources
-  std::vector<source_type> s(M);
-  for (source_type& si : s)
-    si = fmmtl::random<source_type>::get();
+  std::vector<source_type> s = fmmtl::random_n(M);
 
   // Create a vector of charges
-  std::vector<charge_type> c(M);
-  for (charge_type& ci : c)
-    ci = fmmtl::random<charge_type>::get();
+  std::vector<charge_type> c = fmmtl::random_n(M);
 
   // Create a vector of targets
-  std::vector<target_type> t(N);
-  for (target_type& ti : t)
-    ti = fmmtl::random<target_type>::get();
+  std::vector<target_type> t = fmmtl::random_n(N);
 
   //**************************************//
 
@@ -125,9 +119,9 @@ int main(int argc, char** argv) {
   std::vector<result_type> r_cpu(N);
 
   // Compute the full S2T on the CPU.
-  S2T::block_eval(K,
-                  s.begin(), s.end(), c.begin(),
-                  t.begin(), t.end(), r_cpu.begin());
+  fmmtl::detail::block_eval(K,
+                            s.begin(), s.end(), c.begin(),
+                            t.begin(), t.end(), r_cpu.begin());
 
 #if defined(FMMTL_DEBUG)
   std::cout << "CPU:" << std::endl;

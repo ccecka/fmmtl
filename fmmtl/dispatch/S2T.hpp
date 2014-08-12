@@ -10,226 +10,155 @@
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
 
-struct S2T
+#if !defined(P2P_BLOCK_SIZE)
+#  define P2P_BLOCK_SIZE 128
+#endif
+#if !defined(P2P_NUM_THREADS)
+#  define P2P_NUM_THREADS std::thread::hardware_concurrency()
+#endif
+
+// Definition of direct block-evaluation schemes
+// TODO: Parallel dispatching option, trivial iterator detection
+namespace fmmtl {
+namespace detail {
+
+/** Dual-Evaluation dispatch when K.transpose does not exist */
+template <typename Kernel,
+          typename Source, typename Charge,
+          typename Target, typename Result>
+inline
+typename std::enable_if<!KernelTraits<Kernel>::has_transpose>::type
+symm_eval(const Kernel& K,
+          const Source& p1, const Charge& c1, Result& r1,
+          const Target& p2, const Charge& c2, Result& r2)
 {
-  /** Dual-Evaluation dispatch
-   */
-  template <typename Kernel>
-  inline static
-  typename std::enable_if<KernelTraits<Kernel>::has_eval_op &
-                          !KernelTraits<Kernel>::has_transpose>::type
-  symm_eval(const Kernel& K,
-            const typename Kernel::source_type& p1,
-            const typename Kernel::charge_type& c1,
-            typename Kernel::result_type& r1,
-            const typename Kernel::source_type& p2,
-            const typename Kernel::charge_type& c2,
-            typename Kernel::result_type& r2)
-  {
-    r1 += K(p1,p2) * c2;
-    r2 += K(p2,p1) * c1;
-  }
+  r1 += K(p1,p2) * c2;
+  r2 += K(p2,p1) * c1;
+}
 
-  /** Dual-Evaluation dispatch
-   */
-  template <typename Kernel>
-  inline static
-  typename std::enable_if<KernelTraits<Kernel>::has_eval_op &
-                          KernelTraits<Kernel>::has_transpose>::type
-  symm_eval(const Kernel& K,
-            const typename Kernel::source_type& p1,
-            const typename Kernel::charge_type& c1,
-            typename Kernel::result_type& r1,
-            const typename Kernel::source_type& p2,
-            const typename Kernel::charge_type& c2,
-            typename Kernel::result_type& r2)
-  {
-    typedef typename Kernel::kernel_value_type kernel_value_type;
+/** Dual-Evaluation dispatch when K.transpose does exist */
+template <typename Kernel,
+          typename Source, typename Charge,
+          typename Target, typename Result>
+inline
+typename std::enable_if<KernelTraits<Kernel>::has_transpose>::type
+symm_eval(const Kernel& K,
+          const Source& p1, const Charge& c1, Result& r1,
+          const Target& p2, const Charge& c2, Result& r2)
+{
+  typedef typename KernelTraits<Kernel>::kernel_value_type kernel_value_type;
 
-    kernel_value_type k12 = K(p1,p2);
-    r1 += k12 * c2;
-    r2 += K.transpose(k12) * c1;
-  }
+  const kernel_value_type k12 = K(p1,p2);
+  r1 += k12 * c2;
+  r2 += K.transpose(k12) * c1;
+}
 
-	/** Asymmetric block S2T dispatch
-	 */
-	template <typename Kernel,
-	          typename SourceIter, typename ChargeIter,
-	          typename TargetIter, typename ResultIter>
-	inline static
-	typename std::enable_if<KernelTraits<Kernel>::has_vector_S2T_asymm>::type
-	block_eval(const Kernel& K,
-             SourceIter s_first, SourceIter s_last, ChargeIter c_first,
-             TargetIter t_first, TargetIter t_last, ResultIter r_first)
-	{
-		K.S2T(s_first, s_last, c_first,
-		      t_first, t_last, r_first);
-	}
+/** Asymmetric block P2P evaluation */
+template <typename Kernel,
+          typename SourceIter, typename ChargeIter,
+          typename TargetIter, typename ResultIter>
+inline void
+block_eval(const Kernel& K,
+           SourceIter s_first, SourceIter s_last, ChargeIter c_first,
+           TargetIter t_first, TargetIter t_last, ResultIter r_first)
+{
+  typedef typename std::iterator_traits<SourceIter>::value_type source_type;
+  typedef typename std::iterator_traits<TargetIter>::value_type target_type;
+  typedef typename std::iterator_traits<ChargeIter>::value_type charge_type;
+  typedef typename std::iterator_traits<ResultIter>::value_type result_type;
 
-	/** Asymmetric block S2T using the evaluation operator
-	 * r_i += sum_j K(t_i, s_j) * c_j
-	 *
-	 * @param[in] ...
-	 */
-	template <typename Kernel,
-	          typename SourceIter, typename ChargeIter,
-	          typename TargetIter, typename ResultIter>
-	inline static
-  typename std::enable_if<KernelTraits<Kernel>::has_eval_op &
-                          !KernelTraits<Kernel>::has_vector_S2T_asymm>::type
-  block_eval(const Kernel& K,
-             SourceIter s_first, SourceIter s_last, ChargeIter c_first,
-             TargetIter t_first, TargetIter t_last, ResultIter r_first)
-  {
-    typedef typename Kernel::source_type source_type;
-    typedef typename Kernel::charge_type charge_type;
-    typedef typename Kernel::target_type target_type;
-    typedef typename Kernel::result_type result_type;
+  for ( ; t_first != t_last; ++t_first, ++r_first) {
+    const target_type& t = *t_first;
+    result_type& r       = *r_first;
 
-    static_assert(std::is_same<source_type,
-                  typename std::iterator_traits<SourceIter>::value_type
-                  >::value, "SourceIter::value_type != Kernel::source_type");
-    static_assert(std::is_same<charge_type,
-                  typename std::iterator_traits<ChargeIter>::value_type
-                  >::value, "ChargeIter::value_type != Kernel::charge_type");
-    static_assert(std::is_same<target_type,
-                  typename std::iterator_traits<TargetIter>::value_type
-                  >::value, "TargetIter::value_type != Kernel::target_type");
-    static_assert(std::is_same<result_type,
-                  typename std::iterator_traits<ResultIter>::value_type
-                  >::value, "ResultIter::value_type != Kernel::result_type");
-
-    for ( ; t_first != t_last; ++t_first, ++r_first) {
-      const target_type& t = *t_first;
-      result_type& r       = *r_first;
-
-      SourceIter si = s_first;
-      ChargeIter ci = c_first;
-      for ( ; si != s_last; ++si, ++ci)
-        r += K(t,*si) * (*ci);
-    }
-  }
-
-  /** Symmetric off-diagonal block S2T dispatch
-   * @pre source_type == target_type
-   */
-  template <typename Kernel,
-            typename SourceIter, typename ChargeIter, typename ResultIter>
-  inline static
-  typename std::enable_if<KernelTraits<Kernel>::has_vector_S2T_symm>::type
-  block_eval(const Kernel& K,
-             SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
-             ResultIter r1_first,
-             SourceIter p2_first, SourceIter p2_last, ChargeIter c2_first,
-             ResultIter r2_first)
-  {
-    K.S2T(p1_first, p1_last, c1_first,
-          p2_first, p2_last, c2_first,
-          r1_first, r2_first);
-  }
-
-  /** Symmetric off-diagonal block S2T using the evaluation operator
-   * r2_i += sum_j K(p2_i, p1_j) * c1_j
-   * r1_j += sum_i K(p1_j, p2_i) * c2_i
-   *
-   * @param[in] ...
-   * @pre source_type == target_type
-   * @pre For all i,j we have p1_i != p2_j
-   */
-  template <typename Kernel,
-            typename SourceIter, typename ChargeIter, typename ResultIter>
-  inline static
-  typename std::enable_if<!KernelTraits<Kernel>::has_vector_S2T_symm>::type
-  block_eval(const Kernel& K,
-             SourceIter p1_first, SourceIter p1_last, ChargeIter c1_first,
-             ResultIter r1_first,
-             SourceIter p2_first, SourceIter p2_last, ChargeIter c2_first,
-             ResultIter r2_first)
-  {
-    typedef typename Kernel::source_type source_type;
-    typedef typename Kernel::charge_type charge_type;
-    typedef typename Kernel::target_type target_type;
-    typedef typename Kernel::result_type result_type;
-
-    static_assert(std::is_same<source_type,
-                  typename std::iterator_traits<SourceIter>::value_type
-                  >::value, "SourceIter::value_type != Kernel::source_type");
-    static_assert(std::is_same<charge_type,
-                  typename std::iterator_traits<ChargeIter>::value_type
-                  >::value, "ChargeIter::value_type != Kernel::charge_type");
-    static_assert(std::is_same<target_type,
-                  typename std::iterator_traits<SourceIter>::value_type
-                  >::value, "SourceIter::value_type != Kernel::target_type");
-    static_assert(std::is_same<result_type,
-                  typename std::iterator_traits<ResultIter>::value_type
-                  >::value, "ResultIter::value_type != Kernel::result_type");
-
-    for ( ; p1_first != p1_last; ++p1_first, ++c1_first, ++r1_first) {
-      const source_type& p1 = *p1_first;
-      const charge_type& c1 = *c1_first;
-      result_type& r1       = *r1_first;
-
-      SourceIter p2i = p2_first;
-      ChargeIter c2i = c2_first;
-      ResultIter r2i = r2_first;
-      for ( ; p2i != p2_last; ++p2i, ++c2i, ++r2i)
-        S2T::symm_eval(K, p1, c1, r1, *p2i, *c2i, *r2i);
-    }
-  }
-
-  /** Symmetric diagonal block S2T using the evaluation operator
-   * r_i += sum_j K(p_i, p_j) * c_j
-   *
-   * @pre source_type == target_type
-   */
-  template <typename Kernel,
-            typename SourceIter, typename ChargeIter, typename ResultIter>
-  inline static
-  typename std::enable_if<!KernelTraits<Kernel>::has_vector_S2T_symm>::type
-  block_eval(const Kernel& K,
-             SourceIter p_first, SourceIter p_last,
-             ChargeIter c_first, ResultIter r_first)
-  {
-    typedef typename Kernel::source_type source_type;
-    typedef typename Kernel::charge_type charge_type;
-    typedef typename Kernel::target_type target_type;
-    typedef typename Kernel::result_type result_type;
-
-    static_assert(std::is_same<source_type, target_type>::value,
-                  "source_type != target_type in symmetric S2T");
-    static_assert(std::is_same<source_type,
-                               typename SourceIter::value_type>::value,
-                  "SourceIter::value_type != Kernel::source_type");
-    static_assert(std::is_same<charge_type,
-                               typename ChargeIter::value_type>::value,
-                  "ChargeIter::value_type != Kernel::charge_type");
-    static_assert(std::is_same<result_type,
-                               typename ResultIter::value_type>::value,
-                  "ResultIter::value_type != Kernel::result_type");
-
-    SourceIter pi = p_first;
+    SourceIter si = s_first;
     ChargeIter ci = c_first;
-    ResultIter ri = r_first;
-    // The first diagonal element
-    *ri += K(*pi, *pi) * (*ci);
+    for ( ; si != s_last; ++si, ++ci)
+      r += K(t,*si) * (*ci);
+  }
+}
 
-    for (++pi, ++ci, ++ri; pi != p_last; ++pi, ++ci, ++ri) {
-      const source_type& p = *pi;
-      const charge_type& c = *ci;
-      result_type& r       = *ri;
+/** Symmetric off-diagonal block P2P evaluation */
+template <typename Kernel,
+          typename SourceIter, typename ChargeIter,
+          typename TargetIter, typename ResultIter>
+inline void
+block_eval(const Kernel& K,
+           SourceIter p1_first, SourceIter p1_last,
+           ChargeIter c1_first, ResultIter r1_first,
+           TargetIter p2_first, TargetIter p2_last,
+           ChargeIter c2_first, ResultIter r2_first)
+{
+  typedef typename std::iterator_traits<SourceIter>::value_type source_type;
+  typedef typename std::iterator_traits<TargetIter>::value_type target_type;
+  typedef typename std::iterator_traits<ChargeIter>::value_type charge_type;
+  typedef typename std::iterator_traits<ResultIter>::value_type result_type;
 
-      // The off-diagonal elements
-      SourceIter pj = p_first;
-      ChargeIter cj = c_first;
-      ResultIter rj = r_first;
-      for ( ; pj != pi; ++pj, ++cj, ++rj)
-        S2T::symm_eval(K, p, c, r, *pj, *cj, *rj);
+  for ( ; p1_first != p1_last; ++p1_first, ++c1_first, ++r1_first) {
+    const source_type& pi = *p1_first;
+    const charge_type& ci = *c1_first;
+    result_type& ri       = *r1_first;
 
-      // The diagonal element
-      r += K(p,p) * c;
+    TargetIter p2i = p2_first;
+    ChargeIter c2i = c2_first;
+    ResultIter r2i = r2_first;
+    for ( ; p2i != p2_last; ++p2i, ++c2i, ++r2i) {
+      const target_type& pj = *p2i;
+      const charge_type& cj = *c2i;
+      result_type& rj       = *r2i;
+
+      symm_eval(K, pi, ci, ri, pj, cj, rj);
     }
   }
+}
 
+/** Symmetric diagonal block P2P evaluation */
+template <typename Kernel,
+          typename SourceIter, typename ChargeIter, typename ResultIter>
+inline static void
+block_eval(const Kernel& K,
+           SourceIter p_first, SourceIter p_last,
+           ChargeIter c_first, ResultIter r_first)
+{
+  typedef typename std::iterator_traits<SourceIter>::value_type source_type;
+  typedef typename std::iterator_traits<ChargeIter>::value_type charge_type;
+  typedef typename std::iterator_traits<ResultIter>::value_type result_type;
+
+  SourceIter ipi = p_first;
+  ChargeIter ici = c_first;
+  ResultIter iri = r_first;
+
+  for ( ; ipi != p_last; ++ipi, ++ici, ++iri) {
+    const source_type& pi = *ipi;
+    const charge_type& ci = *ici;
+    result_type& ri       = *iri;
+
+    // The diagonal element
+    ri += K(pi,pi) * ci;
+
+    // The off-diagonal elements
+    SourceIter ipj = p_first;
+    ChargeIter icj = c_first;
+    ResultIter irj = r_first;
+    for ( ; ipj != ipi; ++ipj, ++icj, ++irj) {
+      const source_type& pj = *ipj;
+      const charge_type& cj = *icj;
+      result_type& rj       = *irj;
+
+      symm_eval(K, pi, ci, ri, pj, cj, rj);
+    }
+  }
+}
+
+
+} // end namespace detail
+} // end namespace fmmtl
+
+
+
+// TODO: namespace and fix
+
+struct S2T {
 
   //////////////////////////////////////
   /////// Context Dispatchers //////////
@@ -253,11 +182,11 @@ struct S2T
 #endif
     FMMTL_LOG("S2T 2box asymm");
 
-    S2T::block_eval(c.kernel(),
-                    c.source_begin(source), c.source_end(source),
-                    c.charge_begin(source),
-                    c.target_begin(target), c.target_end(target),
-                    c.result_begin(target));
+    fmmtl::detail::block_eval(c.kernel(),
+                              c.source_begin(source), c.source_end(source),
+                              c.charge_begin(source),
+                              c.target_begin(target), c.target_end(target),
+                              c.result_begin(target));
   }
 
   /** Symmetric S2T
@@ -278,11 +207,11 @@ struct S2T
 #endif
     FMMTL_LOG("S2T 2box symm");
 
-    S2T::block_eval(c.kernel(),
-                    c.source_begin(box1), c.source_end(box1),
-                    c.charge_begin(box1), c.result_begin(box1),
-                    c.target_begin(box2), c.target_end(box2),
-                    c.charge_begin(box2), c.result_begin(box2));
+    fmmtl::detail::block_eval(c.kernel(),
+                              c.source_begin(box1), c.source_end(box1),
+                              c.charge_begin(box1), c.result_begin(box1),
+                              c.target_begin(box2), c.target_end(box2),
+                              c.charge_begin(box2), c.result_begin(box2));
   }
 
   /** Symmetric S2T
@@ -297,11 +226,11 @@ struct S2T
 #endif
     FMMTL_LOG("S2T 1box symm");
 
-    S2T::block_eval(c.kernel(),
-                    c.source_begin(box), c.source_end(box),
-                    c.charge_begin(box), c.result_begin(box),
-                    c.target_begin(box), c.target_end(box),
-                    c.charge_begin(box), c.result_begin(box));
+    fmmtl::detail::block_eval(c.kernel(),
+                              c.source_begin(box), c.source_end(box),
+                              c.charge_begin(box), c.result_begin(box),
+                              c.target_begin(box), c.target_end(box),
+                              c.charge_begin(box), c.result_begin(box));
   }
 };
 
@@ -309,6 +238,7 @@ struct S2T
 
 /**
  * Batched S2T methods
+ * TODO: Move elsewhere
  **/
 
 #include <cmath>

@@ -27,7 +27,7 @@ template <class E,
           class TA = std::vector<typename KernelTraits<E>::target_type>,
           class SA = std::vector<typename KernelTraits<E>::source_type> >
 class kernel_matrix {
-  typedef kernel_matrix<E>  this_type;
+  typedef kernel_matrix<E,TA,SA>  this_type;
  public:
   FMMTL_IMPORT_EXPANSION_TRAITS(E);
 
@@ -163,5 +163,17 @@ class kernel_matrix {
   mutable PlanBase<expansion_type>* plan;
 };
 
+
+template <class Expansion, class TargetRange, class SourceRange>
+kernel_matrix<Expansion,TargetRange,SourceRange>
+make_matrix(const Expansion& e_, const TargetRange& t, const SourceRange& s) {
+  return kernel_matrix<Expansion,TargetRange,SourceRange>(e_, t, s);
+}
+
+template <class Expansion, class STRange>
+kernel_matrix<Expansion,STRange,STRange>
+make_matrix(const Expansion& e_, const STRange& p) {
+  return kernel_matrix<Expansion,STRange>(e_, p);
+}
 
 } // end namespace fmmtl

@@ -23,25 +23,21 @@ int main(int argc, char** argv) {
   expansion_type K;
   FMMOptions opts = get_options(argc, argv);
 
-  std::vector<source_type> sources(N);
-  for (source_type& s : sources)
-    s = fmmtl::random<source_type>::get();
+  std::vector<source_type> sources = fmmtl::random_n(N);
 
-  std::vector<target_type> targets(M);
-  for (target_type& t : targets)
-    t = fmmtl::random<target_type>::get();
+  std::vector<target_type> targets = fmmtl::random_n(M);
 
   std::vector<charge_type> charges(N);
   std::vector<result_type> result;
 
   // Single Tree
-  fmmtl::kernel_matrix<expansion_type> A1 = K(sources, sources);
+  fmmtl::kernel_matrix<expansion_type> A1 = fmmtl::make_matrix(K, sources);
   A1.set_options(opts);
   result = A1 * charges;
   //for (result_type r : result) std::cout << r << std::endl;
 
   // Dual Tree
-  fmmtl::kernel_matrix<expansion_type> A2  = K(targets, sources);
+  fmmtl::kernel_matrix<expansion_type> A2 = fmmtl::make_matrix(K, targets, sources);
   A2.set_options(opts);
   result = A2 * charges;
   //for (result_type r : result) std::cout << r << std::endl;
