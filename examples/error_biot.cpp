@@ -38,13 +38,9 @@ int main(int argc, char** argv)
   typedef kernel_type::result_type result_type;
 
   // Init points and charges
-  std::vector<source_type> points(N);
-  for (unsigned k = 0; k < points.size(); ++k)
-    points[k] = fmmtl::random<source_type>::get();
+  std::vector<source_type> points = fmmtl::random_n(N);
 
-  std::vector<charge_type> charges(N);
-  for (unsigned k = 0; k < charges.size(); ++k)
-    charges[k] = fmmtl::random<charge_type>::get();
+  std::vector<charge_type> charges = fmmtl::random_n(N);
 
   // Build the FMM
   fmmtl::kernel_matrix<kernel_type> A = K(points, points);
@@ -75,7 +71,7 @@ int main(int argc, char** argv)
     std::vector<result_type> exact(N);
 
     // Compute the result with a direct matrix-vector multiplication
-    Direct::matvec(K, points, charges, exact);
+    fmmtl::direct(K, points, charges, exact);
 
     double tot_error_sq = 0;
     double tot_norm_sq = 0;

@@ -14,20 +14,11 @@
 
 #include "fmmtl/dispatch/S2T/S2T_Compressed.hpp"
 
-namespace fmmtl
-{
+namespace fmmtl {
+
 
 template <class DerivedKernel>
 struct Kernel {
-  typedef DerivedKernel kernel_type;
-
-  kernel_type& kernel() {
-    return static_cast<kernel_type&>(*this);
-  }
-  const kernel_type& kernel() const {
-    return static_cast<const kernel_type&>(*this);
-  }
-
   // TODO: Do the template instantiations for linking automatically...?
   // TODO: Vectorized and/or GPU evaluations for Kernels?
 };
