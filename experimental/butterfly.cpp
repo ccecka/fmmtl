@@ -32,8 +32,8 @@ const std::size_t D = 2;
 //! Quadrature, TEMP
 const std::size_t Q = 10;
 
-// TODO: Remove dependency of Direct on fmmtl::Kernel
-struct FourierKernel : public fmmtl::Kernel<FourierKernel> {
+
+struct FourierKernel {
   typedef double value_type;
 
   typedef Vec<D,value_type> source_type;
