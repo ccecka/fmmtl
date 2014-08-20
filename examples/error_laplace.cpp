@@ -74,7 +74,9 @@ int main(int argc, char **argv)
     std::vector<result_type> exact(N);
 
     // Compute the result with a direct matrix-vector multiplication
+    { ScopeClock timer("Direct in ");
     fmmtl::direct(K, points, charges, exact);
+    }
 
     double tot_error_sq = 0;
     double tot_norm_sq = 0;

@@ -82,7 +82,7 @@ struct TickerPrinter {
   TickerPrinter(const std::string& _msg = "", std::ostream& _os = std::cout)
       : msg(_msg), os(_os) {}
   void operator()(const TickerNotifier<TickerPrinter>& t) {
-    os << msg << t << " secs";
+    os << msg << t << " secs" << std::endl;
   }
   std::string msg;
   std::ostream& os;

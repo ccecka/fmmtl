@@ -16,7 +16,7 @@
 
 namespace fmmtl {
 
-static boost::random::mt19937 default_genenerator;
+static boost::random::mt19937 default_generator;
 
 using boost::enable_if;
 using boost::is_integral;
@@ -33,7 +33,7 @@ struct random<T, typename enable_if<is_integral<T> >::type> {
 
   static T get(T a, T b) {
     boost::random::uniform_int_distribution<T> dist(a, b);
-    return dist(default_genenerator);
+    return dist(default_generator);
   }
   static T get() {
     return get(T(0), std::numeric_limits<T>::max());
@@ -48,7 +48,7 @@ struct random<T, typename enable_if<is_floating_point<T> >::type> {
 
   static T get(T a, T b) {
     boost::random::uniform_real_distribution<T> dist(a, b);
-    return dist(default_genenerator);
+    return dist(default_generator);
   }
   static T get() {
     return get(T(0), T(1));
