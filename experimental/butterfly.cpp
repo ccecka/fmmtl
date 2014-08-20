@@ -1,7 +1,5 @@
 #include <iostream>
 
-#include "fmmtl/Kernel.hpp"
-
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/numeric/Complex.hpp"
 #include "fmmtl/numeric/norm.hpp"
@@ -305,7 +303,7 @@ int main(int argc, char** argv) {
 
   // Copy back permuted
   auto pri = target_tree.body_permute(results.begin(), target_tree.body_begin());
-  for (auto ri : p_results) {
+  for (auto&& ri : p_results) {
     *pri = ri;
     ++pri;
   }

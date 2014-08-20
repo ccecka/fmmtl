@@ -522,8 +522,10 @@ class NDTree {
       // Else, split this box
 
       // If the children will start a new level, record it
-      if (box_data_[k].level() + 1 > levels())
+      if (box_data_[k].level() + 1 > levels()) {
+        assert(levels() < max_level());
         level_offset_.push_back(box_data_.size());
+      }
 
       // Get the box data
       auto code_begin = codes.begin() + box_data_[k].begin_;

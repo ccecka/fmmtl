@@ -35,29 +35,32 @@ adaptive_cross_approx(const MatrixIn& A,
   auto _ = mtl::iall;
   using std::abs;
 
+  const size_type n_rows = num_rows(A);
+  const size_type n_cols = num_cols(A);
+
   // A stack of row indices to use
-  std::vector<size_type> row_idx(num_rows(A));
+  std::vector<size_type> row_idx(n_rows);
   std::iota(row_idx.begin(), row_idx.end(), 0);
   std::random_shuffle(row_idx.begin(), row_idx.end());
   // A stack of col indices to use
-  std::vector<size_type> col_idx(num_cols(A));
+  std::vector<size_type> col_idx(n_cols);
   std::iota(col_idx.begin(), col_idx.end(), 0);
   std::random_shuffle(col_idx.begin(), col_idx.end());
 
   /*  INITIALIZATION  */
 
-  /// Initialize the matrix norm and the the first row index
+  // Initialize the matrix and vector norms
   double matrix_norm = 0;
   double row_norm;
   double col_norm;
-  value_type pivot_val;
 
+  // Matrices to construct
   size_type current_rank = 0;
 
-  MatrixOut U(num_rows(A), max_rank);
-  MatrixOut V(max_rank, num_cols(A));
+  MatrixOut U(n_rows, max_rank);
+  MatrixOut V(max_rank, n_cols);
 
-  /// Repeat till the desired tolerance is obtained
+  // Repeat till the desired tolerance is obtained
   do {
 
     auto&& row = V[current_rank][_];
@@ -68,10 +71,10 @@ adaptive_cross_approx(const MatrixIn& A,
       /// Row of the residuum and the pivot column
       for (size_type k = 0; k < current_rank; ++k)
         row -= U[row_idx.back()][k] * V[k][_];
-      // Find the largest element of the row
+      // Find the largest element of the row (larger than eps_tol)
+      size_type pivot_idx = n_cols;
       double abs_pivot_val = eps_tol;
-      size_type pivot_idx = num_cols(row);
-      for (size_type k = 0; k < num_cols(row); ++k) {
+      for (size_type k = 0; k < n_cols; ++k) {
         if (abs_pivot_val < abs(row(k))) {
           abs_pivot_val = abs(row(k));
           pivot_idx = k;
@@ -82,11 +85,14 @@ adaptive_cross_approx(const MatrixIn& A,
       row_idx.pop_back();
 
       // Good row
-      if (pivot_idx != num_cols(row)) {
+      if (pivot_idx != n_cols) {
+        // Normalization
+        row *= 1 / row(pivot_idx);
         // Bring the pivot_idx to the back for processing
         auto cit = std::find(col_idx.begin(), col_idx.end(), pivot_idx);
-        if (cit != col_idx.end())
-          std::swap(*cit, col_idx.back());
+        assert(cit != col_idx.end());
+        //if (cit != col_idx.end())
+        std::swap(*cit, col_idx.back());
         break;
       }
 
@@ -95,25 +101,20 @@ adaptive_cross_approx(const MatrixIn& A,
         goto return_statement;
     }
 
-    pivot_val = V[current_rank][col_idx.back()];
-    value_type gamma = 1.0 / pivot_val;
-
     auto&& col = U[_][current_rank];
 
     // Repeat until we find a good col
     while (true) {
       col = A[_][col_idx.back()];
-      /// Column of the residuum and the pivot row
+      // Column of the residuum and the pivot row
       for (size_type k = 0; k < current_rank; ++k)
         col -= U[_][k] * V[k][col_idx.back()];
-      /// Normalizing constant
-      col *= gamma;
-      // Find the largest element of the col
+      // Find the largest element of the col (larger than eps_tol)
+      size_type pivot_idx = n_rows;
       double abs_pivot_val = eps_tol;
-      size_type pivot_idx = num_rows(col);
-      for (size_type k = 0; k < num_cols(row); ++k) {
-        if (abs_pivot_val < abs(row(k))) {
-          abs_pivot_val = abs(row(k));
+      for (size_type k = 0; k < n_rows; ++k) {
+        if (abs_pivot_val < abs(col(k))) {
+          abs_pivot_val = abs(col(k));
           pivot_idx = k;
         }
       }
@@ -122,8 +123,8 @@ adaptive_cross_approx(const MatrixIn& A,
       col_idx.pop_back();
 
       // Good col, bring the pivot to the front
-      if (pivot_idx != num_rows(col)) {
-        // Bring the pivot to the back for processing
+      if (pivot_idx != n_rows) {
+        // Bring the pivot to the back for processing if not already considered
         auto rit = std::find(row_idx.begin(), row_idx.end(), pivot_idx);
         if (rit != row_idx.end())
           std::swap(*rit, row_idx.back());
@@ -145,14 +146,14 @@ adaptive_cross_approx(const MatrixIn& A,
 
     ++current_rank;
 
-  } while (row_norm * col_norm > abs(pivot_val) * eps_tol * matrix_norm &&
+  } while (row_norm * col_norm > eps_tol * matrix_norm &&
            current_rank < max_rank &&
            !row_idx.empty() && !col_idx.empty());
 
 return_statement:
 
-  U.change_dim(num_rows(A), current_rank, /* keep_elements: */ true);
-  V.change_dim(current_rank, num_cols(A), /* keep_elements: */ true);
+  U.change_dim(n_rows, current_rank, /* keep_elements: */ true);
+  V.change_dim(current_rank, n_cols, /* keep_elements: */ true);
 
   return std::make_tuple(U, V);
 };

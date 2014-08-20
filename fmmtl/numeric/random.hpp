@@ -7,6 +7,7 @@
 #include <boost/random/uniform_real_distribution.hpp>
 #include <boost/type_traits/is_integral.hpp>
 #include <boost/type_traits/is_floating_point.hpp>
+#include <boost/type_traits/is_same.hpp>
 
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
@@ -31,11 +32,11 @@ struct random<T, typename enable_if<is_integral<T> >::type> {
   result_type operator()(T a, T b) const { return get(a,b); }
   result_type operator()()         const { return get();    }
 
-  static T get(T a, T b) {
+  static result_type get(T a, T b) {
     boost::random::uniform_int_distribution<T> dist(a, b);
     return dist(default_genenerator);
   }
-  static T get() {
+  static result_type get() {
     return get(T(0), std::numeric_limits<T>::max());
   }
 };
@@ -46,11 +47,11 @@ struct random<T, typename enable_if<is_floating_point<T> >::type> {
   result_type operator()(T a, T b) const { return get(a,b); }
   result_type operator()()         const { return get();    }
 
-  static T get(T a, T b) {
+  static result_type get(T a, T b) {
     boost::random::uniform_real_distribution<T> dist(a, b);
     return dist(default_genenerator);
   }
-  static T get() {
+  static result_type get() {
     return get(T(0), T(1));
   }
 };
@@ -61,10 +62,24 @@ struct random<complex<T> > {
   result_type operator()(T a, T b) const { return get(a,b); }
   result_type operator()()         const { return get();    }
 
-  static complex<T> get(T a, T b) {
+  static result_type get(T a, T b) {
     return complex<T>(random<T>::get(a,b), random<T>::get(a,b));
   }
-  static complex<T> get() {
+  static result_type get() {
+    return get(T(0), T(1));
+  }
+};
+
+template <typename T>
+struct random<std::complex<T> > {
+  typedef std::complex<T> result_type;
+  result_type operator()(T a, T b) const { return get(a,b); }
+  result_type operator()()         const { return get();    }
+
+  static result_type get(T a, T b) {
+    return std::complex<T>(random<T>::get(a,b), random<T>::get(a,b));
+  }
+  static result_type get() {
     return get(T(0), T(1));
   }
 };
@@ -75,13 +90,13 @@ struct random<Vec<N,T> > {
   result_type operator()(T a, T b) const { return get(a,b); }
   result_type operator()()         const { return get();    }
 
-  static Vec<N,T> get(T a, T b) {
+  static result_type get(T a, T b) {
     Vec<N,T> v;
     for (std::size_t i = 0; i != N; ++i)
       v[i] = fmmtl::random<T>::get(a, b);
     return v;
   }
-  static Vec<N,T> get() {
+  static result_type get() {
     return get(T(0), T(1));
   }
 };

@@ -8,7 +8,11 @@
 int main() {
   using value_type = double;
 
-  mtl::dense2D<value_type> A(5,5);
+  const unsigned N = 5;
+  const unsigned M = 5;
+  const unsigned r = 3;
+
+  mtl::matrix<value_type> A(N,M);
 #if 0
   A = 2.0;
 #endif
@@ -26,20 +30,24 @@ int main() {
 
   std::cout << "A = \n" << A << std::endl;
 
-  mtl::dense2D<double> U, V;
+  mtl::matrix<double> U, V;
 
-  std::tie(U, V) = adaptive_cross_approx(A, 1e-10, 1);
+  std::tie(U, V) = adaptive_cross_approx(A, 1e-10, r);
 
   std::cout << "FINAL RANK = " << num_cols(U) << std::endl;
   std::cout << "U = \n" << U << std::endl;
   std::cout << "V = \n" << V << std::endl;
   std::cout << "UV = \n" << U*V << std::endl;
 
-  mtl::dense2D<value_type> R;
-  R = A - U*V;
+  mtl::matrix<value_type> Res;
+  Res = A - U*V;
 
-  std::cout << "Residual = \n" << R << std::endl;
-  std::cout << "norm_F = " << frobenius_norm(R) << std::endl;
+  std::cout << "Residual = \n" << Res << std::endl;
+  std::cout << "norm_F = " << frobenius_norm(Res) << std::endl;
+
+  mtl::vector<value_type> testV(20);
+  for (auto&& v : testV)
+    std::cout << v << std::endl;
 
   return 0;
 }

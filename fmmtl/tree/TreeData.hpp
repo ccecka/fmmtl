@@ -49,8 +49,11 @@ struct BodyBind {
 
   struct BodyDataRange {
     iterator b, e;
-    iterator begin() { return b; }
-    iterator end()   { return e; }
+    iterator       begin()       { return b; }
+    const_iterator begin() const { return b; }
+    iterator       end()         { return e; }
+    const_iterator end()   const { return e; }
+    std::size_t    size()  const { return end() - begin(); }
   };
 
   BodyBind(const Tree& tree)
@@ -62,8 +65,10 @@ struct BodyBind {
              tree.body_permute(range.begin(), tree.body_end())) {
   }
 
-  iterator begin() { return data.begin(); }
-  iterator end()   { return data.end(); }
+  iterator       begin()       { return data.begin(); }
+  const_iterator begin() const { return data.begin(); }
+  iterator       end()         { return data.end(); }
+  const_iterator end()   const { return data.end(); }
 
   T& operator[](const typename Tree::body_type& body) {
     return data[body.index()];
