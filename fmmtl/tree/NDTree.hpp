@@ -297,6 +297,9 @@ class NDTree {
     inline box_iterator()
         : box_iterator::iterator_adaptor(0), tree_(nullptr) {
     }
+    inline unsigned index() const {
+      return this->base_reference();
+    }
    private:
     const tree_type* tree_;
     friend class NDTree;
@@ -309,9 +312,6 @@ class NDTree {
     friend class boost::iterator_core_access;
     inline Box dereference() const {
       return Box(index(), tree_);
-    }
-    inline unsigned index() const {
-      return this->base_reference();
     }
   };
 
@@ -330,6 +330,9 @@ class NDTree {
     inline body_iterator()
         : body_iterator::iterator_adaptor(0), tree_(nullptr) {
     }
+    inline unsigned index() const {
+      return this->base_reference();
+    }
    private:
     const tree_type* tree_;
     friend class NDTree;
@@ -342,9 +345,6 @@ class NDTree {
     friend class boost::iterator_core_access;
     inline Body dereference() const {
       return Body(index(), tree_);
-    }
-    inline unsigned index() const {
-      return this->base_reference();
     }
   };
 
@@ -386,6 +386,11 @@ class NDTree {
   /** The number of boxes contained in this tree */
   inline unsigned boxes() const {
     return box_data_.size();
+  }
+
+  /** The number of boxes contained in level L of this tree */
+  inline unsigned boxes(unsigned L) const {
+    return level_offset_[L+1] - level_offset_[L];
   }
 
   /** The maximum level of any box in this tree */
@@ -457,7 +462,7 @@ class NDTree {
    */
   template <typename RandomAccessIter>
   typename body_permuted_iterator<RandomAccessIter>::type
-  body_permute(RandomAccessIter& it, const body_iterator& bi) const {
+  body_permute(RandomAccessIter it, const body_iterator& bi) const {
     return boost::make_permutation_iterator(it, permute_.cbegin() + bi.index());
   }
 
@@ -517,8 +522,10 @@ class NDTree {
       // Else, split this box
 
       // If the children will start a new level, record it
-      if (box_data_[k].level() + 1 > levels())
+      if (box_data_[k].level() + 1 > levels()) {
+        assert(levels() < max_level());
         level_offset_.push_back(box_data_.size());
+      }
 
       // Get the box data
       auto code_begin = codes.begin() + box_data_[k].begin_;
