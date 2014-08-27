@@ -10,10 +10,12 @@
 /** Default behavior gives a warning -- using non-existent method */
 template <bool has_l2l>
 struct L2L_Helper {
-  inline static void apply(...) {
+  template <typename... Args>
+  inline static void apply(Args&&...) {
     std::cerr << "WARNING: Expansion does not have a correct L2L!\n";
   }
-  inline static void eval(...) {
+  template <typename... Args>
+  inline static void eval(Args&&...) {
     apply();
   }
 };

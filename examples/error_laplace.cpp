@@ -7,9 +7,6 @@
 #include "fmmtl/Direct.hpp"
 #include "fmmtl/util/Clock.hpp"
 
-#include "UnitKernel.kern"
-#include "ExpKernel.kern"
-
 #include "LaplaceSpherical.hpp"
 
 

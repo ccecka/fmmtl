@@ -8,12 +8,14 @@
 #include "fmmtl/meta/kernel_traits.hpp"
 
 /** Default behavior gives a warning -- using non-existent method */
-template <bool has_l2p>
+template <bool has_m2l>
 struct M2L_Helper {
-  inline static void apply(...) {
+  template <typename... Args>
+  inline static void apply(Args&&...) {
     std::cerr << "WARNING: Expansion does not have a correct M2L!\n";
   }
-  inline static void eval(...) {
+  template <typename... Args>
+  inline static void eval(Args&&...) {
     apply();
   }
 };
