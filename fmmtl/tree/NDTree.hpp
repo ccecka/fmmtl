@@ -415,10 +415,15 @@ class NDTree {
   box_type root() const {
     return Box(0, this);
   }
-  /** Return a box given it's index */
+  /** Return a box given its index */
   box_type box(const unsigned idx) const {
     FMMTL_ASSERT(idx < box_data_.size());
     return Box(idx, this);
+  }
+  /** Return a body given its index */
+  body_type body(const unsigned idx) const {
+    FMMTL_ASSERT(idx < size());
+    return Body(idx, this);
   }
   /** Return an iterator to the first body in this tree */
   body_iterator body_begin() const {

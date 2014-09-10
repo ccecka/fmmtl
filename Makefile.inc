@@ -2,16 +2,18 @@
 ## Library Directories ##
 ########################
 
+# This FMM library
+FMMTL_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+KERNEL_DIR = $(FMMTL_DIR)kernel
+
 # External libraries
 BOOST_DIR = /usr/include
+FLENS_DIR = $(FMMTL_DIR)fmmtl/numeric/FLENS
 
 # Optional libraries
 # Only needed if using CUDA
 CUDA_PATH = /usr/local/cuda
 
-# This FMM library
-FMMTL_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
-KERNEL_DIR = $(FMMTL_DIR)kernel
 
 ####################
 ## Makefile Setup ##
@@ -51,7 +53,7 @@ DEPSFLAGS = -MD -MF $(DEPSFILE) #-MP
 # Define any directories containing header files
 #   To include directories use -Ipath/to/files
 INCLUDES += -I. -I$(FMMTL_DIR) -I$(KERNEL_DIR)
-INCLUDES += -I$(BOOST_DIR)
+INCLUDES += -I$(BOOST_DIR) -I$(FLENS_DIR)
 
 # Define cxx compile flags
 CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors

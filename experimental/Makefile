@@ -9,3 +9,7 @@ include ../Makefile.inc
 # List the Kernel dependency (.kern) for each executable
 ## A kernel dependency should be listed if a full kernel-matrix vector product
 ## is executed with that kernel
+
+plr:      LDLIBS += -llapack
+plr_test: LDLIBS += -llapack
+svd_test: LDLIBS += -llapack
