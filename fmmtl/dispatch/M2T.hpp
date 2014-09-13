@@ -10,12 +10,14 @@
 #include "fmmtl/meta/kernel_traits.hpp"
 
 /** Default behavior gives a warning -- using non-existent method */
-template <bool has_m2p>
+template <bool has_m2t>
 struct M2T_Helper {
-  inline static void apply(...) {
+  template <typename... Args>
+  inline static void apply(Args&&...) {
     std::cerr << "WARNING: Expansion does not have a correct M2T!\n";
   }
-  inline static void eval(...) {
+  template <typename... Args>
+  inline static void eval(Args&&...) {
     apply();
   }
 };

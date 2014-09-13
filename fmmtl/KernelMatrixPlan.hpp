@@ -11,7 +11,7 @@ namespace fmmtl {
 template <class Expansion>
 class PlanBase {
  public:
-  FMMTL_IMPORT_KERNEL_TRAITS(Expansion);
+  FMMTL_IMPORT_EXPANSION_TRAITS(Expansion);
 
   /** Virtual destructor */
   virtual ~PlanBase() {};
@@ -33,7 +33,7 @@ class PlanBase {
 template <typename Expansion, typename Context>
 struct Plan
     : public PlanBase<Expansion> {
-  FMMTL_IMPORT_KERNEL_TRAITS(Expansion);
+  FMMTL_IMPORT_EXPANSION_TRAITS(Expansion);
 
   template <typename KernelMatrix, typename Options>
   Plan(const KernelMatrix& mat, Options& opts)

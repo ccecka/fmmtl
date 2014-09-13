@@ -4,6 +4,7 @@
 #include "fmmtl/Direct.hpp"
 
 #include "LaplaceSpherical.hpp"
+//#include "LaplaceCartesian.hpp"
 #include "YukawaCartesian.hpp"
 //#include "StokesSpherical.hpp"
 
@@ -36,48 +37,54 @@ void two_level_test(const Expansion& K) {
   // init results vectors for exact, FMM
   std::vector<result_type> rexact(1);
   rexact[0] = result_type(0);
-  result_type rm2p = result_type(0);
-  result_type rfmm = result_type(0);
+  result_type rm2t2 = result_type(0);
+  result_type rm2t1 = result_type(0);
+  result_type rfmm  = result_type(0);
 
   // test direct
-  Direct::matvec(K, s, c, t, rexact);
+  fmmtl::direct(K, s, c, t, rexact);
 
   // setup initial multipole expansion
   multipole_type M;
   point_type M_center(0.05, 0.05, 0.05);
   point_type M_extent(0.1, 0.1, 0.1);
   INITM::apply(K, M, M_extent, 2u);
-  K.S2M(s[0], c[0], M_center, M);
+  S2M::apply(K, s[0], c[0], M_center, M);
 
   // perform M2M
   multipole_type M2;
   point_type M2_center(0.1, 0.1, 0.1);
   point_type M2_extent(0.2, 0.2, 0.2);
   INITM::apply(K, M2, M2_extent, 1u);
-  K.M2M(M, M2, M2_center - M_center);
-  //K.S2M(s,c,M2_center,M2);
+  M2M::apply(K, M, M2, M2_center - M_center);
+
+  // test M2T
+  M2T::apply(K, M, M_center, t[0], rm2t1);
+  M2T::apply(K, M2, M2_center, t[0], rm2t2);
 
   // test M2L
   local_type L2;
   point_type L2_center(0.9, 0.9, 0.9);
   point_type L2_extent(0.2, 0.2, 0.2);
   INITL::apply(K, L2, L2_center, 1u);
-  K.M2L(M2, L2, L2_center - M2_center);
+  M2L::apply(K, M2, L2, L2_center - M2_center);
 
   // test L2L
   local_type L;
   point_type L_center(0.95, 0.95, 0.95);
   point_type L_extent(0.1, 0.1, 0.1);
   INITL::apply(K, L, L_extent, 2u);
-  K.L2L(L2, L, L_center - L2_center);
+  L2L::apply(K, L2, L, L_center - L2_center);
 
   // test L2T
-  K.L2T(L2, L2_center, t[0], rfmm);
+  L2T::apply(K, L2, L2_center, t[0], rfmm);
 
   // check errors
   std::cout << "rexact = " << rexact[0] << std::endl;
-  std::cout << "rm2p = " << rm2p << "\n    "
-            << "[" << (rm2p - rexact[0]) << "]" << std::endl;
+  std::cout << "rm2t1 = " << rm2t1 << "\n    "
+            << "[" << (rm2t1 - rexact[0]) << "]" << std::endl;
+  std::cout << "rm2t2 = " << rm2t2 << "\n    "
+            << "[" << (rm2t2 - rexact[0]) << "]" << std::endl;
   std::cout << "rfmm = " << rfmm << "\n    "
             << "[" << (rfmm - rexact[0]) << "]" << std::endl;
 }

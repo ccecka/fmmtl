@@ -16,13 +16,9 @@ int main() {
   for (double n = 4; n <= 7; n += 0.125) {
     int N = int(pow(10,n));
 
-    std::vector<source_type> points(N);
-    for (unsigned k = 0; k < points.size(); ++k)
-      points[k] = fmmtl::random<source_type>::get();
+    std::vector<source_type> points = fmmtl::random_n(N);
 
-    std::vector<charge_type> charges(N);
-    for (unsigned k = 0; k < charges.size(); ++k)
-      charges[k] = fmmtl::random<charge_type>::get();
+    std::vector<charge_type> charges = fmmtl::random_n(N);
 
     // Initialize matrix
     fmmtl::kernel_matrix<expansion_type> A = K(points, points);

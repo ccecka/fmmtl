@@ -10,7 +10,8 @@
 
 #include "fmmtl/config.hpp"
 
-#define for_i for(std::size_t i = 0; i != N; ++i)
+#define for_i    for(std::size_t i = 0; i != N; ++i)
+#define for_I(K) for(std::size_t i = K; i != N; ++i)
 
 /** @class Vec
  * @brief Class representing ND points and vectors.
@@ -33,25 +34,29 @@ struct Vec {
 
   // TODO: require zero-initialization?
   FMMTL_INLINE Vec() {
-    std::fill(this->begin(), this->end(), value_type());
+    for_i elem[i] = T(0);
+    //std::fill(this->begin(), this->end(), value_type());
   }
   // TODO: Force 0-initialization to get POD and trivial semantics?
   //FMMTL_INLINE Vec() = default;
   FMMTL_INLINE explicit Vec(const value_type& b) {
-    std::fill(this->begin(), this->end(), b);
+    for_i elem[i] = b;
+    //std::fill(this->begin(), this->end(), b);
   }
   FMMTL_INLINE Vec(const value_type& b0,
                    const value_type& b1) {
     FMMTL_STATIC_ASSERT(N >= 2, "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1;
-    std::fill(this->begin() + 2, this->end(), value_type());
+    for_I(2) elem[i] = T(0);
+    //std::fill(this->begin() + 2, this->end(), value_type());
   }
   FMMTL_INLINE Vec(const value_type& b0,
                    const value_type& b1,
                    const value_type& b2) {
     FMMTL_STATIC_ASSERT(N >= 3,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2;
-    std::fill(this->begin() + 3, this->end(), value_type());
+    for_I(3) elem[i] = T(0);
+    //std::fill(this->begin() + 3, this->end(), value_type());
   }
   FMMTL_INLINE Vec(const value_type& b0,
                    const value_type& b1,
@@ -59,17 +64,27 @@ struct Vec {
                    const value_type& b3) {
     FMMTL_STATIC_ASSERT(N >= 4,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2; elem[3] = b3;
-    std::fill(this->begin() + 4, this->end(), value_type());
+    for_I(4) elem[i] = T(0);
+    //std::fill(this->begin() + 4, this->end(), value_type());
   }
   template <typename U>
   FMMTL_INLINE explicit Vec(const Vec<N,U>& v) {
-    std::copy(v.begin(), v.end(), this->begin());
+    for_i elem[i] = v[i];
+    //std::copy(v.begin(), v.end(), this->begin());
   }
   /*
   template <typename Generator>
   FMMTL_INLINE explicit Vec(const Generator& gen) {
     for_i elem[i] = gen(i);
   }
+<<<<<<< HEAD
+  /*
+  template <typename Generator>
+  FMMTL_INLINE explicit Vec(const Generator& gen) {
+    for_i elem[i] = gen(i);
+  }
+=======
+>>>>>>> 965550a407e791e2672ff1f51f71ddc82903e3c7
   */
   template <typename U, typename OP>
   FMMTL_INLINE explicit Vec(const Vec<N,U>& v, OP op) {
@@ -91,7 +106,9 @@ struct Vec {
   // COMPARATORS
 
   FMMTL_INLINE bool operator==(const Vec& b) const {
-    return std::equal(this->begin(), this->end(), b.begin());
+    for_i { if (!(elem[i] == b[i])) return false; }
+    return true;
+    //return std::equal(this->begin(), this->end(), b.begin());
   }
   FMMTL_INLINE bool operator!=(const Vec& b) const {
     return !(*this == b);

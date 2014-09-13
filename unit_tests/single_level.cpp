@@ -35,21 +35,21 @@ void single_level_test(const Expansion& K) {
   // init results vectors for exact, FMM
   std::vector<result_type> rexact(1);
   rexact[0] = result_type(0);
-  result_type rm2p = result_type(0);
+  result_type rm2t = result_type(0);
   result_type rfmm = result_type(0);
 
   // test direct
-  Direct::matvec(K, s, c, t, rexact);
+  fmmtl::direct(K, s, c, t, rexact);
 
   // setup initial multipole expansion
   multipole_type M;
   point_type M_center(0.1, 0.1, 0.1);
   point_type M_extent(0.2, 0.2, 0.2);
   INITM::apply(K, M, M_extent, 1u);
-  K.S2M(s[0], c[0], M_center, M);
+  S2M::apply(K, s[0], c[0], M_center, M);
 
   // test M2T
-  //K.M2T(M, M_center, t[0], rm2p);
+  M2T::apply(K, M, M_center, t[0], rm2t);
 
   // test M2L, L2T
   local_type L;
@@ -58,13 +58,13 @@ void single_level_test(const Expansion& K) {
   auto d = L_center - M_center;
   printf("DIST: (%lg, %lg, %lg) : %lg\n", d[0], d[1], d[2], norm_2(d));
   INITL::apply(K, L, L_extent, 1u);
-  K.M2L(M, L, L_center - M_center);
-  K.L2T(L, L_center, t[0], rfmm);
+  M2L::apply(K, M, L, L_center - M_center);
+  L2T::apply(K, L, L_center, t[0], rfmm);
 
   // check errors
   std::cout << "rexact = " << rexact[0] << std::endl;
-  std::cout << "rm2p = " << rm2p << "\n    "
-            << "[" << (rm2p - rexact[0]) << "]" << std::endl;
+  std::cout << "rm2t = " << rm2t << "\n    "
+            << "[" << (rm2t - rexact[0]) << "]" << std::endl;
   std::cout << "rfmm = " << rfmm << "\n    "
             << "[" << (rfmm - rexact[0]) << "]" << std::endl;
 }

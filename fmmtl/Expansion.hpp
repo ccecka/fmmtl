@@ -10,15 +10,21 @@
  * At the moment, these may not be fully necessary and are subject to change.
  */
 
-#include "fmmtl/config.hpp"
+#include <utility>
 
-// Protect against Expansions defined within .kern files
+// Protect against C++11 when compiling with nvcc
 #if !defined(FMMTL_KERNEL)
+# include <type_traits>
+# include <boost/range/has_range_iterator.hpp>
 # include "fmmtl/KernelMatrix.hpp"
 #endif
 
-namespace fmmtl
-{
+#include "fmmtl/config.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
+
+
+namespace fmmtl {
+
 
 template <class Kernel, class DerivedExpansion>
 struct Expansion
@@ -35,47 +41,46 @@ struct Expansion
   Expansion(const Kernel& K)
       : Kernel(K) {}
 
+  /** Cast down to the derived expansion */
   expansion_type& expansion() {
     return static_cast<expansion_type&>(*this);
   }
+  /** Cast down to the derived expansion */
   const expansion_type& expansion() const {
     return static_cast<const expansion_type&>(*this);
   }
+  /** Cast up to the base kernel */
   kernel_type& kernel() {
     return static_cast<kernel_type&>(*this);
   }
+  /** Cast up to the base kernel */
   const kernel_type& kernel() const {
     return static_cast<const kernel_type&>(*this);
   }
 
+  /** Make sure the op() is not overridden */
+  using Kernel::operator();
+
 #if !defined(FMMTL_KERNEL)
-  typedef typename kernel_type::target_type target_type;
-  typedef typename kernel_type::source_type source_type;
+  typedef typename KernelTraits<kernel_type>::target_type target_type;
+  typedef typename KernelTraits<kernel_type>::source_type source_type;
 
-  // Sugar that can be improved
-  class KernelMatrixProxy {
-    const expansion_type& E_;
-    const std::vector<target_type>& t_;
-    const std::vector<source_type>& s_;
-
-   public:
-    KernelMatrixProxy(const expansion_type& E,
-                      const std::vector<target_type>& t,
-                      const std::vector<source_type>& s)
-        : E_(E), t_(t), s_(s)  {
-    }
-
-    operator kernel_matrix<expansion_type>() {
-      if (&s_ == &t_)
-        return kernel_matrix<expansion_type>(E_, s_);
-      else
-        return kernel_matrix<expansion_type>(E_, t_, s_);
-    }
-  };
-
-  KernelMatrixProxy operator()(const std::vector<target_type>& t,
-                               const std::vector<source_type>& s) const {
-    return KernelMatrixProxy(expansion(), t, s);
+  // Range constructor
+  // Creates a kernel_matrix from a set of sources and targets
+  template <class TR, class SR>
+  typename std::enable_if<
+    !std::is_same<TR, target_type>::value &&
+    !std::is_same<SR, source_type>::value &&
+    boost::has_range_iterator<TR>::value &&
+    boost::has_range_iterator<SR>::value,
+  kernel_matrix<expansion_type, TR, SR> >::type
+  operator()(const TR& t,
+             const SR& s) const {
+    // TODO: Optimize the kernel matrix on symmetric source/target sets
+    if (&s == &t)
+      return kernel_matrix<expansion_type,TR,SR>(expansion(), t);
+    else
+      return kernel_matrix<expansion_type,TR,SR>(expansion(), t, s);
   }
 #endif
 };

@@ -2,23 +2,35 @@
 ## Library Directories ##
 ########################
 
-# External libraries
-BOOST_DIR = /usr/include
-
-# Optional libraries
-# Only needed if using CUDA
-CUDA_DIR = /usr/local/cuda
-
 # This FMM library
 FMMTL_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 KERNEL_DIR = $(FMMTL_DIR)kernel
+
+# External libraries
+BOOST_DIR = /usr/include
+FLENS_DIR = $(FMMTL_DIR)fmmtl/numeric/FLENS
+
+# Optional libraries
+# Only needed if using CUDA
+CUDA_PATH = /usr/local/cuda
+
 
 ####################
 ## Makefile Setup ##
 ####################
 
-# Get the shell name to determine the OS
-UNAME := $(shell uname)
+# Get the host-name if empty
+ifeq ($(host-name),)
+	host-name := $(shell hostname)
+endif
+# Get the kernel-name if empty
+ifeq ($(kernel-name),)
+	kernel-name := $(shell uname -s)
+endif
+# Get the arch-name is empty
+ifeq ($(arch-name),)
+	arch-name := $(shell uname -p)
+endif
 
 # Define the C++ compiler to use
 CXX := $(shell which g++) -std=c++11
@@ -41,13 +53,13 @@ DEPSFLAGS = -MD -MF $(DEPSFILE) #-MP
 # Define any directories containing header files
 #   To include directories use -Ipath/to/files
 INCLUDES += -I. -I$(FMMTL_DIR) -I$(KERNEL_DIR)
-INCLUDES += -I$(BOOST_DIR)
+INCLUDES += -I$(BOOST_DIR) -I$(FLENS_DIR)
 
 # Define cxx compile flags
 CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors
 
 # Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
-NVCCFLAGS := --compiler-options "$(CXXFLAGS)" -w -arch=sm_20 -O3 #-Xptxas="-v"
+NVCCFLAGS := -ccbin=g++-4.6 -arch=sm_20 -O3 --compiler-options "$(CXXFLAGS)" #-Xptxas="-v"
 
 # Define any directories containing libraries
 #   To include directories use -Lpath/to/files
@@ -62,27 +74,32 @@ LDLIBS  +=
 ######################
 
 ifeq ($(NDEBUG),1)
-CXXFLAGS += -DFMMTL_NDEBUG
+	CXXFLAGS += -DFMMTL_NDEBUG
 endif
 ifeq ($(DEBUG),1)
-CXXFLAGS += -DFMMTL_DEBUG -g -fno-inline
+	CXXFLAGS += -DFMMTL_DEBUG -g -fno-inline
 endif
 ifeq ($(PROFILE),1)
-CXXFLAGS += -g -pg
+	CXXFLAGS += -g -pg
 endif
 ifeq ($(LOG),1)
-CXXFLAGS += -DFMMTL_LOGGING
+	CXXFLAGS += -DFMMTL_LOGGING
 endif
 ifeq ($(NO_CUDA),1)
-NVCC :=
+	NVCC :=
 endif
 # Set up for CUDA if available
 ifeq ($(NVCC),)    # NVCC is not available
 else               # NVCC is available
-CXXFLAGS += -DFMMTL_WITH_CUDA
-INCLUDES += -I$(CUDA_DIR)/include
-LDFLAGS  += -L$(CUDA_DIR)/lib64
-LDLIBS   += -lcudart
+	CXXFLAGS += -DFMMTL_WITH_CUDA
+	INCLUDES += -I$(CUDA_PATH)/include
+	# Use cuda lib64 if it exists, else cuda lib
+	ifneq ($(wildcard $(CUDA_PATH)/lib64/.*),)
+		LDFLAGS += -L$(CUDA_PATH)/lib64
+	else
+		LDFLAGS += -L$(CUDA_PATH)/lib
+	endif
+	LDLIBS += -lcudart
 endif
 
 ####################
@@ -111,7 +128,7 @@ $(EXEC): % : %.o
 %.o: %.cu
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
 	@$(NVCC) $(NVCCFLAGS) $(INCLUDES) -M -o $(DEPSFILE) $<
-	@sed -i "1s,.*.o,$@," $(DEPSFILE)  # Fix dep file file.o -> /path/file.o
+	@sed -i -e "1s,.*.o,$@," $(DEPSFILE)       # Fix dep file file.o -> /path/file.o
 
 # Default rule for creating a .o file from a .kern.cpp file
 %.o: %.kern.cpp
@@ -121,7 +138,7 @@ $(EXEC): % : %.o
 %.o: %.kern.cu
 	$(NVCC) -DFMMTL_KERNEL $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
 	@$(NVCC) -DFMMTL_KERNEL $(NVCCFLAGS) $(INCLUDES) -M -o $(DEPSFILE) $<
-	@sed -i "1s,.*.kern.o,$@," $(DEPSFILE)  # Fix dep file file.o -> /path/file.o
+	@sed -i -e "1s,.*.kern.o,$@," $(DEPSFILE)  # Fix dep file file.o -> /path/file.o
 
 # Default rule for creating a .o file from a .kern file
 %.o: %.kern

@@ -10,9 +10,6 @@ include ../Makefile.inc
 ## A kernel dependency should be listed if a full kernel-matrix vector product
 ## is executed with that kernel
 
-compiles:         $(KERNEL_DIR)/KernelSkeleton.o
-
-correctness:      $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
-dual_correctness: $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
-
-test_s2t:         $(KERNEL_DIR)/Laplace.o #$(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
+plr:      LDLIBS += -llapack
+plr_test: LDLIBS += -llapack
+svd_test: LDLIBS += -llapack

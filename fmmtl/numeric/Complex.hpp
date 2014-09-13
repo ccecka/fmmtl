@@ -1,6 +1,7 @@
 #pragma once
 /*
- *  Copyright 2008-2009 NVIDIA Corporation
+ *  Copyright 2008-2013 NVIDIA Corporation
+ *  Copyright 2013 Filipe RNC Maia
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,286 +16,795 @@
  *  limitations under the License.
  */
 
-/*
- * Copyright (c) 2010, The Regents of the University of California,
- * through Lawrence Berkeley National Laboratory (subject to receipt of
- * any required approvals from U.S. Dept. of Energy) All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or
- * without modification, are permitted provided that the
- * following conditions are met:
- *
- *     * Redistributions of source code must retain the above
- * copyright notice, this list of conditions and the following
- * disclaimer.
- *
- *     * Redistributions in binary form must reproduce the
- * above copyright notice, this list of conditions and the
- * following disclaimer in the documentation and/or other
- * materials provided with the distribution.
- *
- *     * Neither the name of the University of California,
- * Berkeley, nor the names of its contributors may be used to
- * endorse or promote products derived from this software
- * without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
- * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
+/*! \file complex.h
+ *  \brief Complex numbers
  */
 
-/*! \file complex.h
- *  \brief Complex numbers that work on host (CPU) and device (GPU)
- */
+#include <cmath>
+#include <complex>
+#include <sstream>
 
 #include "fmmtl/config.hpp"
 
-#include <complex>
-#include <cmath>
+namespace fmmtl {
 
-#if (defined THRUST_DEVICE_BACKEND && THRUST_DEVICE_BACKEND == THRUST_DEVICE_BACKEND_CUDA) || (defined THRUST_DEVICE_SYSTEM && THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA)
+/*! \p complex is equivalent to <tt>std::complex</tt>. It is functionally
+ *  equivalent to it, but can also be used in device code which <tt>std::complex</tt> currently cannot.
+ *
+ *  \tparam T The type used to hold the real and imaginary parts. Should be <tt>float</tt>
+ *  or <tt>double</tt>. Others types are not supported.
+ *
+ */
+template <typename T>
+struct complex {
+ public:
 
-#ifdef _WIN32
-#define _USE_MATH_DEFINES 1  // make sure M_PI is defined
-#endif
+  /*! \p value_type is the type of \p complex's real and imaginary parts.
+   */
+  typedef T value_type;
 
-#include <cuComplex.h>
-#include <sstream>
+  /* --- Constructors --- */
 
-// We need this to make sure code that calls sqrt() using real numbers
-// doesn't try to call the complex sqrt, but the standard sqrt
-namespace fmmtl
-{
-template <typename ValueType>
-__host__ __device__
-inline ValueType cos(ValueType x){
-  return std::cos(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType sin(ValueType x){
-  return std::sin(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType tan(ValueType x){
-  return std::tan(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType acos(ValueType x){
-  return std::acos(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType asin(ValueType x){
-  return std::asin(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType atan(ValueType x){
-  return std::atan(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType atan2(ValueType x,ValueType y){
-  return std::atan2(x,y);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType cosh(ValueType x){
-  return std::cosh(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType sinh(ValueType x){
-  return std::sinh(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType tanh(ValueType x){
-  return std::tanh(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType exp(ValueType x){
-  return std::exp(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType log(ValueType x){
-  return std::log(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType log10(ValueType x){
-  return std::log10(x);
-}
-template <typename ValueType, typename ExponentType>
-__host__ __device__
-inline ValueType pow(ValueType x, ExponentType e){
-  return std::pow(x,e);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType sqrt(ValueType x){
-  return std::sqrt(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType abs(ValueType x){
-  return std::abs(x);
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType conj(ValueType x){
-  return x;
-}
-}
+  /*! Construct a complex number from its real and imaginary parts.
+   *
+   *  \param re The real part of the number.
+   *  \param im The imaginary part of the number.
+   */
+  FMMTL_INLINE
+  complex(const T& re = T(), const T& im = T()) {
+    real(re); imag(im);
+  }
 
-namespace fmmtl
-{
-// Declare fmmtl::complex
-template <typename ValueType> struct complex;
-template <> struct complex<float>;
-template <> struct complex<double>;
+  /*! This copy constructor copies from a \p complex with a type that
+   *  is convertible to this \p complex \c value_type.
+   *
+   *  \param z The \p complex to copy from.
+   *
+   *  \tparam X is convertible to \c value_type.
+   */
+  template <typename X>
+  FMMTL_INLINE
+  complex(const complex<X>& z) {
+    real(static_cast<T>(z.real())); imag(static_cast<T>(z.imag()));
+  }
 
-///  Returns the magnitude of z.
-template<typename ValueType> ValueType abs(const complex<ValueType>& z);
-///  Returns the phase angle of z.
-template<typename ValueType> ValueType arg(const complex<ValueType>& z);
-///  Returns the magnitude of z squared.
-template<typename ValueType> ValueType norm(const complex<ValueType>& z);
-// Simple operators
-template<typename ValueType> ValueType real(const complex<ValueType>& z);
-template<typename ValueType> ValueType imag(const complex<ValueType>& z);
+  /*! This copy constructor copies from a <tt>std::complex</tt> with a type that
+   *  is convertible to this \p complex \c value_type.
+   *
+   *  \param z The \p complex to copy from.
+   *
+   *  \tparam X is convertible to \c value_type.
+   */
+  template <typename X>
+  FMMTL_INLINE
+  complex(const std::complex<X>& z) {
+    real(static_cast<T>(z.real())); imag(static_cast<T>(z.imag()));
+  }
 
-///  Returns the complex conjugate of z.
-template<typename ValueType> complex<ValueType> conj(const complex<ValueType>& z);
-///  Returns the complex with magnitude m and angle theta in radians.
-template<typename ValueType> complex<ValueType> polar(const ValueType& m, const ValueType& theta = 0);
+  /* --- Compound Assignment Operators --- */
 
-// Arithmetic operators:
-// Multiplication
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator*(const complex<ValueType>& lhs, const complex<ValueType>& rhs);
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator*(const complex<ValueType>& lhs, const ValueType & rhs);
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator*(const ValueType& lhs, const complex<ValueType>& rhs);
-// Division
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator/(const complex<ValueType>& lhs, const complex<ValueType>& rhs);
-template <>
-__host__ __device__
-inline complex<float> operator/(const complex<float>& lhs, const complex<float>& rhs);
-template <>
-__host__ __device__
-inline complex<double> operator/(const complex<double>& lhs, const complex<double>& rhs);
+  /*! Adds a \p complex to this \p complex and
+   *  assigns the result to this \p complex.
+   *
+   *  \param z The \p complex to be Added.
+   */
+  FMMTL_INLINE
+  complex<T>& operator+=(const complex<T>& z) {
+    real(real()+z.real());
+    imag(imag()+z.imag());
+    return *this;
+  }
 
-// Addition
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const complex<ValueType>& lhs, const complex<ValueType>& rhs);
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const complex<ValueType>& lhs, const ValueType & rhs);
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const ValueType& lhs, const complex<ValueType>& rhs);
-// Subtraction
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const complex<ValueType>& lhs, const complex<ValueType>& rhs);
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const complex<ValueType>& lhs, const ValueType & rhs);
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const ValueType& lhs, const complex<ValueType>& rhs);
+  /*! Subtracts a \p complex from this \p complex and
+   *  assigns the result to this \p complex.
+   *
+   *  \param z The \p complex to be subtracted.
+   */
+  FMMTL_INLINE
+  complex<T>& operator-=(const complex<T>& z) {
+    real(real()-z.real());
+    imag(imag()-z.imag());
+    return *this;
+  }
 
-// Unary plus and minus
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const complex<ValueType>& rhs);
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const complex<ValueType>& rhs);
+  /*! Multiplies this \p complex by another \p complex and
+   *  assigns the result to this \p complex.
+   *
+   *  \param z The \p complex to be multiplied.
+   */
+  FMMTL_INLINE
+  complex<T>& operator*=(const complex<T>& z) {
+    return *this = *this * z;
+  }
 
-// Transcendentals:
-// Returns the complex cosine of z.
-template<typename ValueType> complex<ValueType> cos(const complex<ValueType>& z);
-// Returns the complex hyperbolic cosine of z.
-template<typename ValueType> complex<ValueType> cosh(const complex<ValueType>& z);
-// Returns the complex base e exponential of z.
-template<typename ValueType> complex<ValueType> exp(const complex<ValueType>& z);
-// Returns the complex natural logarithm of z.
-template<typename ValueType> complex<ValueType> log(const complex<ValueType>& z);
-// Returns the complex base 10 logarithm of z.
-template<typename ValueType> complex<ValueType> log10(const complex<ValueType>& z);
-// Returns z to the n'th power.
-template<typename ValueType> complex<ValueType> pow(const complex<ValueType>& z, const int& n);
-// Returns z to the x'th power.
-template<typename ValueType> complex<ValueType> pow(const complex<ValueType>&z, const ValueType&x);
-// Returns z to the z2'th power.
-template<typename ValueType> complex<ValueType> pow(const complex<ValueType>&z,
-                                                    const complex<ValueType>&z2);
-// Returns x to the z'th power.
-template<typename ValueType> complex<ValueType> pow(const ValueType& x, const complex<ValueType>& z);
-// Returns the complex sine of z.
-template<typename ValueType> complex<ValueType> sin(const complex<ValueType>&z);
-// Returns the complex hyperbolic sine of z.
-template<typename ValueType> complex<ValueType> sinh(const complex<ValueType>&z);
-// Returns the complex square root of z.
-template<typename ValueType> complex<ValueType> sqrt(const complex<ValueType>&z);
-// Returns the complex tangent of z.
-template<typename ValueType> complex<ValueType> tan(const complex<ValueType>&z);
-// Returns the complex hyperbolic tangent of z.
-template<typename ValueType> complex<ValueType> tanh(const complex<ValueType>&z);
+  /*! Divides this \p complex by another \p complex and
+   *  assigns the result to this \p complex.
+   *
+   *  \param z The \p complex to be divided.
+   */
+  FMMTL_INLINE
+  complex<T>& operator/=(const complex<T> z) {
+    return *this = *this / z;
+  }
 
-// Inverse Trigonometric:
-// Returns the complex arc cosine of z.
-template<typename ValueType> complex<ValueType> acos(const complex<ValueType>& z);
-// Returns the complex arc sine of z.
-template<typename ValueType> complex<ValueType> asin(const complex<ValueType>& z);
-// Returns the complex arc tangent of z.
-template<typename ValueType> complex<ValueType> atan(const complex<ValueType>& z);
-// Returns the complex hyperbolic arc cosine of z.
-template<typename ValueType> complex<ValueType> acosh(const complex<ValueType>& z);
-// Returns the complex hyperbolic arc sine of z.
-template<typename ValueType> complex<ValueType> asinh(const complex<ValueType>& z);
-// Returns the complex hyperbolic arc tangent of z.
-template<typename ValueType> complex<ValueType> atanh(const complex<ValueType>& z);
+  /* --- Getter functions ---
+   * The volatile ones are there to help for example
+   * with certain reductions optimizations
+   */
 
-// Stream operators
-template<typename ValueType,class charT, class traits>
-std::basic_ostream<charT, traits>& operator<<(std::basic_ostream<charT, traits>& os, const complex<ValueType>& z)
-{
-  os << '(' << z.real() << ',' << z.imag() << ')';
-  return os;
+  /*! Returns the real part of this \p complex.
+   */
+  FMMTL_INLINE const T& real() const volatile { return m_data[0]; }
+
+  /*! Returns the imaginary part of this \p complex.
+   */
+  FMMTL_INLINE const T& imag() const volatile { return m_data[1]; }
+
+  /*! Returns the real part of this \p complex.
+   */
+  FMMTL_INLINE const T& real() const { return m_data[0]; }
+
+  /*! Returns the imaginary part of this \p complex.
+   */
+  FMMTL_INLINE const T& imag() const { return m_data[1]; }
+
+  /* --- Setter functions ---
+   * The volatile ones are there to help for example
+   * with certain reductions optimizations
+   */
+
+  /*! Sets the real part of this \p complex.
+   *
+   *  \param re The new real part of this \p complex.
+   */
+  FMMTL_INLINE void real(const T& re) volatile { m_data[0] = re; }
+
+  /*! Sets the imaginary part of this \p complex.
+   *
+   *  \param im The new imaginary part of this \p complex.e
+   */
+  FMMTL_INLINE void imag(const T& im) volatile { m_data[1] = im; }
+
+  /*! Sets the real part of this \p complex.
+   *
+   *  \param re The new real part of this \p complex.
+   */
+  FMMTL_INLINE void real(const T& re) { m_data[0] = re; }
+
+  /*! Sets the imaginary part of this \p complex.
+   *
+   *  \param im The new imaginary part of this \p complex.
+   */
+  FMMTL_INLINE void imag(const T& im) { m_data[1] = im; }
+
+  /* --- Casting functions --- */
+
+  /*! Casts this \p complex to a <tt>std::complex</tt> of the same type.
+   */
+  inline operator std::complex<T>() const {
+    return std::complex<T>(real(),imag());
+  }
+
+ private:
+  T m_data[2];
 };
 
-template<typename ValueType, typename charT, class traits>
-std::basic_istream<charT, traits>&
-operator>>(std::basic_istream<charT, traits>& is, complex<ValueType>& z)
-{
-  ValueType re, im;
+
+/* --- Equality Operators --- */
+
+/*! Returns true if two \p complex numbers are equal and false otherwise.
+ *
+ *  \param lhs The first \p complex.
+ *  \param rhs The second \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+bool operator==(const complex<T>& lhs, const complex<T>& rhs) {
+  return lhs.real() == rhs.real() && lhs.imag() == rhs.imag();
+}
+
+/*! Returns true if the imaginary part of the  \p complex number is zero and the real part is equal to the scalar. Returns false otherwise.
+ *
+ *  \param lhs The scalar.
+ *  \param rhs The \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+bool operator==(const T& lhs, const complex<T>& rhs) {
+  return lhs == rhs.real() && T(0) == rhs.imag();
+}
+
+/*! Returns true if the imaginary part of the  \p complex number is zero and the real part is equal to the scalar. Returns false otherwise.
+ *
+ *  \param lhs The \p complex.
+ *  \param rhs The scalar.
+ */
+template <typename T>
+FMMTL_INLINE
+bool operator==(const complex<T>& lhs, const T& rhs) {
+  return lhs.real() == rhs && lhs.imag() == T(0);
+}
+
+/*! Returns true if two \p complex numbers are different and false otherwise.
+ *
+ *  \param lhs The first \p complex.
+ *  \param rhs The second \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+bool operator!=(const complex<T>& lhs, const complex<T>& rhs) {
+  return !(lhs == rhs);
+}
+
+/*! Returns true if the imaginary part of the  \p complex number is not zero or the real part is different from the scalar. Returns false otherwise.
+ *
+ *  \param lhs The scalar.
+ *  \param rhs The \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+bool operator!=(const T& lhs, const complex<T>& rhs) {
+  return !(lhs == rhs);
+}
+
+/*! Returns true if the imaginary part of the \p complex number is not zero or the real part is different from the scalar. Returns false otherwise.
+ *
+ *  \param lhs The \p complex.
+ *  \param rhs The scalar.
+ */
+template <typename T>
+FMMTL_INLINE
+bool operator!=(const complex<T>& lhs, const T& rhs) {
+  return !(lhs == rhs);
+}
+
+
+/* --- Unary Arithmetic operators --- */
+
+/*! Unary plus, returns its \p complex argument.
+ *
+ *  \param rhs The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+const complex<T>& operator+(const complex<T>& rhs) {
+  return rhs;
+}
+
+/*! Unary minus, returns the additive inverse (negation) of its \p complex argument.
+ *
+ *  \param rhs The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator-(const complex<T>& rhs) {
+  return complex<T>(-rhs.real(), -rhs.imag());
+}
+
+
+/* --- Binary Arithmetic operators --- */
+
+/*! Multiplies two \p complex numbers.
+ *
+ *  \param lhs The first \p complex.
+ *  \param rhs The second \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator*(const complex<T>& lhs, const complex<T>& rhs) {
+  return complex<T>(lhs.real()*rhs.real() - lhs.imag()*rhs.imag(),
+                    lhs.real()*rhs.imag() + lhs.imag()*rhs.real());
+}
+
+/*! Multiplies a \p complex number by a scalar.
+ *
+ *  \param lhs The \p complex.
+ *  \param rhs The scalar.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator*(const complex<T>& lhs, const T& rhs) {
+  return complex<T>(lhs.real()*rhs, lhs.imag()*rhs);
+}
+
+/*! Multiplies a scalr by a \p complex number.
+ *
+ *  \param lhs The scalar.
+ *  \param rhs The \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator*(const T& lhs, const complex<T>& rhs) {
+  return complex<T>(lhs*rhs.real(), lhs*rhs.imag());
+}
+
+/*! Divides two \p complex numbers.
+ *
+ *  \param lhs The numerator (dividend).
+ *  \param rhs The denomimator (divisor).
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator/(const complex<T>& lhs, const complex<T>& rhs) {
+  using std::abs;
+  // XXX: Revisit
+  T s = T(1) / (abs(rhs.real()) + abs(rhs.imag()));
+  T ars = lhs.real() * s;
+  T ais = lhs.imag() * s;
+  T brs = rhs.real() * s;
+  T bis = rhs.imag() * s;
+  s = T(1) / ((brs * brs) + (bis * bis));
+  return complex<T>(((ars * brs) + (ais * bis)) * s,
+                    ((ais * brs) - (ars * bis)) * s);
+}
+
+/*! Divides a \p complex number by a scalar.
+ *
+ *  \param lhs The complex numerator (dividend).
+ *  \param rhs The scalar denomimator (divisor).
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator/(const complex<T>& lhs, const T& rhs) {
+  return complex<T>(lhs.real()/rhs, lhs.imag()/rhs);
+}
+
+/*! Divides a scalar by a \p complex number.
+ *
+ *  \param lhs The scalar numerator (dividend).
+ *  \param rhs The complex denomimator (divisor).
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator/(const T& lhs, const complex<T>& rhs) {
+  using std::abs;
+  // XXX: Revisit
+  T s = T(1) / (abs(rhs.real()) + abs(rhs.imag()));
+  T ars = lhs.real() * s;
+  T brs = rhs.real() * s;
+  T bis = rhs.imag() * s;
+  s = T(1) / ((brs * brs) + (bis * bis));
+  return complex<T>((ars * brs) *  s,
+                    (ars * bis) * -s);
+}
+
+/*! Adds two \p complex numbers.
+ *
+ *  \param lhs The first \p complex.
+ *  \param rhs The second \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator+(const complex<T>& lhs, const complex<T>& rhs) {
+  return complex<T>(lhs.real()+rhs.real(), lhs.imag()+rhs.imag());
+}
+
+/*! Adds a scalar to a \p complex number.
+ *
+ *  \param lhs The \p complex.
+ *  \param rhs The scalar.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator+(const complex<T>& lhs, const T& rhs) {
+  return complex<T>(lhs.real()+rhs, lhs.imag());
+}
+
+/*! Adds a \p complex number to a scalar.
+ *
+ *  \param lhs The scalar.
+ *  \param rhs The \p complex.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator+(const T& lhs, const complex<T>& rhs) {
+  return complex<T>(lhs+rhs.real(), rhs.imag());
+}
+
+/*! Subtracts two \p complex numbers.
+ *
+ *  \param lhs The first \p complex (minuend).
+ *  \param rhs The second \p complex (subtrahend).
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator-(const complex<T>& lhs, const complex<T>& rhs) {
+  return complex<T>(lhs.real()-rhs.real(), lhs.imag()-rhs.imag());
+}
+
+/*! Subtracts a scalar from a \p complex number.
+ *
+ *  \param lhs The \p complex (minuend).
+ *  \param rhs The scalar (subtrahend).
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator-(const complex<T>& lhs, const T& rhs) {
+  return complex<T>(lhs.real()-rhs, lhs.imag());
+}
+
+/*! Subtracts a \p complex number from a scalar.
+ *
+ *  \param lhs The scalar (minuend).
+ *  \param rhs The \p complex (subtrahend).
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> operator-(const T& lhs, const complex<T>& rhs) {
+  return complex<T>(lhs-rhs.real(), -rhs.imag());
+}
+
+
+
+/* --- General Functions --- */
+
+/*! Returns the magnitude (also known as absolute value) of a \p complex.
+ *
+ *  \param z The \p complex from which to calculate the absolute value.
+ */
+template <typename T>
+FMMTL_INLINE
+T abs(const complex<T>& z) {
+  using std::sqrt;
+  return sqrt(norm(z));   // XXX std::hypot on C++11
+}
+
+/*! Returns the phase angle (also known as argument) in radians of a \p complex.
+ *
+ *  \param z The \p complex from which to calculate the phase angle.
+ */
+template <typename T>
+FMMTL_INLINE
+T arg(const complex<T>& z) {
+  using std::atan2;
+  return atan2(z.imag(), z.real());
+}
+
+/*! Returns the square of the magnitude of a \p complex.
+ *
+ *  \param z The \p complex from which to calculate the norm.
+ */
+template <typename T>
+FMMTL_INLINE
+T norm(const complex<T>& z) {
+  // XXX: Under/Overflow?
+  return z.real()*z.real() + z.imag()*z.imag();
+}
+
+/*! Returns the complex conjugate of a \p complex.
+ *
+ *  \param z The \p complex from which to calculate the complex conjugate.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> conj(const complex<T>& z) {
+  return complex<T>(z.real(), -z.imag());
+}
+
+/*! Returns a \p complex with the specified magnitude and phase.
+ *
+ *  \param m The magnitude of the returned \p complex.
+ *  \param theta The phase of the returned \p complex in radians.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> polar(const T& m, const T& theta = 0) {
+  using std::cos;
+  using std::sin;
+  return complex<T>(m * cos(theta), m * sin(theta));
+}
+
+/*! Returns the projection of a \p complex on the Riemann sphere.
+ *  For all finite \p complex it returns the argument. For \p complexs
+ *  with a non finite part returns (INFINITY,+/-0) where the sign of
+ *  the zero matches the sign of the imaginary part of the argument.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> proj(const T& z);
+
+
+/* --- Exponential Functions --- */
+
+/*! Returns the complex exponential of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> exp(const complex<T>& z) {
+  // XXX: Under/Overflow
+  using std::exp;
+  return polar(exp(z.real()), z.imag());
+}
+
+/*! Returns the complex natural logarithm of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> log(const complex<T>& z) {
+  using std::log;
+  return complex<T>(log(abs(z)), arg(z));
+}
+
+/*! Returns the complex base 10 logarithm of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> log10(const complex<T>& z) {
+  return log(z) / T(2.30258509299404568402);
+}
+
+
+/* --- Power Functions --- */
+
+/*! Returns a \p complex number raised to another.
+ *
+ *  \param x The base.
+ *  \param y The exponent.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> pow(const complex<T>& x, const complex<T>& y) {
+  return exp(log(x) * y);
+}
+
+/*! Returns a \p complex number raised to a scalar.
+ *
+ *  \param x The \p complex base.
+ *  \param y The scalar exponent.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> pow(const complex<T>& x, const T& y) {
+  return exp(log(x) * y);
+}
+
+/*! Returns a scalar raised to a \p complex number.
+ *
+ *  \param x The scalar base.
+ *  \param y The \p complex exponent.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> pow(const T& x, const complex<T>& y) {
+  using std::log;
+  return exp(log(x) * y);
+}
+
+/*! Returns the complex square root of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> sqrt(const complex<T>& z) {
+  using std::sqrt;
+  return polar(sqrt(abs(z)), arg(z)/T(2));
+}
+
+
+/* --- Trigonometric Functions --- */
+
+/*! Returns the complex cosine of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> cos(const complex<T>& z) {
+  using std::sin; using std::sinh;
+  using std::cos; using std::cosh;
+  return complex<T>( cos(z.real()) * cosh(z.imag()),
+                    -sin(z.real()) * sinh(z.imag()));
+}
+
+/*! Returns the complex sine of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> sin(const complex<T>& z) {
+  using std::sin; using std::sinh;
+  using std::cos; using std::cosh;
+  return complex<T>(sin(z.real()) * cosh(z.imag()),
+                    cos(z.real()) * sinh(z.imag()));
+}
+
+/*! Returns the complex tangent of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> tan(const complex<T>& z) {
+  return sin(z) / cos(z);
+}
+
+
+/* --- Hyperbolic Functions --- */
+
+/*! Returns the complex hyperbolic cosine of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> cosh(const complex<T>& z) {
+  using std::sin; using std::sinh;
+  using std::cos; using std::cosh;
+  return complex<T>(cosh(z.real()) * cos(z.imag()),
+                    sinh(z.real()) * sin(z.imag()));
+}
+
+/*! Returns the complex hyperbolic sine of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> sinh(const complex<T>& z) {
+  using std::sin; using std::sinh;
+  using std::cos; using std::cosh;
+  return complex<T>(sinh(z.real()) * cos(z.imag()),
+                    cosh(z.real()) * sin(z.imag()));
+}
+
+/*! Returns the complex hyperbolic tangent of a \p complex number.
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> tanh(const complex<T>& z) {
+  const complex<T> r = exp(T(2) * z);
+  return (r - T(1)) / (r + T(1));
+}
+
+
+/* --- Inverse Trigonometric Functions --- */
+
+/*! Returns the complex arc cosine of a \p complex number.
+ *
+ *  The range of the real part of the result is [0, Pi] and
+ *  the range of the imaginary part is [-inf, +inf]
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> acos(const complex<T>& z) {
+  const complex<T> ret = asin(z);
+  const T pi_half = T(3.1415926535897932384626433832795) / T(2);
+  return complex<T>(pi_half - ret.real(), -ret.imag());
+}
+
+/*! Returns the complex arc sine of a \p complex number.
+ *
+ *  The range of the real part of the result is [-Pi/2, Pi/2] and
+ *  the range of the imaginary part is [-inf, +inf]
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> asin(const complex<T>& z) {
+  // asin(z) = -i*asinh(i*z)
+  const complex<T> ret = asinh(complex<T>(-z.imag(), z.real()));
+  return complex<T>(ret.imag(), -ret.real());
+}
+
+/*! Returns the complex arc tangent of a \p complex number.
+ *
+ *  The range of the real part of the result is [-Pi/2, Pi/2] and
+ *  the range of the imaginary part is [-inf, +inf]
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> atan(const complex<T>& z) {
+  // asin(z) = -i*atanh(i*z)
+  const complex<T> ret = atanh(complex<T>(-z.imag(), z.real()));
+  return complex<T>(ret.imag(), -ret.real());
+}
+
+
+/* --- Inverse Hyperbolic Functions --- */
+
+/*! Returns the complex inverse hyperbolic cosine of a \p complex number.
+ *
+ *  The range of the real part of the result is [0, +inf] and
+ *  the range of the imaginary part is [-Pi, Pi]
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> acosh(const complex<T>& z) {
+  complex<T> ret((z.real()-z.imag()) * (z.real()+z.imag()) - T(1),
+                 T(2) * z.real() * z.imag());
+  ret = sqrt(ret);
+  if (z.real() < T(0))
+    ret = -ret;
+  ret += z;
+  ret = log(ret);
+  if (ret.real() < T(0))
+    ret = -ret;
+  return ret;
+}
+
+/*! Returns the complex inverse hyperbolic sine of a \p complex number.
+ *
+ *  The range of the real part of the result is [-inf, +inf] and
+ *  the range of the imaginary part is [-Pi/2, Pi/2]
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> asinh(const complex<T>& z) {
+  return log(sqrt(z*z+T(1.0))+z);
+}
+
+/*! Returns the complex inverse hyperbolic tangent of a \p complex number.
+ *
+ *  The range of the real part of the result is [-inf, +inf] and
+ *  the range of the imaginary part is [-Pi/2, Pi/2]
+ *
+ *  \param z The \p complex argument.
+ */
+template <typename T>
+FMMTL_INLINE
+complex<T> atanh(const complex<T>& z) {
+  T imag2 = z.imag()*z.imag();
+  T n = T(1) + z.real();
+  n = imag2 + n*n;
+
+  T d = T(1) - z.real();
+  d = imag2 + d*d;
+  d = T(1) - z.real()*z.real() - imag2;
+  using std::log;
+  using std::atan2;
+  return complex<T>(T(0.25)*(log(n) - log(d)), T(0.5)*atan2(T(2)*z.imag(),d));
+}
+
+
+/* --- Stream Operators --- */
+
+/*! Writes to an output stream a \p complex number in the form (real,imaginary).
+ *
+ *  \param os The output stream.
+ *  \param z The \p complex number to output.
+ */
+template <typename T, class charT, class traits>
+std::basic_ostream<charT,traits>&
+operator<<(std::basic_ostream<charT,traits>& os, const complex<T>& z) {
+  return os << '(' << z.real() << ',' << z.imag() << ')';
+}
+
+/*! Reads a \p complex number from an input stream.
+ *  The recognized formats are:
+ * - real
+ * - (real)
+ * - (real, imaginary)
+ *
+ * The values read must be convertible to the \p complex's \c value_type
+ *
+ *  \param is The input stream.
+ *  \param z The \p complex number to set.
+ */
+template <typename T, typename charT, class traits>
+std::basic_istream<charT,traits>&
+operator>>(std::basic_istream<charT,traits>& is, complex<T>& z) {
+  T re, im;
 
   charT ch;
   is >> ch;
@@ -304,10 +814,10 @@ operator>>(std::basic_istream<charT, traits>& is, complex<ValueType>& z)
     if (ch == ',') {
       is >> im >> ch;
       if (ch == ')') {
-        z = complex<ValueType>(re, im);
-      } else {
-        is.setstate(std::ios_base::failbit);
-      }
+	      z = complex<T>(re, im);
+	    } else {
+	      is.setstate(std::ios_base::failbit);
+	    }
     } else if (ch == ')') {
       z = re;
     } else {
@@ -321,837 +831,4 @@ operator>>(std::basic_istream<charT, traits>& is, complex<ValueType>& z)
   return is;
 }
 
-template <typename ValueType>
-struct complex
-{
- public:
-  typedef ValueType value_type;
-
-  // Constructors
-  __host__ __device__
-  inline complex<ValueType>(const ValueType & re = ValueType(), const ValueType& im = ValueType())
-  {
-    real(re);
-    imag(im);
-  }
-
-  template <class X>
-  __host__ __device__
-  inline complex<ValueType>(const complex<X> & z)
-  {
-    real(z.real());
-    imag(z.imag());
-  }
-
-  template <class X>
-  __host__ __device__
-  inline complex<ValueType>(const std::complex<X> & z)
-  {
-    real(z.real());
-    imag(z.imag());
-  }
-
-  template <typename T>
-  __host__ __device__
-  inline complex<ValueType>& operator=(const complex<T> z)
-  {
-    real(z.real());
-    imag(z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<ValueType>& operator+=(const complex<ValueType> z)
-  {
-    real(real()+z.real());
-    imag(imag()+z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<ValueType>& operator-=(const complex<ValueType> z)
-  {
-    real(real()-z.real());
-    imag(imag()-z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<ValueType>& operator*=(const complex<ValueType> z)
-  {
-    *this = *this * z;
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<ValueType>& operator/=(const complex<ValueType> z)
-  {
-    *this = *this / z;
-    return *this;
-  }
-
-  __host__ __device__ inline ValueType real() const volatile;
-  __host__ __device__ inline ValueType imag() const volatile;
-  __host__ __device__ inline ValueType real() const;
-  __host__ __device__ inline ValueType imag() const;
-  __host__ __device__ inline void real(ValueType) volatile;
-  __host__ __device__ inline void imag(ValueType) volatile;
-  __host__ __device__ inline void real(ValueType);
-  __host__ __device__ inline void imag(ValueType);
-};
-
-// TODO make cuFloatComplex and cuDoubleComplex protected
-// TODO see if returning references is a perf hazard
-
-template<>
-struct complex <float> : public cuFloatComplex
-{
- public:
-  typedef float value_type;
-  __host__ __device__
-  inline  complex<float>(){};
-  __host__ __device__
-  inline  complex<float>(const float & re, const float& im = float())
-  {
-    real(re);
-    imag(im);
-  }
-
-  // For some reason having the following constructor
-  // explicitly makes things faster with at least g++
-  __host__ __device__
-  complex<float>(const complex<float> & z){
-    //    : cuFloatComplex(z){
-    real(z.real());
-    imag(z.imag());
-  }
-
-  __host__ __device__
-  complex<float>(cuFloatComplex z){
-    //    : cuFloatComplex(z){
-    real(z.x);
-    imag(z.y);
-  }
-
-  template <class X>
-  inline complex<float>(const std::complex<X> & z)
-  {
-    real(z.real());
-    imag(z.imag());
-  }
-
-  // Member operators
-  template <typename T>
-  __host__ __device__
-  inline volatile complex<float>& operator=(const complex<T> z) volatile
-  {
-    real(z.real());
-    imag(z.imag());
-    return *this;
-  }
-
-  template <typename T>
-  __host__ __device__
-  inline complex<float>& operator=(const complex<T> z)
-  {
-    real(z.real());
-    imag(z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<float>& operator+=(const complex<float> z)
-  {
-    real(real()+z.real());
-    imag(imag()+z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<float>& operator-=(const complex<float> z)
-  {
-    real(real()-z.real());
-    imag(imag()-z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<float>& operator*=(const complex<float> z)
-  {
-    *this = *this * z;
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<float>& operator/=(const complex<float> z)
-  {
-    *this = *this / z;
-    return *this;
-  }
-
-  // Let the compiler synthesize the copy and assignment operators.
-  __host__ __device__ inline complex<float>(const volatile complex<float> & z)
-  {
-    real(z.real());
-    imag(z.imag());
-  }
-
-  __host__ __device__ inline float real() const volatile{ return x; }
-  __host__ __device__ inline float imag() const volatile{ return y; }
-  __host__ __device__ inline float real() const{ return x; }
-  __host__ __device__ inline float imag() const{ return y; }
-  __host__ __device__ inline void real(float re)volatile{ x = re; }
-  __host__ __device__ inline void imag(float im)volatile{ y = im; }
-  __host__ __device__ inline void real(float re){ x = re; }
-  __host__ __device__ inline void imag(float im){ y = im; }
-
-  // cast operators
-  inline operator std::complex<float>() const { return std::complex<float>(real(),imag()); }
-  //  inline operator float() const { return real(); }
-};
-
-template<>
-struct complex <double> : public cuDoubleComplex
-{
- public:
-  typedef double value_type;
-  __host__ __device__
-  inline  complex<double>(){};
-  __host__ __device__
-  inline complex<double>(const double & re, const double& im = double())
-  {
-    real(re);
-    imag(im);
-  }
-
-  // For some reason having the following constructor
-  // explicitly makes things faster with at least g++
-  __host__ __device__
-  inline complex<double>(const complex<double> & z){
-    //    : cuDoubleComplex(z) {
-    real(z.real());
-    imag(z.imag());
-  }
-
-  __host__ __device__
-  inline complex<double>(cuDoubleComplex z){
-    //    : cuDoubleComplex(z) {
-    real(z.x);
-    imag(z.y);
-  }
-
-  template <class X>
-  inline complex<double>(const std::complex<X> & z)
-  {
-    real(z.real());
-    imag(z.imag());
-  }
-
-  // Member operators
-  template <typename T>
-  __host__ __device__
-  inline volatile complex<double>& operator=(const complex<T> z) volatile
-  {
-    real(z.real());
-    imag(z.imag());
-    return *this;
-  }
-
-  template <typename T>
-  __host__ __device__
-  inline complex<double>& operator=(const complex<T> z)
-  {
-    real(z.real());
-    imag(z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<double>& operator+=(const complex<double> z)
-  {
-    real(real()+z.real());
-    imag(imag()+z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<double>& operator-=(const complex<double> z)
-  {
-    real(real()-z.real());
-    imag(imag()-z.imag());
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<double>& operator*=(const complex<double> z)
-  {
-    *this = *this * z;
-    return *this;
-  }
-
-  __host__ __device__
-  inline complex<double>& operator/=(const complex<double> z)
-  {
-    *this = *this / z;
-    return *this;
-  }
-
-  __host__ __device__ inline complex<double>(const volatile complex<double> & z)
-  {
-    real(z.real());
-    imag(z.imag());
-  }
-
-  // Let the compiler synthesize the copy and assignment operators.
-  __host__ __device__ inline double real() const volatile { return x; }
-  __host__ __device__ inline double imag() const volatile { return y; }
-  __host__ __device__ inline double real() const { return x; }
-  __host__ __device__ inline double imag() const { return y; }
-  __host__ __device__ inline void real(double re)volatile{ x = re; }
-  __host__ __device__ inline void imag(double im)volatile{ y = im; }
-  __host__ __device__ inline void real(double re){ x = re; }
-  __host__ __device__ inline void imag(double im){ y = im; }
-
-  // cast operators
-  inline operator std::complex<double>() const { return std::complex<double>(real(),imag()); }
-  //  inline operator double() { return real(); }
-};
-
-
-
-// Binary arithmetic operations
-// At the moment I'm implementing the basic functions, and the
-// corresponding cuComplex calls are commented.
-
-template<typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const complex<ValueType>& lhs,
-                                    const complex<ValueType>& rhs){
-  return complex<ValueType>(lhs.real()+rhs.real(),lhs.imag()+rhs.imag());
-  //  return cuCaddf(lhs,rhs);
-}
-
-template<typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const volatile complex<ValueType>& lhs,
-                                    const volatile complex<ValueType>& rhs){
-  return complex<ValueType>(lhs.real()+rhs.real(),lhs.imag()+rhs.imag());
-  //  return cuCaddf(lhs,rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const complex<ValueType>& lhs, const ValueType & rhs){
-  return complex<ValueType>(lhs.real()+rhs,lhs.imag());
-  //  return cuCaddf(lhs,complex<ValueType>(rhs));
-}
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const ValueType& lhs, const complex<ValueType>& rhs){
-  return complex<ValueType>(rhs.real()+lhs,rhs.imag());
-  //  return cuCaddf(complex<float>(lhs),rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const complex<ValueType>& lhs, const complex<ValueType>& rhs){
-  return complex<ValueType>(lhs.real()-rhs.real(),lhs.imag()-rhs.imag());
-  //  return cuCsubf(lhs,rhs);
-}
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const complex<ValueType>& lhs, const ValueType & rhs){
-  return complex<ValueType>(lhs.real()-rhs,lhs.imag());
-  //  return cuCsubf(lhs,complex<float>(rhs));
-}
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const ValueType& lhs, const complex<ValueType>& rhs){
-  return complex<ValueType>(lhs-rhs.real(),-rhs.imag());
-  //  return cuCsubf(complex<float>(lhs),rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator*(const complex<ValueType>& lhs,
-                                    const complex<ValueType>& rhs){
-  return complex<ValueType>(lhs.real()*rhs.real()-lhs.imag()*rhs.imag(),
-                            lhs.real()*rhs.imag()+lhs.imag()*rhs.real());
-  //  return cuCmulf(lhs,rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator*(const complex<ValueType>& lhs, const ValueType & rhs){
-  return complex<ValueType>(lhs.real()*rhs,lhs.imag()*rhs);
-  //  return cuCmulf(lhs,complex<float>(rhs));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator*(const ValueType& lhs, const complex<ValueType>& rhs){
-  return complex<ValueType>(rhs.real()*lhs,rhs.imag()*lhs);
-  //  return cuCmulf(complex<float>(lhs),rhs);
-}
-
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator/(const complex<ValueType>& lhs, const complex<ValueType>& rhs){
-  const ValueType cross_norm  =  lhs.real() * rhs.real() + lhs.imag() * rhs.imag();
-  const ValueType rhs_norm = norm(rhs);
-  return complex<ValueType>(cross_norm/rhs_norm,
-                            (lhs.imag() * rhs.real() - lhs.real() * rhs.imag()) / rhs_norm);
-}
-
-template <>
-__host__ __device__
-inline complex<float> operator/(const complex<float>& lhs, const complex<float>& rhs){
-  return cuCdivf(lhs,rhs);
-}
-
-template <>
-__host__ __device__
-inline complex<double> operator/(const complex<double>& lhs, const complex<double>& rhs){
-  return cuCdiv(lhs,rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator/(const complex<ValueType>& lhs, const ValueType & rhs){
-  return complex<ValueType>(lhs.real()/rhs,lhs.imag()/rhs);
-  //  return cuCdivf(lhs,complex<float>(rhs));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator/(const ValueType& lhs, const complex<ValueType>& rhs){
-  const ValueType cross_norm  =  lhs * rhs.real();
-  const ValueType rhs_norm = norm(rhs);
-  return complex<ValueType>(cross_norm/rhs_norm,(-lhs.real() * rhs.imag()) / rhs_norm);
-}
-
-template <>
-__host__ __device__
-inline complex<float> operator/(const float& lhs, const complex<float>& rhs){
-  return cuCdivf(complex<float>(lhs),rhs);
-}
-template <>
-__host__ __device__
-inline complex<double> operator/(const double& lhs, const complex<double>& rhs){
-  return cuCdiv(complex<double>(lhs),rhs);
-}
-
-
-// Unary arithmetic operations
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator+(const complex<ValueType>& rhs){
-  return rhs;
-}
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> operator-(const complex<ValueType>& rhs){
-  return rhs*-ValueType(1);
-}
-
-// Equality operators
-template <typename ValueType>
-__host__ __device__
-inline bool operator==(const complex<ValueType>& lhs, const complex<ValueType>& rhs){
-  if(lhs.real() == rhs.real() && lhs.imag() == rhs.imag()){
-    return true;
-  }
-  return false;
-}
-template <typename ValueType>
-__host__ __device__
-inline bool operator==(const ValueType & lhs, const complex<ValueType>& rhs){
-  if(lhs == rhs.real() && rhs.imag() == 0){
-    return true;
-  }
-  return false;
-}
-template <typename ValueType>
-__host__ __device__
-inline bool operator==(const complex<ValueType> & lhs, const ValueType& rhs){
-  if(lhs.real() == rhs && lhs.imag() == 0){
-    return true;
-  }
-  return false;
-}
-
-template <typename ValueType>
-__host__ __device__
-inline bool operator!=(const complex<ValueType>& lhs, const complex<ValueType>& rhs){
-  return !(lhs == rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline bool operator!=(const ValueType & lhs, const complex<ValueType>& rhs){
-  return !(lhs == rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline bool operator!=(const complex<ValueType> & lhs, const ValueType& rhs){
-  return !(lhs == rhs);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline ValueType real(const complex<ValueType>& z){
-  return z.real();
-}
-template <typename ValueType>
-__host__ __device__
-inline ValueType imag(const complex<ValueType>& z){
-  return z.imag();
-}
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> conj(const complex<ValueType>& z){
-  return complex<ValueType>(z.real(),-z.imag());
-}
-
-template <typename ValueType>
-__host__ __device__
-inline ValueType abs(const complex<ValueType>& z){
-  return ::hypot(z.real(),z.imag());
-}
-template <>
-__host__ __device__
-inline float abs(const complex<float>& z){
-  return ::hypotf(z.real(),z.imag());
-}
-template<>
-__host__ __device__
-inline double abs(const complex<double>& z){
-  return ::hypot(z.real(),z.imag());
-}
-
-template <typename ValueType>
-__host__ __device__
-inline ValueType arg(const complex<ValueType>& z){
-  return atan2(z.imag(),z.real());
-}
-template<>
-__host__ __device__
-inline float arg(const complex<float>& z){
-  return atan2f(z.imag(),z.real());
-}
-template<>
-__host__ __device__
-inline double arg(const complex<double>& z){
-  return atan2(z.imag(),z.real());
-}
-
-template <typename ValueType>
-__host__ __device__
-inline ValueType norm(const complex<ValueType>& z){
-  return z.real()*z.real() + z.imag()*z.imag();
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> polar(const ValueType & m, const ValueType & theta){
-  return complex<ValueType>(m * ::cos(theta),m * ::sin(theta));
-}
-
-template <>
-__host__ __device__
-inline complex<float> polar(const float & magnitude, const float & angle){
-  return complex<float>(magnitude * ::cosf(angle),magnitude * ::sinf(angle));
-}
-
-template <>
-__host__ __device__
-inline complex<double> polar(const double & magnitude, const double & angle){
-  return complex<double>(magnitude * ::cos(angle),magnitude * ::sin(angle));
-}
-
-// Transcendental functions implementation
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> cos(const complex<ValueType>& z){
-  const ValueType re = z.real();
-  const ValueType im = z.imag();
-  return complex<ValueType>(::cos(re) * ::cosh(im), -::sin(re) * ::sinh(im));
-}
-
-template <>
-__host__ __device__
-inline complex<float> cos(const complex<float>& z){
-  const float re = z.real();
-  const float im = z.imag();
-  return complex<float>(cosf(re) * coshf(im), -sinf(re) * sinhf(im));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> cosh(const complex<ValueType>& z){
-  const ValueType re = z.real();
-  const ValueType im = z.imag();
-  return complex<ValueType>(::cosh(re) * ::cos(im), ::sinh(re) * ::sin(im));
-}
-
-template <>
-__host__ __device__
-inline complex<float> cosh(const complex<float>& z){
-  const float re = z.real();
-  const float im = z.imag();
-  return complex<float>(::coshf(re) * ::cosf(im), ::sinhf(re) * ::sinf(im));
-}
-
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> exp(const complex<ValueType>& z){
-  return polar(::exp(z.real()),z.imag());
-}
-
-template <>
-__host__ __device__
-inline complex<float> exp(const complex<float>& z){
-  return polar(::expf(z.real()),z.imag());
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> log(const complex<ValueType>& z){
-  return complex<ValueType>(::log(abs(z)),arg(z));
-}
-
-template <>
-__host__ __device__
-inline complex<float> log(const complex<float>& z){
-  return complex<float>(::logf(abs(z)),arg(z));
-}
-
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> log10(const complex<ValueType>& z){
-  // Using the explicit literal prevents compile time warnings in
-  // devices that don't support doubles
-  return log(z)/ValueType(2.30258509299404568402);
-  //    return log(z)/ValueType(::log(10.0));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> pow(const complex<ValueType>& z, const ValueType & exponent){
-  return exp(log(z)*exponent);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> pow(const complex<ValueType>& z, const complex<ValueType> & exponent){
-  return exp(log(z)*exponent);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> pow(const ValueType & x, const complex<ValueType> & exponent){
-  return exp(::log(x)*exponent);
-}
-
-template <>
-__host__ __device__
-inline complex<float> pow(const float & x, const complex<float> & exponent){
-  return exp(::logf(x)*exponent);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> pow(const complex<ValueType>& z,const int & exponent){
-  return exp(log(z)*ValueType(exponent));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> sin(const complex<ValueType>& z){
-  const ValueType re = z.real();
-  const ValueType im = z.imag();
-  return complex<ValueType>(::sin(re) * ::cosh(im), ::cos(re) * ::sinh(im));
-}
-
-template <>
-__host__ __device__
-inline complex<float> sin(const complex<float>& z){
-  const float re = z.real();
-  const float im = z.imag();
-  return complex<float>(::sinf(re) * ::coshf(im), ::cosf(re) * ::sinhf(im));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> sinh(const complex<ValueType>& z){
-  const ValueType re = z.real();
-  const ValueType im = z.imag();
-  return complex<ValueType>(::sinh(re) * ::cos(im), ::cosh(re) * ::sin(im));
-}
-
-template <>
-__host__ __device__
-inline complex<float> sinh(const complex<float>& z){
-  const float re = z.real();
-  const float im = z.imag();
-  return complex<float>(::sinhf(re) * ::cosf(im), ::coshf(re) * ::sinf(im));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> sqrt(const complex<ValueType>& z){
-  return polar(::sqrt(abs(z)),arg(z)/ValueType(2));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<float> sqrt(const complex<float>& z){
-  return polar(::sqrtf(abs(z)),arg(z)/float(2));
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> tan(const complex<ValueType>& z){
-  return sin(z)/cos(z);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> tanh(const complex<ValueType>& z){
-  // This implementation seems better than the simple sin/cos
-  return (exp(ValueType(2)*z)-ValueType(1))/(exp(ValueType(2)*z)+ValueType(1));
-  //    return sinh(z)/cosh(z);
-}
-
-// Inverse trigonometric functions implementation
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> acos(const complex<ValueType>& z){
-  const complex<ValueType> ret = asin(z);
-  return complex<ValueType>(ValueType(M_PI/2.0) - ret.real(),-ret.imag());
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> asin(const complex<ValueType>& z){
-  const complex<ValueType> i(0,1);
-  return -i*asinh(i*z);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> atan(const complex<ValueType>& z){
-  const complex<ValueType> i(0,1);
-  return -i*atanh(i*z);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> acosh(const complex<ValueType>& z){
-  fmmtl::complex<ValueType> ret((z.real() - z.imag()) * (z.real() + z.imag()) - ValueType(1.0),
-                              ValueType(2.0) * z.real() * z.imag());
-  ret = sqrt(ret);
-  if (z.real() < ValueType(0.0)){
-    ret = -ret;
-  }
-  ret += z;
-  ret = log(ret);
-  if (ret.real() < ValueType(0.0)){
-    ret = -ret;
-  }
-  return ret;
-
-  /*
-    fmmtl::complex<ValueType> ret = log(sqrt(z*z-ValueType(1))+z);
-    if(ret.real() < 0){
-    ret.real(-ret.real());
-    }
-    return ret;
-  */
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> asinh(const complex<ValueType>& z){
-  return log(sqrt(z*z+ValueType(1))+z);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<ValueType> atanh(const complex<ValueType>& z){
-  ValueType imag2 = z.imag() *  z.imag();
-  ValueType n = ValueType(1.0) + z.real();
-  n = imag2 + n * n;
-
-  ValueType d = ValueType(1.0) - z.real();
-  d = imag2 + d * d;
-  complex<ValueType> ret(ValueType(0.25) * (::log(n) - ::log(d)),0);
-
-  d = ValueType(1.0) -  z.real() * z.real() - imag2;
-
-  ret.imag(ValueType(0.5) * ::atan2(ValueType(2.0) * z.imag(), d));
-  return ret;
-  //return (log(ValueType(1)+z)-log(ValueType(1)-z))/ValueType(2);
-}
-
-template <typename ValueType>
-__host__ __device__
-inline complex<float> atanh(const complex<float>& z){
-  float imag2 = z.imag() *  z.imag();
-  float n = float(1.0) + z.real();
-  n = imag2 + n * n;
-
-  float d = float(1.0) - z.real();
-  d = imag2 + d * d;
-  complex<float> ret(float(0.25) * (::logf(n) - ::logf(d)),0);
-
-  d = float(1.0) -  z.real() * z.real() - imag2;
-
-  ret.imag(float(0.5) * ::atan2f(float(2.0) * z.imag(), d));
-  return ret;
-  //return (log(ValueType(1)+z)-log(ValueType(1)-z))/ValueType(2);
-
-}
-
 } // end namespace fmmtl
-
-#else
-
-namespace fmmtl
-{
-using std::complex;
-using std::real;
-using std::imag;
-using std::conj;
-using std::abs;
-using std::arg;
-using std::norm;  // XXX
-using std::polar;
-using std::cos;
-using std::cosh;
-using std::exp;
-using std::log;
-using std::log10;
-using std::pow;
-using std::sin;
-using std::sinh;
-using std::sqrt;
-using std::tan;
-using std::tanh;
-
-using std::acos;
-using std::asin;
-using std::atan;
-using std::acosh;
-using std::asinh;
-using std::atanh;
-}
-#endif
-
-#include "fmmtl/numeric/norm.hpp"
-#include "fmmtl/numeric/random.hpp"

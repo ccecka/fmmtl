@@ -15,9 +15,7 @@ int main(int argc, char** argv)
 
   typedef Vec<3,double> point_type;
 
-  std::vector<point_type> points(N);
-  for (int k = 0; k < N; ++k)
-    points[k] = fmmtl::random<point_type>::get();
+  std::vector<point_type> points = fmmtl::random_n(N);
 
   fmmtl::NDTree<3> tree(points);
 

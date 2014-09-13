@@ -11,7 +11,7 @@ template <typename Kernel>
 struct KernelTraits {
  public:
   typedef KernelTraits<Kernel>                    self_type;
-  typedef typename Kernel::kernel_type            kernel_type;
+  typedef Kernel                                  kernel_type;
 
   typedef typename kernel_type::source_type       source_type;
   typedef typename kernel_type::target_type       target_type;
@@ -65,11 +65,12 @@ struct KernelTraits {
 
 #include "fmmtl/meta/dimension.hpp"
 
+// Expansion traits
 template <typename Expansion>
 struct ExpansionTraits
     : public KernelTraits<typename Expansion::kernel_type> {
   typedef Expansion                               expansion_type;
-  typedef typename expansion_type::kernel_type    kernel_type;
+  typedef typename Expansion::kernel_type         kernel_type;
   typedef ExpansionTraits<expansion_type>         self_type;
   typedef KernelTraits<kernel_type>               super_type;
 
@@ -218,9 +219,14 @@ struct ExpansionTraits
   typedef typename KernelTraits<K>::charge_type        charge_type;       \
   typedef typename KernelTraits<K>::result_type        result_type
 
-#define FMMTL_IMPORT_EXPANSION_TRAITS(E)                                  \
-  FMMTL_IMPORT_KERNEL_TRAITS(E);                                          \
-  typedef typename ExpansionTraits<E>::expansion_type     expansion_type; \
-  typedef typename ExpansionTraits<E>::multipole_type     multipole_type; \
-  typedef typename ExpansionTraits<E>::local_type         local_type;     \
+#define FMMTL_IMPORT_EXPANSION_TRAITS(E)                                     \
+  typedef typename ExpansionTraits<E>::kernel_type        kernel_type;       \
+  typedef typename ExpansionTraits<E>::kernel_value_type  kernel_value_type; \
+  typedef typename ExpansionTraits<E>::source_type        source_type;       \
+  typedef typename ExpansionTraits<E>::target_type        target_type;       \
+  typedef typename ExpansionTraits<E>::charge_type        charge_type;       \
+  typedef typename ExpansionTraits<E>::result_type        result_type;       \
+  typedef typename ExpansionTraits<E>::expansion_type     expansion_type;    \
+  typedef typename ExpansionTraits<E>::multipole_type     multipole_type;    \
+  typedef typename ExpansionTraits<E>::local_type         local_type;        \
   typedef typename ExpansionTraits<E>::point_type         point_type
