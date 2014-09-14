@@ -4,15 +4,7 @@
 #include <vector>
 #include <algorithm>
 
-#define MTL_WITH_AUTO
-#define MTL_WITH_DEFAULTIMPL
-#define MTL_WITH_INITLIST
-#define MTL_WITH_MOVE
-#define MTL_WITH_RANGEDFOR
-#define MTL_WITH_STATICASSERT
-#define MTL_WITH_TEMPLATE_ALIAS
-#define MTL_WITH_VARIADIC_TEMPLATE
-#include <boost/numeric/mtl/mtl.hpp>
+#include <fmmtl/numeric/flens.hpp>
 
 
 /** Partial pivoted LU to construct low-rank.
@@ -26,14 +18,17 @@
  * @param[out] ...
  */
 template <class MatrixIn,
-          class MatrixOut = mtl::dense2D<typename MatrixIn::value_type> >
+          class MatrixOut = flens::matrix<typename MatrixIn::ElementType> >
 std::tuple<MatrixOut,MatrixOut>
 adaptive_cross_approx(const MatrixIn& A,
                       const double eps_tol, const unsigned max_rank) {
-  using value_type = typename MatrixIn::value_type;
-  using size_type  = typename MatrixIn::size_type;
-  auto _ = mtl::iall;
+  using value_type = typename MatrixIn::ElementType;
+  using size_type  = typename MatrixIn::IndexType;
+  flens::Underscore<size_type> _;
   using std::abs;
+  using flens::blas::dot;
+
+  const double eps_tol_sq = eps_tol * eps_tol;
 
   const size_type n_rows = num_rows(A);
   const size_type n_cols = num_cols(A);
@@ -51,8 +46,8 @@ adaptive_cross_approx(const MatrixIn& A,
 
   // Initialize the matrix and vector norms
   double matrix_norm = 0;
-  double row_norm;
-  double col_norm;
+  double row_norm_sq;
+  double col_norm_sq;
 
   // Matrices to construct
   size_type current_rank = 0;
@@ -63,14 +58,14 @@ adaptive_cross_approx(const MatrixIn& A,
   // Repeat till the desired tolerance is obtained
   do {
 
-    auto&& row = V[current_rank][_];
+    auto&& row = V(current_rank, _);
 
     // Repeat until we find a good row
     while (true) {
-      row = A[row_idx.back()][_];
+      row = A(row_idx.back(), _);
       /// Row of the residuum and the pivot column
       for (size_type k = 0; k < current_rank; ++k)
-        row -= U[row_idx.back()][k] * V[k][_];
+        row -= U(row_idx.back(),k) * V(k,_);
       // Find the largest element of the row (larger than eps_tol)
       size_type pivot_idx = n_cols;
       double abs_pivot_val = eps_tol;
@@ -101,14 +96,14 @@ adaptive_cross_approx(const MatrixIn& A,
         goto return_statement;
     }
 
-    auto&& col = U[_][current_rank];
+    auto&& col = U(_, current_rank);
 
     // Repeat until we find a good col
     while (true) {
-      col = A[_][col_idx.back()];
+      col = A(_, col_idx.back());
       // Column of the residuum and the pivot row
       for (size_type k = 0; k < current_rank; ++k)
-        col -= U[_][k] * V[k][col_idx.back()];
+        col -= U(_,k) * V(k,col_idx.back());
       // Find the largest element of the col (larger than eps_tol)
       size_type pivot_idx = n_rows;
       double abs_pivot_val = eps_tol;
@@ -137,23 +132,23 @@ adaptive_cross_approx(const MatrixIn& A,
     }
 
     /// New approximation of matrix norm
-    row_norm = two_norm(row);
-    col_norm = two_norm(col);
+    row_norm_sq = dot(row, row);
+    col_norm_sq = dot(col, col);
 
-    matrix_norm += row_norm * row_norm * col_norm * col_norm;
+    matrix_norm += row_norm_sq * col_norm_sq;
     for (size_type k = 0; k < current_rank; ++k)
-      matrix_norm += 2.0 * abs(dot(U[_][k],col)) * abs(dot(V[k][_],row));
+      matrix_norm += 2.0 * abs(dot(U(_,k),col)) * abs(dot(V(k,_),row));
 
     ++current_rank;
 
-  } while (row_norm * col_norm > eps_tol * matrix_norm &&
+  } while (row_norm_sq * col_norm_sq > eps_tol_sq * matrix_norm * matrix_norm &&
            current_rank < max_rank &&
            !row_idx.empty() && !col_idx.empty());
 
 return_statement:
 
-  U.change_dim(n_rows, current_rank, /* keep_elements: */ true);
-  V.change_dim(current_rank, n_cols, /* keep_elements: */ true);
+  U.resize(n_rows, current_rank);
+  V.resize(current_rank, n_cols);
 
   return std::make_tuple(U, V);
 };
