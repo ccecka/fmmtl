@@ -1,10 +1,10 @@
 
 #include <memory>
+#include <iterator>
 
 #include "fmmtl/numeric/flens.hpp"
 
 #include "fmmtl/numeric/Vec.hpp"
-#include "fmmtl/numeric/norm.hpp"
 
 #include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/tree/TreeRange.hpp"
@@ -12,22 +12,15 @@
 
 #include "fmmtl/executor/Traversal.hpp"
 
-#include "fmmtl/Direct.hpp"
 
 // A block-compressed representation of a matrix
 template <typename T, unsigned DT, unsigned DS>
 struct PLR_Matrix {
-  // Avoid copy/move of a tree for now...
-  fmmtl::NDTree<DT>* target_tree;
-  fmmtl::NDTree<DS>* source_tree;
+  using target_tree_type = fmmtl::NDTree<DT>;
+  using source_tree_type = fmmtl::NDTree<DS>;
 
-  ~PLR_Matrix() {
-    delete target_tree; target_tree = nullptr;
-    delete source_tree; source_tree = nullptr;
-  }
-
-  using target_box_type = typename fmmtl::NDTree<DT>::box_type;
-  using source_box_type = typename fmmtl::NDTree<DS>::box_type;
+  using target_box_type = typename target_tree_type::box_type;
+  using source_box_type = typename source_tree_type::box_type;
 
   using matrix_type     = flens::GeMatrix<flens::FullStorage<T> >;
 
@@ -42,6 +35,11 @@ struct PLR_Matrix {
         : s(_s), t(_t),
           U(std::forward<MatrixU>(_u)), V(std::forward<MatrixVT>(_v)) {}
   };
+
+  // Trees representing the dyadic block structure
+  // RI Breaking: Required only because source_box/target_box are proxies...
+  std::unique_ptr<target_tree_type> target_tree;
+  std::unique_ptr<source_tree_type> source_tree;
 
   // List of blocks, could use a better data structure...
   std::vector<dyadic_tree_leaf> leaf_node;
@@ -120,7 +118,7 @@ void prod_acc(PLR_M& plr,
  * Usage example:
  *    mat = ...;
  *    t = ...; s = ...;
- *    auto plr_matrix = plr_compression(mat, 5, 7, t, s);
+ *    auto plr_matrix = plr_compression<3,2>(mat, 5, 7, t, s);
  *
  *
  *
@@ -136,17 +134,26 @@ plr_compression(T* data, unsigned n, unsigned m,
   const Vec<DS,TS>* sources = reinterpret_cast<const Vec<DS,TS>*>(srcs);
 
   // Construct compressed matrix and trees
-  PLR_Matrix<T,DT,DS> plr_m;
-  plr_m.source_tree = new fmmtl::NDTree<DS>(sources, sources + m, max_rank);
-  plr_m.target_tree = new fmmtl::NDTree<DT>(targets, targets + n, max_rank);
+  using plr_type = PLR_Matrix<T,DT,DS>;
+  using target_tree_type = typename PLR_Matrix<T,DT,DS>::target_tree_type;
+  using source_tree_type = typename PLR_Matrix<T,DT,DS>::source_tree_type;
+
+  plr_type plr_m;
+  // C++11 overlooked make_unique
+  plr_m.target_tree =
+      std::unique_ptr<target_tree_type>(
+          new target_tree_type(targets, targets + n, max_rank));
+  plr_m.source_tree =
+      std::unique_ptr<source_tree_type>(
+          new source_tree_type(sources, sources + m, max_rank));
 
   std::cout << "Trees complete" << std::endl;
 
   // Get the tree types
-  typedef typename fmmtl::NDTree<DT>::box_type target_box_type;
-  typedef typename fmmtl::NDTree<DS>::box_type source_box_type;
-  typedef typename fmmtl::NDTree<DT>::body_type target_body_type;
-  typedef typename fmmtl::NDTree<DS>::body_type source_body_type;
+  using target_box_type  = typename target_tree_type::box_type;
+  using source_box_type  = typename source_tree_type::box_type;
+  using target_body_type = typename target_tree_type::body_type;
+  using source_body_type = typename source_tree_type::body_type;
 
   // Permute the sources to match the body order in the tree
   auto p_sources = make_body_binding(*(plr_m.source_tree), sources);
@@ -230,7 +237,6 @@ plr_compression(T* data, unsigned n, unsigned m,
       std::cout << "REJECTED BLOCK, Rank " << rank << std::endl;
       return 3;
     }
-
   };
 
   // Perform the traversal
