@@ -471,6 +471,17 @@ class NDTree {
     return boost::make_permutation_iterator(it, permute_.cbegin() + bi.index());
   }
 
+  /** Tranform (permute) an iterator so its traversal follows the same order as
+   * the bodies contained in this tree
+   *
+   * Specialized for bi = body_begin().
+   */
+  template <typename RandomAccessIter>
+  typename body_permuted_iterator<RandomAccessIter>::type
+  body_permute(RandomAccessIter it) const {
+    return body_permute(it, body_begin());
+  }
+
   /** Write an NDTree to an output stream */
   inline friend std::ostream& operator<<(std::ostream& s,
                                          const tree_type& t) {

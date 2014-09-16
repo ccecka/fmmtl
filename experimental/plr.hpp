@@ -60,8 +60,7 @@ void prod_acc(PLR_M& plr,
               CIterator x_first, CIterator x_last,
               RIterator y_first, RIterator y_last) {
   // TODO: size check
-  (void) x_last;
-  (void) y_last;
+  (void) x_last; (void) y_last;
   using charge_type = typename std::iterator_traits<CIterator>::value_type;
   using result_type = typename std::iterator_traits<RIterator>::value_type;
   // Wrap the range in flens vectors for linear algebra
@@ -71,8 +70,8 @@ void prod_acc(PLR_M& plr,
 
   // Permute the charges to match the body order in the tree
   auto p_charges = make_body_binding(*(plr.source_tree), x_first);
-  // Permute the results to match the body order in the tree
-  auto p_results = make_body_binding(*(plr.target_tree), y_first);
+  // Create permuted results, but don't bother initializing
+  auto p_results = make_body_binding<result_type>(*(plr.target_tree));
 
   // Perform the matvec
   // Evaluate the leaf low-rank decompositions
@@ -89,16 +88,16 @@ void prod_acc(PLR_M& plr,
   }
 
   // Copy back permuted results
-  auto pri = plr.target_tree->body_permute(y_first, plr.target_tree->body_begin());
+  auto pri = plr.target_tree->body_permute(y_first);
   for (auto&& ri : p_results) {
-    *pri = ri;
+    *pri += ri;
     ++pri;
   }
 
 }
 
 
-/** Simlpler C-like interface to the PLR matrix decomposition
+/** Simpler C-like interface to the PLR matrix decomposition
  * @param[in] data    Row-major matrix to compress
  *                      data[i*m + j] represents the i-jth matrix entry.
  * @param[in] n       Number of rows of the matrix.
