@@ -17,9 +17,7 @@ int main() {
   A = 2.0;
 #endif
 #if 1
-  for (unsigned i = 0; i < num_rows(A); ++i)
-    for (unsigned j = 0; j < num_cols(A); ++j)
-      A(i,j) = fmmtl::random<value_type>::get();
+  fillRandom(A);
 #endif
 #if 0
   A[1][1] = 1;

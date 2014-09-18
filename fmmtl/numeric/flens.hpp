@@ -15,10 +15,10 @@
 namespace flens {
 
 template <typename T>
-using matrix = GeMatrix<FullStorage<T, RowMajor, IndexOptions<unsigned,0> > >;
+using matrix = GeMatrix<FullStorage<T, RowMajor, IndexOptions<int,0> > >;
 
 template <typename T>
-using vector = DenseVector<Array<T, IndexOptions<unsigned,0> > >;
+using vector = DenseVector<Array<T, IndexOptions<int,0> > >;
 
 }
 

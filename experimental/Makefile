@@ -13,3 +13,4 @@ include ../Makefile.inc
 plr:      LDLIBS += -llapack
 plr_test: LDLIBS += -llapack
 svd_test: LDLIBS += -llapack
+probe:    LDLIBS += -llapack

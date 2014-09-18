@@ -3,6 +3,7 @@
 #include <iterator>
 
 #include "fmmtl/numeric/flens.hpp"
+#include "util/Probe.hpp"
 
 #include "fmmtl/numeric/Vec.hpp"
 
@@ -84,7 +85,12 @@ void prod_acc(PLR_M& plr,
     flens::DenseVector<result_ref> y = result_ref(r.size(), &*std::begin(r));
 
     // Compute the product
-    y += leaf.U * (leaf.V * x);
+    // TODO: Parallelize
+    auto Vx = leaf.V * x;
+    if (num_rows(leaf.U) == 0)
+      y += Vx;
+    else
+      y += leaf.U * Vx;
   }
 
   // Copy back permuted results
@@ -138,6 +144,9 @@ plr_compression(T* data, unsigned n, unsigned m,
   using source_tree_type = typename PLR_Matrix<T,DT,DS>::source_tree_type;
 
   plr_type plr_m;
+
+  { ScopeClock timer("Trees Complete: ");
+
   // C++11 overlooked make_unique
   plr_m.target_tree =
       std::unique_ptr<target_tree_type>(
@@ -146,7 +155,7 @@ plr_compression(T* data, unsigned n, unsigned m,
       std::unique_ptr<source_tree_type>(
           new source_tree_type(sources, sources + m, max_rank));
 
-  std::cout << "Trees complete" << std::endl;
+  }
 
   // Get the tree types
   using target_box_type  = typename target_tree_type::box_type;
@@ -189,8 +198,8 @@ plr_compression(T* data, unsigned n, unsigned m,
   // Construct an evaluator for the traversal algorithm
   // See fmmtl::traverse_if documentation
   auto evaluator = [&] (const source_box_type& s, const target_box_type& t) {
-    std::cout << "TargetBox: " << t << std::endl;
-    std::cout << "SourceBox: " << s << std::endl;
+    //std::cout << "TargetBox: " << t << std::endl;
+    //std::cout << "SourceBox: " << s << std::endl;
 
     // Compute an approximate SVD of the submatrix defined by the boxes
     // TODO: Replace by fast rank-revealing alg
@@ -198,42 +207,37 @@ plr_compression(T* data, unsigned n, unsigned m,
     unsigned m = s.num_bodies();
     unsigned r = std::min(n, m);
 
-    matrix_type U(n,r), VT(r,m);
-    vector_type D(r);
     auto rows = _(t.body_begin().index()+1, t.body_end().index());
     auto cols = _(s.body_begin().index()+1, s.body_end().index());
-    // A is mutated by SVD so we need a copy
-    matrix_type A_ST = A(rows,cols);
-    flens::lapack::svd(flens::lapack::SVD::Save, flens::lapack::SVD::Save,
-                       A_ST, D, U, VT);
 
-    // Find the rank-cutoff, if exists
-    unsigned rank = 1;
-    while (rank <= r && D(rank)/D(1) > eps_tol) ++rank;
-    --rank;
+    if (max_rank >= r) {
+      // Accept the block
+      //std::cout << "AUTO ACCEPTED BLOCK, Rank " << r << std::endl;
 
-    // If either of the boxes are leaves, force-accept
-    if (s.is_leaf() || t.is_leaf())
-      rank = std::min(rank, std::min(max_rank, r));
+      // Auto-accept A
+      plr_m.leaf_node.emplace_back(s, t,
+                                   matrix_type(), A(rows,cols));
+      // Do not recurse
+      return 0;
+    }
+
+    // Attempt to factor the block to max_rank
+    matrix_type U, VT;
+    std::tie(U, VT) = probe_svd(A(rows,cols), max_rank, eps_tol);
 
     // Accept block and store low-rank approximation or recurse
-    if (rank <= max_rank) {
+    if (num_rows(U) != 0) {
       // Accept the block and store low-rank approx
-      std::cout << "ACCEPTED BLOCK, Rank " << rank << std::endl;
-
-      auto _rank = _(1,rank);
-
-      const DiagMatrix<ConstArrayView<double> > DM = D(_rank);
+      std::cout << "ACCEPTED BLOCK, Rank " << num_cols(U) <<
+          " from " << n << "-by-" << m << std::endl;
 
       // Store the low rank decomposition of this node
-      plr_m.leaf_node.emplace_back(s, t,
-                                   U(_(1,n), _rank),
-                                   DM * VT(_rank, _(1,m)));
+      plr_m.leaf_node.emplace_back(s, t, U, VT);
       // Do not recurse further
       return 0;
     } else {
       // Recurse by splitting the source and target boxes (dyadically)
-      std::cout << "REJECTED BLOCK, Rank " << rank << std::endl;
+      //std::cout << "REJECTED BLOCK" << std::endl;
       return 3;
     }
   };
