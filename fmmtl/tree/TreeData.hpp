@@ -106,7 +106,7 @@ template <typename Tree, typename Range>
 auto
 make_body_binding(const Tree& tree, const Range& range)
     -> decltype(make_body_binding(tree, std::begin(range))) {
-  make_body_binding(tree, std::begin(range));
+  return make_body_binding(tree, std::begin(range));
 }
 
 // Any Type without initial data (avoid permutation, just allocate)
