@@ -20,7 +20,6 @@
 #include <boost/math/special_functions/sin_pi.hpp>
 #include <boost/math/special_functions/cos_pi.hpp>
 #include <boost/math/constants/constants.hpp>
-#include <boost/iterator/transform_iterator.hpp>
 
 
 //#include "ButterflyExpansion.hpp"

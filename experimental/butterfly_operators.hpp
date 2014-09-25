@@ -8,9 +8,9 @@ auto S2M = [&](int L, const source_box_type& sbox) {
   auto make_ref = [&](const source_type& s) {
     return (s - s_center) * s_scale;
   };
-  auto LgM = LagrangeMatrix<D,Q>(
-      boost::make_transform_iterator(p_sources[sbox.body_begin()], make_ref),
-      boost::make_transform_iterator(p_sources[sbox.body_end()],   make_ref));
+  auto LgM = LagrangeMatrix<D,Q>(p_sources[sbox.body_begin()],
+                                 p_sources[sbox.body_end()],
+                                 make_ref);
 
   std::vector<complex_type> rhs;
 
@@ -58,9 +58,7 @@ auto M2M = [&](int L, const source_box_type& sbox) {
     auto make_ref = [&](const point_type& c) {
       return (c - s_center) * s_scale;
     };
-    auto LgM = LagrangeMatrix<D,Q>(
-        boost::make_transform_iterator(c_cheb.begin(), make_ref),
-        boost::make_transform_iterator(c_cheb.end(),   make_ref));
+    auto LgM = LagrangeMatrix<D,Q>(c_cheb.begin(), c_cheb.end(), make_ref);
 
     std::array<complex_type,pow_(Q,D)> rhs;
 
@@ -174,9 +172,7 @@ auto L2L = [&](int L, const target_box_type& tbox) {
     auto make_ref = [&](const point_type& c) {
       return (c - t_center) * t_scale;
     };
-    auto LgM = LagrangeMatrix<D,Q>(
-        boost::make_transform_iterator(c_cheb.begin(), make_ref),
-        boost::make_transform_iterator(c_cheb.end(),   make_ref));
+    auto LgM = LagrangeMatrix<D,Q>(c_cheb.begin(), c_cheb.end(), make_ref);
 
     std::array<complex_type,pow_(Q,D)> lhs;
 
@@ -218,9 +214,9 @@ auto L2T = [&](int L, const target_box_type& tbox) {
   auto make_ref = [&](const target_type& t) {
     return (t - t_center) * t_scale;
   };
-  auto LgM = LagrangeMatrix<D,Q>(
-      boost::make_transform_iterator(p_targets[tbox.body_begin()], make_ref),
-      boost::make_transform_iterator(p_targets[tbox.body_end()],   make_ref));
+  auto LgM = LagrangeMatrix<D,Q>(p_targets[tbox.body_begin()],
+                                 p_targets[tbox.body_end()],
+                                 make_ref);
 
   std::vector<result_type> temp(tbox.num_bodies());
 
