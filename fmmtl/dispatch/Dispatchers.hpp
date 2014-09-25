@@ -13,3 +13,6 @@
 #include "L2L.hpp"
 
 #include "MAC.hpp"
+
+#include "BatchFar.hpp"
+#include "BatchNear.hpp"

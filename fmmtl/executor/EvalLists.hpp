@@ -7,6 +7,8 @@
 #include "Downward.hpp"
 
 #include "fmmtl/dispatch/Dispatchers.hpp"
+#include "fmmtl/tree/TreeRange.hpp"
+#include "fmmtl/meta/kernel_traits.hpp"
 
 
 template <class Context>
@@ -16,22 +18,26 @@ class EvalLists
   typedef typename Context::source_box_type source_box;
   typedef typename Context::target_box_type target_box;
 
-  S2T_Batch<Context> p2p_;
-  M2L_Batch<Context> m2l_;
+  BatchNear<Context> near_batch_;
+  BatchFar<Context> far_batch_;
 
   struct UpDispatch {
     Context& c_;
     UpDispatch(Context& c) : c_(c) {}
 
     inline void operator()(const source_box& box) {
-      if (box.is_leaf()) {
-        // If leaf, make S2M calls
-        S2M::eval(c_, box);
+      if (ExpansionTraits<typename Context::expansion_type>::has_M2M) {
+        if (box.is_leaf()) {
+          // If leaf, make S2M calls
+          S2M::eval(c_, box);
+        } else {
+          // If not leaf, then for all the children M2M
+          for (auto&& cbox : children(box))
+            M2M::eval(c_, cbox, box);
+        }
       } else {
-        // If not leaf, then for all the children M2M
-        auto c_end = box.child_end();
-        for (auto cit = box.child_begin(); cit != c_end; ++cit)
-          M2M::eval(c_, *cit, box);
+        // Rely solely on S2M
+        S2M::eval(c_, box);
       }
     }
   };
@@ -40,14 +46,18 @@ class EvalLists
     DownDispatch(Context& c) : c_(c) {}
 
     inline void operator()(const target_box& box) {
-      if (box.is_leaf()) {
-        // If leaf, make L2T calls
-        L2T::eval(c_, box);
+      if (ExpansionTraits<typename Context::expansion_type>::has_L2L) {
+        if (box.is_leaf()) {
+          // If leaf, make L2T calls
+          L2T::eval(c_, box);
+        } else {
+          // If not leaf, then for all children L2L
+          for (auto&& cbox : children(box))
+            L2L::eval(c_, box, cbox);
+        }
       } else {
-        // If not leaf, then for all children L2L
-        auto c_end = box.child_end();
-        for (auto cit = box.child_begin(); cit != c_end; ++cit)
-          L2L::eval(c_, box, *cit);
+        // Rely solely on L2T
+        L2T::eval(c_, box);
       }
     }
   };
@@ -58,13 +68,13 @@ class EvalLists
     // Construct functors for dispatched near and far operators
     auto far_batcher = [&c,this](const source_box& s, const target_box& t) {
       if (MAC::eval(c,s,t)) {
-        m2l_.insert(s,t);
+        far_batch_.insert(s,t);
         return true;
       }
       return false;
     };
     auto near_batcher = [this](const source_box& s, const target_box& t) {
-      p2p_.insert(s,t);
+      near_batch_.insert(s,t);
     };
     // Determine the box interactions
     fmmtl::traverse_nearfar(c.source_tree().root(), c.target_tree().root(),
@@ -73,26 +83,30 @@ class EvalLists
 
   void execute(Context& c) {
     // Launch the p2p early (potentially asynchronously?)
-    p2p_.execute(c);
+    near_batch_.execute(c);
 
     // Initialize all the multipoles and locals (not all may be needed)
-    auto s_end = c.source_tree().box_end();
-    for (auto bi = c.source_tree().box_begin(); bi != s_end; ++bi)
-      INITM::eval(c, *bi);
-    auto t_end = c.target_tree().box_end();
-    for (auto bi = c.target_tree().box_begin(); bi != t_end; ++bi)
-      INITL::eval(c, *bi);
+    for (auto&& sbox : boxes(c.source_tree()))
+      INITM::eval(c, sbox);
+    for (auto&& tbox : boxes(c.target_tree()))
+      INITL::eval(c, tbox);
 
     // Perform the upward pass (not all may be needed)
-    UpDispatch up(c);
-    UpwardPass::eval(c.source_tree(), up);
+    // TODO: Use far_field batch to only initialize and compute used multipoles
+    if (ExpansionTraits<typename Context::expansion_type>::has_S2M) {
+      UpDispatch up(c);
+      UpwardPass::eval(c.source_tree(), up);
+    }
 
     // Perform the source-target box interactions
-    m2l_.execute(c);
+    far_batch_.execute(c);
 
     // Perform the downward pass (not all may be needed)
-    DownDispatch down(c);
-    DownwardPass::eval(c.target_tree(), down);
+    // TODO: Use far_field batch to only initialize and compute used locals
+    if (ExpansionTraits<typename Context::expansion_type>::has_L2T) {
+      DownDispatch down(c);
+      DownwardPass::eval(c.target_tree(), down);
+    }
   }
 };
 
