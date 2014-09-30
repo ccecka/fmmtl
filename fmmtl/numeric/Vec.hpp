@@ -77,14 +77,6 @@ struct Vec {
   FMMTL_INLINE explicit Vec(const Generator& gen) {
     for_i elem[i] = gen(i);
   }
-<<<<<<< HEAD
-  /*
-  template <typename Generator>
-  FMMTL_INLINE explicit Vec(const Generator& gen) {
-    for_i elem[i] = gen(i);
-  }
-=======
->>>>>>> 965550a407e791e2672ff1f51f71ddc82903e3c7
   */
   template <typename U, typename OP>
   FMMTL_INLINE explicit Vec(const Vec<N,U>& v, OP op) {
