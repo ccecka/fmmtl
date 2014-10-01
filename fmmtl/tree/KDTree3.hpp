@@ -1,6 +1,6 @@
 #pragma once
-/** @file NDTree
- * @brief General class representing a {1D,2D,3D,4D}-Tree.
+/** @file KDTree
+ * @brief A binary tree constructed by splitting each box by a median.
  */
 
 #include <vector>
@@ -29,62 +29,74 @@ using boost::iterator_adaptor;
 //! Class for tree structure
 template <unsigned DIM>
 class KDTree {
+  // Predeclarations
+  struct Box;
+  struct Body;
+  struct BoxData;
+  struct BoxIterator;
+  struct BodyIterator;
+
+  // The type of this tree
+  typedef KDTree<DIM> tree_type;
+
  public:
+  //! The type of indices and integers in this tree
+  typedef unsigned size_type;
+
   //! The spacial point type used for centers and extents
   typedef Vec<DIM,double> point_type;
 
-  //! Each box has 2 children
-  static constexpr unsigned max_children = 2;
-
-  //! The type of this tree
-  typedef KDTree<DIM> tree_type;
-
-  // Predeclarations
-  struct Body;
-  typedef Body body_type;
-  struct Box;
-  typedef Box box_type;
-  struct body_iterator;
-  struct box_iterator;
+  //! Public type declarations
+  typedef Box           box_type;
+  typedef Body          body_type;
+  typedef BoxIterator   box_iterator;
+  typedef BodyIterator  body_iterator;
 
  private:
-
-  // XXX: Dummy for now
-  struct box_data {
-    // Range (into permute_) of bodies this box contains
-    unsigned begin, end;
-
-    // Precomputed center
-    //point_type center_;
-  };
+  // Tree representation
 
   // Permutation: permute_[i] is the current idx of originally ith point
-  std::vector<unsigned> permute_;
+  std::vector<size_type> permute_;
   // Vector of data describing a box
-  std::vector<box_data> box_data_;
+  std::vector<BoxData> box_data_;
 
- public:
+  struct BoxData {
+    // Index of the first body in this box
+    size_type body_begin_;
+    // Index of one-past-last body in this box
+    size_type body_end_;
+
+    // Precomputed center
+    point_type center_;
+    // Precomputed extents
+    point_type extent_;
+
+    BoxData(size_type bb, size_type be,
+            const point_type& c, const point_type& e)
+        : body_begin_(bb), body_end_(be),
+          center_(c), extent_(e) {
+    }
+    // XXX: Remove
+    BoxData(size_type bb, size_type be)
+        : body_begin_(bb), body_end_(be) {
+    }
+  };
 
   struct Body {
     /** Construct an invalid Body */
-    Body()
-        : idx_(0), tree_(nullptr) {
-    }
-    //const point_type& point() const {
-    //  return tree_->point_[idx_];
-    //}
+    Body() {}
     //! The original order this body was seen
-    unsigned number() const {
+    size_type number() const {
       return tree_->permute_[idx_];
     }
     //! The current order of this body
-    unsigned index() const {
+    size_type index() const {
       return idx_;
     }
    private:
-    unsigned idx_;
+    size_type idx_;
     tree_type* tree_;
-    Body(unsigned idx, const tree_type* tree)
+    Body(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
       FMMTL_ASSERT(idx_ < tree_->size());
     }
@@ -96,167 +108,177 @@ class KDTree {
     typedef typename tree_type::box_iterator  box_iterator;
     typedef typename tree_type::body_iterator body_iterator;
 
-    /** Construct an invalid Box */
-    Box()
-        : idx_(0), tree_(nullptr) {
-    }
-    unsigned index() const {
+    //! Construct an invalid Box
+    Box() {}
+    //! The index of this box
+    size_type index() const {
       return idx_;
     }
-    unsigned level() const {
-      return 0;  // XXX
+    //! The level of this box (root level is 0)
+    size_type level() const {
+      return std::log2(idx_+1);  // XXX: Slow, do this with bits
     }
-    point_type extents() const {
-      return point_type(); // XXX
+    const point_type& extents() const {
+      return data().extent_;
     }
     double volume() const {
-      return 0; // XXX
+      const point_type& e = extents();
+      return std::accumulate(e.begin(), e.end(), 1.0, std::multiplies<double>());
     }
     double radius() const {
-      return 0; // XXX
+      return norm_2(extents()) / 2.0;
     }
-    unsigned num_children() const {
-      return 2;
+    //! The center of this box
+    const point_type& center() const {
+      return data().center_;
     }
-    unsigned num_bodies() const {
-      return std::distance(body_begin(), body_end());
-    }
-    bool is_leaf() const {
-      return num_bodies() < 256; // XXX
-    }
-    /** The center of this box */
-    point_type center() const {
-      return point_type();  // XXX
-    }
-    /** The parent box of this box */
+
+    //! The parent box of this box
     Box parent() const {
+      FMMTL_ASSERT(!(*this == tree_->root()));
       return Box((idx_-1)/2, tree_);
     }
 
-    /** The begin iterator to the bodies contained in this box */
-    body_iterator body_begin() const {
-      return body_iterator(data().begin, tree_);
+    //! True if this box is a leaf and has no children
+    bool is_leaf() const {
+      return 2*idx_+1 >= tree_->box_data_.size();
     }
-    /** The end iterator to the bodies contained in this box */
-    body_iterator body_end() const {
-      return body_iterator(data().end, tree_);
-    }
-
-    /** The begin iterator to the child boxes contained in this box */
+    //! The begin iterator to the child boxes contained in this box
     box_iterator child_begin() const {
+      FMMTL_ASSERT(!is_leaf());
       return box_iterator(2*idx_+1, tree_);
     }
-    /** The end iterator to the child boxes contained in this box */
+    //! The end iterator to the child boxes contained in this box
     box_iterator child_end() const {
       FMMTL_ASSERT(!is_leaf());
       return box_iterator(2*idx_+3, tree_);
     }
+    //! The number of children this box has
+    constexpr size_type num_children() const {
+      return 2;
+    }
 
-    /** Comparison operators for std:: algorithms */
+    //! The begin iterator to the bodies contained in this box
+    body_iterator body_begin() const {
+      return body_iterator(data().body_begin_, tree_);
+    }
+    //! The end iterator to the bodies contained in this box
+    body_iterator body_end() const {
+      return body_iterator(data().body_end_, tree_);
+    }
+    //! The number of bodies this box contains
+    size_type num_bodies() const {
+      return std::distance(body_begin(), body_end());
+    }
+
+    //! Equality comparison operator
     bool operator==(const Box& b) const {
       FMMTL_ASSERT(tree_ == b.tree_);
-      return this->index() == b.index();
+      return idx_ == b.idx_;
     }
+    //! Comparison operator for std:: containers and algorithms
     bool operator<(const Box& b) const {
       FMMTL_ASSERT(tree_ == b.tree_);
-      return this->index() < b.index();
+      return idx_ < b.idx_;
     }
 
-    /** Write a Box to an output stream */
+    //! Write a Box to an output stream
     inline friend std::ostream& operator<<(std::ostream& s,
                                            const box_type& b) {
-      unsigned num_bodies = b.num_bodies();
-      unsigned first_body = b.body_begin()->index();
-      unsigned last_body = first_body + num_bodies - 1;
+      size_type num_bodies = b.num_bodies();
+      size_type first_body = b.body_begin()->index();
+      size_type last_body = first_body + num_bodies - 1;
+      size_type parent_idx = b.index()==0 ? 0 : b.parent().index();
 
       return s << "Box " << b.index()
-               << " (L" << b.level() << ", P" << b.parent().index()
+               << " (L" << b.level() << ", P" << parent_idx
                << ", " << num_bodies << (num_bodies == 1 ? " body" : " bodies")
                << " " << first_body << "-" << last_body
                << "): " << b.center() << " - " << b.extents();
     }
    private:
-    unsigned idx_;
+    size_type idx_;
     tree_type* tree_;
-    Box(unsigned idx, const tree_type* tree)
+    Box(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
+      FMMTL_ASSERT(idx_ < tree_->boxes());
     }
-    inline box_data& data() const {
+    inline BoxData& data() const {
       return tree_->box_data_[idx_];
     }
     friend class KDTree;
   };
 
-  /** @struct Tree::box_iterator
+  /** @struct Tree::BoxIterator
    * @brief Random access iterator for Boxes in the tree
    */
-  struct box_iterator
-      : public iterator_adaptor<box_iterator,                    // Derived
-                                unsigned,                        // BaseType
+  struct BoxIterator
+      : public iterator_adaptor<BoxIterator,                     // Derived
+                                size_type,                       // BaseType
                                 Box,                             // Value
                                 std::random_access_iterator_tag, // IterCategory
                                 Box,                             // Reference
-                                unsigned>                        // DiffType
+                                size_type>                       // DiffType
   {
-    /** Construct an invalid box_iterator */
-    inline box_iterator()
-        : box_iterator::iterator_adaptor(0), tree_(nullptr) {
+    //! Construct an invalid BoxIterator
+    inline BoxIterator() {}
+    //! The index of this box iterator
+    inline size_type index() const {
+      return dereference().index();
     }
    private:
     const tree_type* tree_;
     friend class KDTree;
-    inline box_iterator(unsigned idx, const tree_type* tree)
-        : box_iterator::iterator_adaptor(idx), tree_(tree) {
+    inline BoxIterator(size_type idx, const tree_type* tree)
+        : BoxIterator::iterator_adaptor(idx), tree_(tree) {
     }
-    inline box_iterator(const Box& b)
-        : box_iterator::iterator_adaptor(b.index()), tree_(b.tree_) {
+    inline BoxIterator(const Box& b)
+        : BoxIterator::iterator_adaptor(b.idx_), tree_(b.tree_) {
     }
     friend class boost::iterator_core_access;
     inline Box dereference() const {
-      return Box(index(), tree_);
-    }
-    inline unsigned index() const {
-      return this->base_reference();
+      return Box(this->base_reference(), tree_);
     }
   };
 
-  /** @struct Tree::body_iterator
+  /** @struct Tree::BodyIterator
    * @brief Random access iterator class for Bodies in the tree
    */
-  struct body_iterator
-      : public iterator_adaptor<body_iterator,                   // Derived
-                                unsigned,                        // BaseType
+  struct BodyIterator
+      : public iterator_adaptor<BodyIterator,                    // Derived
+                                size_type,                       // BaseType
                                 Body,                            // Value
                                 std::random_access_iterator_tag, // IterCategory
                                 Body,                            // Reference
-                                unsigned>                        // DiffType
+                                size_type>                       // DiffType
   {
-    /* Construct an invalid body_iterator */
-    inline body_iterator()
-        : body_iterator::iterator_adaptor(0), tree_(nullptr) {
+    //! Construct an invalid BodyIterator
+    inline BodyIterator() {}
+    //! The index of this body iterator
+    inline size_type index() const {
+      return this->base_reference();
     }
    private:
     const tree_type* tree_;
     friend class KDTree;
-    inline body_iterator(unsigned idx, const tree_type* tree)
-        : body_iterator::iterator_adaptor(idx), tree_(tree) {
+    inline BodyIterator(size_type idx, const tree_type* tree)
+        : BodyIterator::iterator_adaptor(idx), tree_(tree) {
     }
-    inline body_iterator(const Body& b)
-        : body_iterator::iterator_adaptor(b.index()), tree_(b.tree_) {
+    inline BodyIterator(const Body& b)
+        : BodyIterator::iterator_adaptor(b.index()), tree_(b.tree_) {
     }
     friend class boost::iterator_core_access;
     inline Body dereference() const {
       return Body(index(), tree_);
     }
-    inline unsigned index() const {
-      return this->base_reference();
-    }
   };
 
-  /** Construct an tree encompassing a bounding box
+ public:
+
+  /** Construct a tree encompassing a bounding box
    * and insert a range of points */
   template <typename Range>
-  KDTree(const Range& rng, unsigned n_crit = 256,
+  KDTree(const Range& rng, size_type n_crit = 256,
          typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
       : KDTree(rng.begin(), rng.end(), n_crit) {
   }
@@ -264,41 +286,46 @@ class KDTree {
   /** Construct an tree encompassing a bounding box
    * and insert a range of points */
   template <typename PointIter>
-  KDTree(PointIter first, PointIter last, unsigned n_crit = 256) {
+  KDTree(PointIter first, PointIter last, size_type n_crit = 256) {
     insert(first, last, n_crit);
   }
 
   /** Return the Bounding Box that this KDTree encompasses */
   BoundingBox<point_type> bounding_box() const {
-    return BoundingBox<point_type>();  // XXX
+    return BoundingBox<point_type>();  // XXX: root().center() +/- extents/2
   }
 
   /** Return the center of this KDTree */
   point_type center() const {
-    return point_type(); // XXX
+    return root().center();
   }
 
   /** The number of bodies contained in this tree */
-  inline unsigned size() const {
+  inline size_type size() const {
     return permute_.size();
   }
   /** The number of bodies contained in this tree */
-  inline unsigned bodies() const {
+  inline size_type bodies() const {
     return size();
   }
 
   /** The number of boxes contained in this tree */
-  inline unsigned boxes() const {
+  inline size_type boxes() const {
     return box_data_.size();
   }
 
+  /** The number of boxes contained in level L of this tree */
+  inline size_type boxes(size_type L) const {
+    return (1 << L);
+  }
+
   /** The maximum level of any box in this tree */
-  inline unsigned levels() const {
-    return 0;  // XXX
+  inline size_type levels() const {
+    return std::log2(boxes());  // XXX: Slow?
   }
   /** The maximum possible level of any box in this tree */
-  inline static unsigned max_level() {
-    return 10; // XXX
+  inline static size_type max_level() {
+    return size_type(-1);
   }
 
   /** Returns true if the box is contained in this tree, false otherwise */
@@ -314,10 +341,15 @@ class KDTree {
   box_type root() const {
     return Box(0, this);
   }
-  /** Return a box given it's index */
-  box_type box(const unsigned idx) const {
+  /** Return a box given its index */
+  box_type box(const size_type idx) const {
     FMMTL_ASSERT(idx < box_data_.size());
     return Box(idx, this);
+  }
+  /** Return a body given its index */
+  body_type body(const size_type idx) const {
+    FMMTL_ASSERT(idx < size());
+    return Body(idx, this);
   }
   /** Return an iterator to the first body in this tree */
   body_iterator body_begin() const {
@@ -325,7 +357,7 @@ class KDTree {
   }
   /** Return an iterator one past the last body in this tree */
   body_iterator body_end() const {
-    return body_iterator(size(), this);
+    return body_iterator(bodies(), this);
   }
   /** Return an iterator to the first box in this tree */
   box_iterator box_begin() const {
@@ -338,19 +370,21 @@ class KDTree {
   /** Return an iterator to the first box at level L in this tree
    * @pre L < levels()
    */
-  box_iterator box_begin(unsigned L) const {
+  box_iterator box_begin(size_type L) const {
+    FMMTL_ASSERT(L < levels());
     return box_iterator((1 << L) - 1, this);
   }
   /** Return an iterator one past the last box at level L in this tree
    * @pre L < levels()
    */
-  box_iterator box_end(unsigned L) const {
-    return box_begin(L+1);
+  box_iterator box_end(size_type L) const {
+    FMMTL_ASSERT(L < levels());
+    return box_iterator((1 << (L+1)) - 1, this);
   }
 
   template <typename RandomAccessIter>
   struct body_permuted_iterator {
-    typedef typename std::vector<unsigned>::const_iterator permute_iter;
+    typedef typename std::vector<size_type>::const_iterator permute_iter;
     typedef boost::permutation_iterator<RandomAccessIter, permute_iter> type;
   };
 
@@ -359,8 +393,19 @@ class KDTree {
    */
   template <typename RandomAccessIter>
   typename body_permuted_iterator<RandomAccessIter>::type
-  body_permute(RandomAccessIter& it, const body_iterator& bi) const {
+  body_permute(RandomAccessIter it, const body_iterator& bi) const {
     return boost::make_permutation_iterator(it, permute_.cbegin() + bi.index());
+  }
+
+  /** Tranform (permute) an iterator so its traversal follows the same order as
+   * the bodies contained in this tree
+   *
+   * Specialized for bi = body_begin().
+   */
+  template <typename RandomAccessIter>
+  typename body_permuted_iterator<RandomAccessIter>::type
+  body_permute(RandomAccessIter it) const {
+    return body_permute(it, body_begin());
   }
 
   /** Write an KDTree to an output stream */
@@ -384,7 +429,7 @@ class KDTree {
   //! TODO: Make dynamic and public?
   //! Uses incremental bucket sorting
   template <typename PointIter>
-  void insert(PointIter p_first, PointIter p_last, unsigned NCRIT) {
+  void insert(PointIter p_first, PointIter p_last, size_type NCRIT) {
     FMMTL_LOG("KDTree Insert");
 
     // Create a point-idx pair vector
@@ -413,7 +458,7 @@ class KDTree {
 
     box_data_.reserve(2*leaves - 1);
     // Push the root box which contains all points
-    box_data_.push_back(box_data{0, unsigned(point.size())});
+    box_data_.emplace_back(0, size_type(point.size()));
 
     // For every box that is created
     for (unsigned k = 0; k < (1 << levels)-1; ++k) {
@@ -425,38 +470,24 @@ class KDTree {
       };
 
       // Partition the points on the median of this dimension
-      auto p_begin = point.begin() + box_data_[k].begin;
-      auto p_end   = point.begin() + box_data_[k].end;
+      auto p_begin = point.begin() + box_data_[k].body_begin_;
+      auto p_end   = point.begin() + box_data_[k].body_end_;
       auto p_mid   = p_begin + (p_end - p_begin) / 2;
       std::nth_element(p_begin, p_mid, p_end, comp);
 
       // Record the child boxes
       unsigned mid = p_mid - point.begin();
-      box_data_.push_back(box_data{box_data_[k].begin, mid});
-      box_data_.push_back(box_data{mid, box_data_[k].end});
+      box_data_.emplace_back(box_data_[k].body_begin_, mid);
+      box_data_.emplace_back(mid, box_data_[k].body_end_);
     }
 
     // Assert no re-allocation
-    std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
+    //std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
     assert(box_data_.size() <= 2*leaves-1);
 
     // Extract the permutation idx
-    for (auto&& p : point) {
+    for (auto&& p : point)
       permute_.push_back(p.second);
-    }
-  }
-
-  template <typename PointIter>
-  BoundingBox<point_type> get_boundingbox(PointIter first, PointIter last) {
-    // Construct a bounding box
-    BoundingBox<point_type> bb(first, last);
-    // Determine the size of the maximum side
-    point_type extents =  bb.max() - bb.min();
-    double max_side = *std::max_element(extents.begin(), extents.end());
-    double radius = (1.0+1e-6) * max_side / 2.0;
-    point_type center =  (bb.max() + bb.min()) / 2;
-    // Make it square and add some wiggle room   TODO: Generalize on square
-    return BoundingBox<point_type>(center - radius, center + radius);
   }
 
   // Just making sure for now

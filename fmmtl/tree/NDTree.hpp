@@ -500,14 +500,19 @@ class NDTree {
     // Create a code-idx pair vector
     typedef std::pair<code_type, size_type> code_pair;
     std::vector<code_pair> codes;
-    codes.reserve(std::distance(p_first, p_last));
-    // Allocate representation
-    mc_.reserve(codes.size());
-    permute_.reserve(codes.size());
+    // If iterators are random access, we can reserve space efficiently
+    // Compile-time predicate!
+    if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
+                     std::random_access_iterator_tag>::value)
+      codes.reserve(std::distance(p_first, p_last));
 
     // Initialize code-index pairs
     for (size_type idx = 0; p_first != p_last; ++p_first, ++idx)
       codes.emplace_back(coder_.code(*p_first), idx);
+
+    // Allocate representation
+    mc_.reserve(codes.size());
+    permute_.reserve(codes.size());
 
     // Push the root box which contains all points
     box_data_.emplace_back(0, codes.size(), -1, -1, 0, center());
