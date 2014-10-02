@@ -66,19 +66,13 @@ class KDTree {
     // Index of one-past-last body in this box
     size_type body_end_;
 
-    // Precomputed center
-    point_type center_;
-    // Precomputed extents
-    point_type extent_;
+    // Bounding Box of this box
+    BoundingBox<point_type> bounding_box_;
 
     BoxData(size_type bb, size_type be,
-            const point_type& c, const point_type& e)
+            const point_type& min, const point_type& max)
         : body_begin_(bb), body_end_(be),
-          center_(c), extent_(e) {
-    }
-    // XXX: Remove
-    BoxData(size_type bb, size_type be)
-        : body_begin_(bb), body_end_(be) {
+          bounding_box_(min,max) {
     }
   };
 
@@ -116,10 +110,10 @@ class KDTree {
     }
     //! The level of this box (root level is 0)
     size_type level() const {
-      return std::log2(idx_+1);  // XXX: Slow, do this with bits
+      return std::log2(idx_+1);  // XXX: Slow? do this with bits
     }
-    const point_type& extents() const {
-      return data().extent_;
+    point_type extents() const {
+      return data().bounding_box_.max() - data().bounding_box_.min();
     }
     double volume() const {
       const point_type& e = extents();
@@ -129,8 +123,8 @@ class KDTree {
       return norm_2(extents()) / 2.0;
     }
     //! The center of this box
-    const point_type& center() const {
-      return data().center_;
+    point_type center() const {
+      return (data().bounding_box_.max() + data().bounding_box_.min()) / 2;
     }
 
     //! The parent box of this box
@@ -292,7 +286,7 @@ class KDTree {
 
   /** Return the Bounding Box that this KDTree encompasses */
   BoundingBox<point_type> bounding_box() const {
-    return BoundingBox<point_type>();  // XXX: root().center() +/- extents/2
+    return box_data_[0].bounding_box_;
   }
 
   /** Return the center of this KDTree */
@@ -427,10 +421,11 @@ class KDTree {
 
  private:
   //! TODO: Make dynamic and public?
-  //! Uses incremental bucket sorting
   template <typename PointIter>
   void insert(PointIter p_first, PointIter p_last, size_type NCRIT) {
     FMMTL_LOG("KDTree Insert");
+
+    assert(p_first != p_last);
 
     // Create a point-idx pair vector
     typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
@@ -444,50 +439,66 @@ class KDTree {
       point.reserve(std::distance(p_first, p_last));
 
     unsigned idx = 0;
-    for (PointIter pi = p_first; pi != p_last; ++pi, ++idx)
+    BoundingBox<point_i_type> root_bb(*p_first);
+    for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
       point.emplace_back(*pi, idx);
+      root_bb |= point.back().first;
+    }
 
     permute_.reserve(point.size());
 
     // The number of leaf boxes that will be created
-    // (Smallest power of two greater than or equal to N / NCRIT)
-    unsigned leaves = ceil_pow_2(point.size() / NCRIT);
+    // (Smallest power of two greater than or equal to ceil(N/NCRIT))
+    unsigned leaves = ceil_pow_2((point.size() + NCRIT - 1) / NCRIT);
     unsigned levels = std::log2(leaves);
 
     // Reserve the number of boxes that will be added
 
     box_data_.reserve(2*leaves - 1);
     // Push the root box which contains all points
-    box_data_.emplace_back(0, size_type(point.size()));
+    box_data_.emplace_back(0, size_type(point.size()),
+                           root_bb.min(), root_bb.max());
 
     // For every box that is created
     for (unsigned k = 0; k < (1 << levels)-1; ++k) {
 
-      // Make a comparator for some dimension
-      const unsigned dim = 0;   // Cycle or whatev
-      auto comp = [](const point_t& a, const point_t& b) {
+      // Get the bounding box of the current box
+      auto& bb = box_data_[k].bounding_box_;
+
+      // Make a comparator for the largest dimension
+      const unsigned dim = max_dim(bb.max() - bb.min());
+      auto comp = [=] (const point_t& a, const point_t& b) {
         return a.first[dim] < b.first[dim];
       };
 
       // Partition the points on the median of this dimension
       auto p_begin = point.begin() + box_data_[k].body_begin_;
       auto p_end   = point.begin() + box_data_[k].body_end_;
-      auto p_mid   = p_begin + (p_end - p_begin) / 2;
+      auto p_mid   = p_begin + (p_end - p_begin + 1) / 2;
       std::nth_element(p_begin, p_mid, p_end, comp);
+
 
       // Record the child boxes
       unsigned mid = p_mid - point.begin();
-      box_data_.emplace_back(box_data_[k].body_begin_, mid);
-      box_data_.emplace_back(mid, box_data_[k].body_end_);
+      point_type split = bb.max();
+      split[dim] = (*p_mid).first[dim];
+      box_data_.emplace_back(box_data_[k].body_begin_, mid, bb.min(), split);
+      split = bb.min();
+      split[dim] = (*p_mid).first[dim];
+      box_data_.emplace_back(mid, box_data_[k].body_end_, split, bb.max());
     }
 
     // Assert no re-allocation
-    //std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
+    std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
     assert(box_data_.size() <= 2*leaves-1);
 
     // Extract the permutation idx
     for (auto&& p : point)
       permute_.push_back(p.second);
+  }
+
+  static unsigned max_dim(const point_type& p) {
+    return std::max_element(p.begin(), p.end()) - p.begin();
   }
 
   // Just making sure for now
