@@ -57,7 +57,7 @@
 #else
 #  include <iostream>
 #  include <thrust/system/cuda/error.h>
-inline void cuda_check(char* file, int line) {
+inline void cuda_check(const char* file, int line) {
   cudaError_t error = cudaDeviceSynchronize();
   if (error != cudaSuccess) {
     std::cerr << "CUDA assert:"
