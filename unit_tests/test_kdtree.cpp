@@ -2,7 +2,7 @@
 #include <string>
 
 #include "fmmtl/numeric/Vec.hpp"
-#include "fmmtl/tree/KDTree3.hpp"
+#include "fmmtl/tree/KDTree.hpp"
 
 #include "fmmtl/util/Clock.hpp"
 
