@@ -3,6 +3,8 @@
 #include <array>
 #include <algorithm>
 
+#include "fmmtl/meta/identity.hpp"
+
 #include "Chebyshev.hpp"
 
 /** Compute the inverse Barycentric weights at compile-time
@@ -147,21 +149,32 @@ struct LagrangeMatrix {
   //! Precomputed   q[i] = prod_{k} (p[i] - x_k)
   std::vector<std::array<T,D>> q;
 
-  template <typename PointIter>
-  LagrangeMatrix(PointIter first, PointIter last) {
+  /** Lagrange Interpolation Matrix constructor
+   *
+   * @param[in] first,last  A range of elements (points).
+   *                 A point is considered to be D elements of type T accessible
+   *                 via begin()/end().
+   * @param[in] proj  An optional projection operator acting on the element type
+   *                 *first. Defaults to identity, but in the non-identity
+   *                 case, the result type must obey the point concept above.
+   */
+  template <class PointIter, class Proj = fmmtl::identity>
+  LagrangeMatrix(PointIter first, PointIter last, Proj proj = Proj()) {
     p.resize(std::distance(first,last));
     q.resize(p.size());
 
     auto pit = p.begin();
     auto qit = q.begin();
     for ( ; first != last; ++first, ++pit, ++qit) {
-      auto&& point = *first;
-      auto&& pi = *pit;
+      auto&& point = proj(*first);
 
+      // Copy the point to p[i]
+      std::array<T,D>& pi = *pit;
       std::copy(point.begin(), point.end(), pi.begin());
 
+      // Compute the pre-factors q[i]
       std::array<T,D>& qi = *qit;
-      qi.fill(value_type(1));
+      qi.fill(T(1));
       for (std::size_t k = 0; k != Q; ++k) {
         for (std::size_t d = 0; d != D; ++d) {
           qi[d] *= (pi[d] - Chebyshev<T,Q>::x[k]);
@@ -177,7 +190,7 @@ struct LagrangeMatrix {
     return LagrangeWeight<T,Q>::w[i] * q[j][d] / (p[j][d] - Chebyshev<T,Q>::x[i]);
   }
 
-  template <typename MultiIndex>
+  template <class MultiIndex>
   value_type operator()(const MultiIndex& i, const std::size_t j) const {
     value_type result = operator()(i[0], 0, j);
     for (std::size_t d = 1; d != D; ++d) {
@@ -191,17 +204,17 @@ struct LagrangeMatrix {
 /** Type representing the transpose of a LagrangeMatrix. Allows code like
  *    prod(trans(LagrangeM), ...);
  */
-template <std::size_t D, std::size_t Q, typename T = double>
+template <std::size_t D, std::size_t Q, class T = double>
 struct LagrangeMatrixTranspose {
   const LagrangeMatrix<D,Q,T>& L_;
 };
 
-template <std::size_t D, std::size_t Q, typename T>
+template <std::size_t D, std::size_t Q, class T>
 LagrangeMatrixTranspose<D,Q,T> trans(const LagrangeMatrix<D,Q,T>& L) {
   return {L};
 }
 
-template <std::size_t D, std::size_t Q, typename T>
+template <std::size_t D, std::size_t Q, class T>
 const LagrangeMatrix<D,Q,T>& trans(const LagrangeMatrixTranspose<D,Q,T>& L) {
   return L.L_;
 }

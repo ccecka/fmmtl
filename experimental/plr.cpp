@@ -21,14 +21,14 @@ struct MyKernel {
 
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    return std::exp(-norm_2(s - t));
+    return std::exp(-0.5*norm_2_sq(s - t));
   }
 };
 
 
 int main(int argc, char** argv) {
-  unsigned N = 500;
-  unsigned M = 500;
+  unsigned N = 1000;
+  unsigned M = 1000;
   bool checkErrors = true;
 
   // Parse custom command line args
@@ -43,8 +43,8 @@ int main(int argc, char** argv) {
   }
 
   // PLR Parameters for the submatrix blocks
-  static constexpr std::size_t max_rank = 10;
-  static constexpr double      eps_tol  = 1e-5;
+  static constexpr std::size_t max_rank = 5;
+  static constexpr double      eps_tol  = 1e-3;
 
   // Define a kernel to work with
   using kernel_type = MyKernel;

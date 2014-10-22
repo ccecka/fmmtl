@@ -2,7 +2,6 @@
 
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/numeric/Complex.hpp"
-#include "fmmtl/numeric/norm.hpp"
 
 #include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/tree/TreeRange.hpp"
@@ -20,7 +19,6 @@
 #include <boost/math/special_functions/sin_pi.hpp>
 #include <boost/math/special_functions/cos_pi.hpp>
 #include <boost/math/constants/constants.hpp>
-#include <boost/iterator/transform_iterator.hpp>
 
 
 //#include "ButterflyExpansion.hpp"
@@ -31,7 +29,7 @@ const std::size_t D = 2;
 const std::size_t Q = 10;
 
 
-struct FourierKernel {
+struct TestKernel {
   typedef double value_type;
 
   typedef Vec<D,value_type> source_type;
@@ -97,7 +95,7 @@ int main(int argc, char** argv) {
 
   // Define the kernel
   //typedef ButterflyExpansion<FourierKernel, Q> Kernel;
-  typedef FourierKernel Kernel;
+  typedef TestKernel Kernel;
   Kernel K;
   double _M_ = 1;  // TEMP
 

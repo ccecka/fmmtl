@@ -75,7 +75,7 @@ struct S2L_Helper<true> {
 };
 
 /** Public S2L dispatcher */
-class S2L {
+struct S2L {
   /** Forward to S2L_Helper::apply */
   template <typename Expansion>
   inline static void apply(const Expansion& K,

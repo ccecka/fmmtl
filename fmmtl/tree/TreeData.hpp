@@ -59,9 +59,11 @@ struct BodyBind {
     std::size_t    size()  const { return end() - begin(); }
   };
 
-  BodyBind(const Tree& tree)
-      : data(tree.bodies()) {
+  // Construct without permuting data or initialization data
+  BodyBind(std::size_t n)
+      : data(n) {
   }
+  // Construct by permuting some initialization data based on the tree
   template <typename Iterator>
   BodyBind(const Tree& tree, Iterator data_it)
       : data(tree.body_permute(data_it, tree.body_begin()),
@@ -104,5 +106,12 @@ template <typename Tree, typename Range>
 auto
 make_body_binding(const Tree& tree, const Range& range)
     -> decltype(make_body_binding(tree, std::begin(range))) {
-  make_body_binding(tree, std::begin(range));
+  return make_body_binding(tree, std::begin(range));
+}
+
+// Any Type without initial data (avoid permutation, just allocate)
+template <typename Type, typename Tree>
+BodyBind<Type, Tree>
+make_body_binding(const Tree& tree) {
+  return {tree.bodies()};
 }

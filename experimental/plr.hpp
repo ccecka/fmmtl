@@ -1,10 +1,11 @@
 
 #include <memory>
+#include <iterator>
 
 #include "fmmtl/numeric/flens.hpp"
+#include "util/Probe.hpp"
 
 #include "fmmtl/numeric/Vec.hpp"
-#include "fmmtl/numeric/norm.hpp"
 
 #include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/tree/TreeRange.hpp"
@@ -12,22 +13,15 @@
 
 #include "fmmtl/executor/Traversal.hpp"
 
-#include "fmmtl/Direct.hpp"
 
 // A block-compressed representation of a matrix
 template <typename T, unsigned DT, unsigned DS>
 struct PLR_Matrix {
-  // Avoid copy/move of a tree for now...
-  fmmtl::NDTree<DT>* target_tree;
-  fmmtl::NDTree<DS>* source_tree;
+  using target_tree_type = fmmtl::NDTree<DT>;
+  using source_tree_type = fmmtl::NDTree<DS>;
 
-  ~PLR_Matrix() {
-    delete target_tree; target_tree = nullptr;
-    delete source_tree; source_tree = nullptr;
-  }
-
-  using target_box_type = typename fmmtl::NDTree<DT>::box_type;
-  using source_box_type = typename fmmtl::NDTree<DS>::box_type;
+  using target_box_type = typename target_tree_type::box_type;
+  using source_box_type = typename source_tree_type::box_type;
 
   using matrix_type     = flens::GeMatrix<flens::FullStorage<T> >;
 
@@ -42,6 +36,11 @@ struct PLR_Matrix {
         : s(_s), t(_t),
           U(std::forward<MatrixU>(_u)), V(std::forward<MatrixVT>(_v)) {}
   };
+
+  // Trees representing the dyadic block structure
+  // RI Breaking: Required only because source_box/target_box are proxies...
+  std::unique_ptr<target_tree_type> target_tree;
+  std::unique_ptr<source_tree_type> source_tree;
 
   // List of blocks, could use a better data structure...
   std::vector<dyadic_tree_leaf> leaf_node;
@@ -62,8 +61,7 @@ void prod_acc(PLR_M& plr,
               CIterator x_first, CIterator x_last,
               RIterator y_first, RIterator y_last) {
   // TODO: size check
-  (void) x_last;
-  (void) y_last;
+  (void) x_last; (void) y_last;
   using charge_type = typename std::iterator_traits<CIterator>::value_type;
   using result_type = typename std::iterator_traits<RIterator>::value_type;
   // Wrap the range in flens vectors for linear algebra
@@ -73,8 +71,8 @@ void prod_acc(PLR_M& plr,
 
   // Permute the charges to match the body order in the tree
   auto p_charges = make_body_binding(*(plr.source_tree), x_first);
-  // Permute the results to match the body order in the tree
-  auto p_results = make_body_binding(*(plr.target_tree), y_first);
+  // Create permuted results, but don't bother initializing
+  auto p_results = make_body_binding<result_type>(*(plr.target_tree));
 
   // Perform the matvec
   // Evaluate the leaf low-rank decompositions
@@ -87,20 +85,25 @@ void prod_acc(PLR_M& plr,
     flens::DenseVector<result_ref> y = result_ref(r.size(), &*std::begin(r));
 
     // Compute the product
-    y += leaf.U * (leaf.V * x);
+    // TODO: Parallelize
+    auto Vx = leaf.V * x;
+    if (num_rows(leaf.U) == 0)
+      y += Vx;
+    else
+      y += leaf.U * Vx;
   }
 
   // Copy back permuted results
-  auto pri = plr.target_tree->body_permute(y_first, plr.target_tree->body_begin());
+  auto pri = plr.target_tree->body_permute(y_first);
   for (auto&& ri : p_results) {
-    *pri = ri;
+    *pri += ri;
     ++pri;
   }
 
 }
 
 
-/** Simlpler C-like interface to the PLR matrix decomposition
+/** Simpler C-like interface to the PLR matrix decomposition
  * @param[in] data    Row-major matrix to compress
  *                      data[i*m + j] represents the i-jth matrix entry.
  * @param[in] n       Number of rows of the matrix.
@@ -120,7 +123,7 @@ void prod_acc(PLR_M& plr,
  * Usage example:
  *    mat = ...;
  *    t = ...; s = ...;
- *    auto plr_matrix = plr_compression(mat, 5, 7, t, s);
+ *    auto plr_matrix = plr_compression<3,2>(mat, 5, 7, t, s);
  *
  *
  *
@@ -136,17 +139,29 @@ plr_compression(T* data, unsigned n, unsigned m,
   const Vec<DS,TS>* sources = reinterpret_cast<const Vec<DS,TS>*>(srcs);
 
   // Construct compressed matrix and trees
-  PLR_Matrix<T,DT,DS> plr_m;
-  plr_m.source_tree = new fmmtl::NDTree<DS>(sources, sources + m, max_rank);
-  plr_m.target_tree = new fmmtl::NDTree<DT>(targets, targets + n, max_rank);
+  using plr_type = PLR_Matrix<T,DT,DS>;
+  using target_tree_type = typename PLR_Matrix<T,DT,DS>::target_tree_type;
+  using source_tree_type = typename PLR_Matrix<T,DT,DS>::source_tree_type;
 
-  std::cout << "Trees complete" << std::endl;
+  plr_type plr_m;
+
+  { ScopeClock timer("Trees Complete: ");
+
+  // C++11 overlooked make_unique
+  plr_m.target_tree =
+      std::unique_ptr<target_tree_type>(
+          new target_tree_type(targets, targets + n, max_rank));
+  plr_m.source_tree =
+      std::unique_ptr<source_tree_type>(
+          new source_tree_type(sources, sources + m, max_rank));
+
+  }
 
   // Get the tree types
-  typedef typename fmmtl::NDTree<DT>::box_type target_box_type;
-  typedef typename fmmtl::NDTree<DS>::box_type source_box_type;
-  typedef typename fmmtl::NDTree<DT>::body_type target_body_type;
-  typedef typename fmmtl::NDTree<DS>::body_type source_body_type;
+  using target_box_type  = typename target_tree_type::box_type;
+  using source_box_type  = typename source_tree_type::box_type;
+  using target_body_type = typename target_tree_type::body_type;
+  using source_body_type = typename source_tree_type::body_type;
 
   // Permute the sources to match the body order in the tree
   auto p_sources = make_body_binding(*(plr_m.source_tree), sources);
@@ -183,8 +198,8 @@ plr_compression(T* data, unsigned n, unsigned m,
   // Construct an evaluator for the traversal algorithm
   // See fmmtl::traverse_if documentation
   auto evaluator = [&] (const source_box_type& s, const target_box_type& t) {
-    std::cout << "TargetBox: " << t << std::endl;
-    std::cout << "SourceBox: " << s << std::endl;
+    //std::cout << "TargetBox: " << t << std::endl;
+    //std::cout << "SourceBox: " << s << std::endl;
 
     // Compute an approximate SVD of the submatrix defined by the boxes
     // TODO: Replace by fast rank-revealing alg
@@ -192,45 +207,39 @@ plr_compression(T* data, unsigned n, unsigned m,
     unsigned m = s.num_bodies();
     unsigned r = std::min(n, m);
 
-    matrix_type U(n,r), VT(r,m);
-    vector_type D(r);
     auto rows = _(t.body_begin().index()+1, t.body_end().index());
     auto cols = _(s.body_begin().index()+1, s.body_end().index());
-    // A is mutated by SVD so we need a copy
-    matrix_type A_ST = A(rows,cols);
-    flens::lapack::svd(flens::lapack::SVD::Save, flens::lapack::SVD::Save,
-                       A_ST, D, U, VT);
 
-    // Find the rank-cutoff, if exists
-    unsigned rank = 1;
-    while (rank <= r && D(rank)/D(1) > eps_tol) ++rank;
-    --rank;
+    if (max_rank >= r) {
+      // Accept the block
+      //std::cout << "AUTO ACCEPTED BLOCK, Rank " << r << std::endl;
 
-    // If either of the boxes are leaves, force-accept
-    if (s.is_leaf() || t.is_leaf())
-      rank = std::min(rank, std::min(max_rank, r));
+      // Auto-accept A
+      plr_m.leaf_node.emplace_back(s, t,
+                                   matrix_type(), A(rows,cols));
+      // Do not recurse
+      return 0;
+    }
+
+    // Attempt to factor the block to max_rank
+    matrix_type U, VT;
+    std::tie(U, VT) = probe_svd(A(rows,cols), max_rank, eps_tol);
 
     // Accept block and store low-rank approximation or recurse
-    if (rank <= max_rank) {
+    if (num_rows(U) != 0) {
       // Accept the block and store low-rank approx
-      std::cout << "ACCEPTED BLOCK, Rank " << rank << std::endl;
-
-      auto _rank = _(1,rank);
-
-      const DiagMatrix<ConstArrayView<double> > DM = D(_rank);
+      std::cout << "ACCEPTED BLOCK, Rank " << num_cols(U) <<
+          " from " << n << "-by-" << m << std::endl;
 
       // Store the low rank decomposition of this node
-      plr_m.leaf_node.emplace_back(s, t,
-                                   U(_(1,n), _rank),
-                                   DM * VT(_rank, _(1,m)));
+      plr_m.leaf_node.emplace_back(s, t, U, VT);
       // Do not recurse further
       return 0;
     } else {
       // Recurse by splitting the source and target boxes (dyadically)
-      std::cout << "REJECTED BLOCK, Rank " << rank << std::endl;
+      //std::cout << "REJECTED BLOCK" << std::endl;
       return 3;
     }
-
   };
 
   // Perform the traversal
