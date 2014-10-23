@@ -1,15 +1,9 @@
 #pragma once
 
 #include <cmath>
+#include <vector>
 
 #include "fmmtl/dispatch/S2T/S2T_Compressed.hpp"
-
-//#define BOOST_UBLAS_NDEBUG
-//#include <boost/numeric/ublas/matrix_sparse.hpp>
-//#include <boost/numeric/ublas/vector.hpp>
-//namespace ublas = boost::numeric::ublas;
-
-#include <vector>
 
 /** A lazy S2T evaluator which saves a list of pairs of boxes
  * That are sent to the S2T dispatcher on demand.

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "M2T.hpp"
 #include "M2L.hpp"
 #include "S2L.hpp"
