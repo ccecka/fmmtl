@@ -1,10 +1,12 @@
 #pragma once
-/** @file NDTree
- * @brief General class representing a {1D,2D,3D,4D}-Tree.
+/** @file KDTree
+ * @brief A binary tree constructed by splitting each box by a median.
  */
 
 #include <vector>
 #include <algorithm>
+#include <type_traits>
+#include <iterator>
 
 #include <iostream>
 #include <iomanip>
@@ -16,62 +18,17 @@
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/tree/BoundingBox.hpp"
-#include "fmmtl/tree/MortonCoder.hpp"
+
+#include "fmmtl/numeric/bits.hpp"
 
 namespace fmmtl {
 using boost::has_range_iterator;
 using boost::iterator_adaptor;
 
-/** In-place bucket sort using counting sort
- *
- * @param[in] first,last Iterator pair to the sequence to be bucketed
- * @param[in] num_buckets The number of buckets to be used
- * @param[in] map Mapping of elements in [first,last) to [0,num_buckets)
- * @returns vector of iterators:
- *          [result[i],result[i+1]) is the range of the ith bucket.
- *
- * @pre For all i in [first,last), 0 <= map(*i) < num_buckets.
- * @post For all i and j such that first <= i < j < last,
- *       then 0 <= map(*i) <= map(*j) < num_buckets.
- * @tparam Iterator models a random-access mutable iterator
- */
-template <typename Iterator, typename BucketMap>
-std::vector<Iterator> bucket_sort(Iterator first, Iterator last,
-                                  unsigned num_buckets, BucketMap map) {
-  typedef typename std::iterator_traits<Iterator>::value_type value_type;
-
-  std::vector<Iterator> start(num_buckets+1, first);
-
-  for ( ; first != last; ++first)
-    ++start[1 + map(*first)];
-
-  for (unsigned k = 2; k <= num_buckets; ++k)
-    start[k] += (start[k-1] - start[0]);
-
-  std::vector<Iterator> end = start;
-
-  // For each bin
-  for (unsigned curr_bin = 0; curr_bin < num_buckets; ++curr_bin) {
-    first = start[curr_bin];
-    last  = end[1+curr_bin];
-
-    while (first != last) {
-      value_type& v = *first++;
-
-      // Swap until an element comes back to this bin
-      unsigned bin;
-      while (curr_bin != (bin = map(v)))
-        std::swap(v, *start[bin]++);
-    }
-  }
-
-  return end;
-}
-
 
 //! Class for tree structure
 template <unsigned DIM>
-class NDTree {
+class KDTree {
   // Predeclarations
   struct Box;
   struct Body;
@@ -79,12 +36,8 @@ class NDTree {
   struct BoxIterator;
   struct BodyIterator;
 
-  // Morton coder to order the points
-  typedef MortonCoder<DIM> coder_type;
-  typedef typename coder_type::code_type code_type;
-
   // The type of this tree
-  typedef NDTree<DIM> tree_type;
+  typedef KDTree<DIM> tree_type;
 
  public:
   //! The type of indices and integers in this tree
@@ -102,16 +55,10 @@ class NDTree {
  private:
   // Tree representation
 
-  // Morton coder to transform points wrt a bounding box
-  coder_type coder_;
-  // Morton code for each point
-  std::vector<code_type> mc_;
   // Permutation: permute_[i] is the current idx of originally ith point
   std::vector<size_type> permute_;
   // Vector of data describing a box
   std::vector<BoxData> box_data_;
-  // level_offset_[i] and level_offset_[i+1] is the start and end of level i
-  std::vector<size_type> level_offset_;
 
   struct BoxData {
     // Index of the first body in this box
@@ -119,26 +66,13 @@ class NDTree {
     // Index of one-past-last body in this box
     size_type body_end_;
 
-    // Index of first child box
-    size_type cbox_begin_;
-    // Index of one-past-last child box
-    size_type cbox_end_;
+    // Bounding Box of this box
+    BoundingBox<point_type> bounding_box_;
 
-    // Index of the parent box
-    size_type parent_;
-
-    // Precomputed center
-    point_type center_;
-
-    BoxData(size_type bb, size_type be, size_type cbb, size_type cbe,
-            size_type p, const point_type& c)
+    BoxData(size_type bb, size_type be,
+            const point_type& min, const point_type& max)
         : body_begin_(bb), body_end_(be),
-          cbox_begin_(cbb), cbox_end_(cbe), parent_(p),
-          center_(c) {
-    }
-
-    bool is_leaf() const {
-      return cbox_begin_ == size_type(-1);
+          bounding_box_(min,max) {
     }
   };
 
@@ -153,9 +87,6 @@ class NDTree {
     size_type index() const {
       return idx_;
     }
-    code_type morton_index() const {
-      return tree_->mc_[idx_];
-    }
    private:
     size_type idx_;
     tree_type* tree_;
@@ -163,7 +94,7 @@ class NDTree {
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
       FMMTL_ASSERT(idx_ < tree_->size());
     }
-    friend class NDTree;
+    friend class KDTree;
   };
 
   // A tree-aligned box
@@ -179,49 +110,46 @@ class NDTree {
     }
     //! The level of this box (root level is 0)
     size_type level() const {
-      const auto it = std::upper_bound(tree_->level_offset_.begin(),
-                                       tree_->level_offset_.end(),
-                                       idx_);
-      return it - tree_->level_offset_.begin() - 1;
+      return std::log2(idx_+1);  // XXX: Slow? do this with bits
     }
     point_type extents() const {
-      const BoundingBox<point_type> bb = tree_->coder_.bounding_box();
-      return (bb.max() - bb.min()) / (1 << level());
+      return data().bounding_box_.max() - data().bounding_box_.min();
     }
     double volume() const {
-      point_type e = extents();
+      const point_type& e = extents();
       return std::accumulate(e.begin(), e.end(), 1.0, std::multiplies<double>());
     }
     double radius() const {
       return norm_2(extents()) / 2.0;
     }
     //! The center of this box
-    const point_type& center() const {
-      return data().center_;
+    point_type center() const {
+      return (data().bounding_box_.max() + data().bounding_box_.min()) / 2;
     }
 
     //! The parent box of this box
     Box parent() const {
-      return Box(data().parent_, tree_);
+      FMMTL_ASSERT(!(*this == tree_->root()));
+      return Box((idx_-1)/2, tree_);
     }
 
     //! True if this box is a leaf and has no children
     bool is_leaf() const {
-      return data().is_leaf();
+      return 2*idx_+1 >= tree_->box_data_.size();
     }
     //! The begin iterator to the child boxes contained in this box
     box_iterator child_begin() const {
       FMMTL_ASSERT(!is_leaf());
-      return box_iterator(data().cbox_begin_, tree_);
+      return box_iterator(2*idx_+1, tree_);
     }
     //! The end iterator to the child boxes contained in this box
     box_iterator child_end() const {
       FMMTL_ASSERT(!is_leaf());
-      return box_iterator(data().cbox_end_, tree_);
+      return box_iterator(2*idx_+3, tree_);
     }
     //! The number of children this box has
-    size_type num_children() const {
-      return std::distance(child_begin(), child_end());
+    constexpr size_type num_children() const {
+      return 2;
     }
 
     //! The begin iterator to the bodies contained in this box
@@ -254,9 +182,10 @@ class NDTree {
       size_type num_bodies = b.num_bodies();
       size_type first_body = b.body_begin()->index();
       size_type last_body = first_body + num_bodies - 1;
+      size_type parent_idx = b.index()==0 ? 0 : b.parent().index();
 
       return s << "Box " << b.index()
-               << " (L" << b.level() << ", P" << b.parent().index()
+               << " (L" << b.level() << ", P" << parent_idx
                << ", " << num_bodies << (num_bodies == 1 ? " body" : " bodies")
                << " " << first_body << "-" << last_body
                << "): " << b.center() << " - " << b.extents();
@@ -266,11 +195,12 @@ class NDTree {
     tree_type* tree_;
     Box(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
+      FMMTL_ASSERT(idx_ < tree_->boxes());
     }
     inline BoxData& data() const {
       return tree_->box_data_[idx_];
     }
-    friend class NDTree;
+    friend class KDTree;
   };
 
   /** @struct Tree::BoxIterator
@@ -292,7 +222,7 @@ class NDTree {
     }
    private:
     const tree_type* tree_;
-    friend class NDTree;
+    friend class KDTree;
     inline BoxIterator(size_type idx, const tree_type* tree)
         : BoxIterator::iterator_adaptor(idx), tree_(tree) {
     }
@@ -324,7 +254,7 @@ class NDTree {
     }
    private:
     const tree_type* tree_;
-    friend class NDTree;
+    friend class KDTree;
     inline BodyIterator(size_type idx, const tree_type* tree)
         : BodyIterator::iterator_adaptor(idx), tree_(tree) {
     }
@@ -342,27 +272,26 @@ class NDTree {
   /** Construct a tree encompassing a bounding box
    * and insert a range of points */
   template <typename Range>
-  NDTree(const Range& rng, size_type n_crit = 256,
+  KDTree(const Range& rng, size_type n_crit = 256,
          typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
-      : NDTree(rng.begin(), rng.end(), n_crit) {
+      : KDTree(rng.begin(), rng.end(), n_crit) {
   }
 
   /** Construct an tree encompassing a bounding box
    * and insert a range of points */
   template <typename PointIter>
-  NDTree(PointIter first, PointIter last, size_type n_crit = 256)
-      : coder_(get_boundingbox(first, last)) {
+  KDTree(PointIter first, PointIter last, size_type n_crit = 256) {
     insert(first, last, n_crit);
   }
 
-  /** Return the Bounding Box that this NDTree encompasses */
+  /** Return the Bounding Box that this KDTree encompasses */
   BoundingBox<point_type> bounding_box() const {
-    return coder_.bounding_box();
+    return box_data_[0].bounding_box_;
   }
 
-  /** Return the center of this NDTree */
+  /** Return the center of this KDTree */
   point_type center() const {
-    return coder_.center();
+    return root().center();
   }
 
   /** The number of bodies contained in this tree */
@@ -381,16 +310,16 @@ class NDTree {
 
   /** The number of boxes contained in level L of this tree */
   inline size_type boxes(size_type L) const {
-    return level_offset_[L+1] - level_offset_[L];
+    return (1 << L);
   }
 
   /** The maximum level of any box in this tree */
   inline size_type levels() const {
-    return level_offset_.size() - 1;
+    return std::log2(boxes());  // XXX: Slow?
   }
   /** The maximum possible level of any box in this tree */
   inline static size_type max_level() {
-    return MortonCoder<DIM>::levels() - 1;
+    return size_type(-1);
   }
 
   /** Returns true if the box is contained in this tree, false otherwise */
@@ -437,14 +366,14 @@ class NDTree {
    */
   box_iterator box_begin(size_type L) const {
     FMMTL_ASSERT(L < levels());
-    return box_iterator(level_offset_[L], this);
+    return box_iterator((1 << L) - 1, this);
   }
   /** Return an iterator one past the last box at level L in this tree
    * @pre L < levels()
    */
   box_iterator box_end(size_type L) const {
     FMMTL_ASSERT(L < levels());
-    return box_iterator(level_offset_[L+1], this);
+    return box_iterator((1 << (L+1)) - 1, this);
   }
 
   template <typename RandomAccessIter>
@@ -473,7 +402,7 @@ class NDTree {
     return body_permute(it, body_begin());
   }
 
-  /** Write an NDTree to an output stream */
+  /** Write an KDTree to an output stream */
   inline friend std::ostream& operator<<(std::ostream& s,
                                          const tree_type& t) {
     struct {
@@ -492,117 +421,89 @@ class NDTree {
 
  private:
   //! TODO: Make dynamic and public?
-  //! Uses incremental bucket sorting
   template <typename PointIter>
   void insert(PointIter p_first, PointIter p_last, size_type NCRIT) {
-    FMMTL_LOG("Tree Insert");
+    FMMTL_LOG("KDTree Insert");
 
-    // Create a code-idx pair vector
-    typedef std::pair<code_type, size_type> code_pair;
-    std::vector<code_pair> codes;
+    assert(p_first != p_last);
+
+    // Create a point-idx pair vector
+    typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
+    typedef std::pair<point_i_type, unsigned> point_t;
+
+    std::vector<point_t> point;
     // If iterators are random access, we can reserve space efficiently
     // Compile-time predicate!
     if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
                      std::random_access_iterator_tag>::value)
-      codes.reserve(std::distance(p_first, p_last));
+      point.reserve(std::distance(p_first, p_last));
 
-    // Initialize code-index pairs
-    for (size_type idx = 0; p_first != p_last; ++p_first, ++idx)
-      codes.emplace_back(coder_.code(*p_first), idx);
+    unsigned idx = 0;
+    BoundingBox<point_i_type> root_bb(*p_first);
+    for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
+      point.emplace_back(*pi, idx);
+      root_bb |= point.back().first;
+    }
 
-    // Allocate representation
-    mc_.reserve(codes.size());
-    permute_.reserve(codes.size());
+    permute_.reserve(point.size());
 
+    // The number of leaf boxes that will be created
+    // (Smallest power of two greater than or equal to ceil(N/NCRIT))
+    unsigned leaves = ceil_pow_2((point.size() + NCRIT - 1) / NCRIT);
+    unsigned levels = std::log2(leaves);
+
+    // Reserve the number of boxes that will be added
+
+    box_data_.reserve(2*leaves - 1);
     // Push the root box which contains all points
-    box_data_.emplace_back(0, codes.size(), -1, -1, 0, center());
-    level_offset_.push_back(0);
-    level_offset_.push_back(1);
+    box_data_.emplace_back(0, size_type(point.size()),
+                           root_bb.min(), root_bb.max());
 
-    const size_type max_children = (1 << DIM);
+    // For every box that is created
+    for (unsigned k = 0; k < (1 << levels)-1; ++k) {
 
-    // For each level
-    for (size_type L = 1; L < level_offset_.size(); ++L) {
+      // Get the bounding box of the current box
+      auto& bb = box_data_[k].bounding_box_;
 
-      // Define the bucketer for this next level
-      const size_type shift = DIM * (max_level() - (L-1));
-      auto bucketer = [=] (const code_pair& v) {
-        return (v.first >> shift) & (max_children-1);
+      // Make a comparator for the largest dimension
+      const unsigned dim = max_dim(bb.max() - bb.min());
+      auto comp = [=] (const point_t& a, const point_t& b) {
+        return a.first[dim] < b.first[dim];
       };
 
-      // Construct the next level  TODO: 2 or 3 at a time
-      for (size_type k = level_offset_[L-1]; k < level_offset_[L]; ++k) {
+      // Partition the points on the median of this dimension
+      auto p_begin = point.begin() + box_data_[k].body_begin_;
+      auto p_end   = point.begin() + box_data_[k].body_end_;
+      auto p_mid   = p_begin + (p_end - p_begin + 1) / 2;
+      std::nth_element(p_begin, p_mid, p_end, comp);
 
-        // If this box has few enough points, go to next box
-        if (box_data_[k].body_end_ - box_data_[k].body_begin_ <= NCRIT)
-          continue;
 
-        // Else, split this box
-
-        // Get the box data
-        auto code_begin = codes.begin() + box_data_[k].body_begin_;
-        auto code_end   = codes.begin() + box_data_[k].body_end_;
-
-        // Sort the points in this box into the "bucket" children
-        auto off = bucket_sort(code_begin, code_end, max_children, bucketer);
-
-        // Record the child begin idx
-        box_data_[k].cbox_begin_ = box_data_.size();
-
-        // For each bucket
-        for (size_type c = 0; c < max_children; ++c) {
-          // If this child contains points
-          if (off[c+1] != off[c]) {
-            // Add the child
-            box_data_.emplace_back(off[c]   - codes.begin(),   // Body begin idx
-                                   off[c+1] - codes.begin(),   // Body end idx
-                                   -1, -1,                     // Children idxs
-                                   k,                          // Parent idx
-                                   get_center(off[c]->first, L)); // Center
-          }
-        }
-
-        // Record the child end idx
-        box_data_[k].cbox_end_ = box_data_.size();
-      }
-
-      // Record the level end
-      if (box_data_.size() > level_offset_.back())
-        level_offset_.push_back(box_data_.size());
+      // Record the child boxes
+      unsigned mid = p_mid - point.begin();
+      point_type split = bb.max();
+      split[dim] = (*p_mid).first[dim];
+      box_data_.emplace_back(box_data_[k].body_begin_, mid, bb.min(), split);
+      split = bb.min();
+      split[dim] = (*p_mid).first[dim];
+      box_data_.emplace_back(mid, box_data_[k].body_end_, split, bb.max());
     }
 
-    // Extract the code, permutation vector, and sorted point
-    for (auto& c : codes) {
-      mc_.push_back(c.first);
-      permute_.push_back(c.second);
-    }
+    // Assert no re-allocation
+    std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
+    assert(box_data_.size() <= 2*leaves-1);
+
+    // Extract the permutation idx
+    for (auto&& p : point)
+      permute_.push_back(p.second);
   }
 
-  /** Get the center of the box that
-   * morton code @a c is contained in at level @level
-   */
-  point_type get_center(code_type c, size_type level) {
-    // Mask for boxes of this level
-    code_type mask = (code_type(1) << (DIM*(max_level()-level+1))) - 1;
-    return coder_.center(c & ~mask /*cmin*/, c | mask /*cmax*/);
-  }
-
-  template <typename PointIter>
-  BoundingBox<point_type> get_boundingbox(PointIter first, PointIter last) {
-    // Construct a bounding box
-    BoundingBox<point_type> bb(first, last);
-    // Determine the size of the maximum side
-    point_type extents =  bb.max() - bb.min();
-    double max_side = *std::max_element(extents.begin(), extents.end());
-    double radius = (1.0+1e-6) * max_side / 2.0;
-    point_type center =  (bb.max() + bb.min()) / 2;
-    // Make it square and add some wiggle room   TODO: Generalize on square
-    return BoundingBox<point_type>(center - radius, center + radius);
+  static unsigned max_dim(const point_type& p) {
+    return std::max_element(p.begin(), p.end()) - p.begin();
   }
 
   // Just making sure for now
-  NDTree(const NDTree&) {};
-  void operator=(const NDTree&) {};
+  KDTree(const KDTree&) {};
+  void operator=(const KDTree&) {};
 };
 
 } // end namespace fmmtl
