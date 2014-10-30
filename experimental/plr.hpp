@@ -11,7 +11,7 @@
 #include "fmmtl/tree/TreeRange.hpp"
 #include "fmmtl/tree/TreeData.hpp"
 
-#include "fmmtl/executor/Traversal.hpp"
+#include "fmmtl/traversal/DualTraversal.hpp"
 
 
 // A block-compressed representation of a matrix

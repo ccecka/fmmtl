@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Evaluator.hpp"
+#include "fmmtl/executor/Evaluator.hpp"
 
-#include "Upward.hpp"
-#include "Traversal.hpp"
-#include "Downward.hpp"
+#include "fmmtl/traversal/Upward.hpp"
+#include "fmmtl/traversal/DualTraversal.hpp"
+#include "fmmtl/traversal/Downward.hpp"
 
 #include "fmmtl/dispatch/Dispatchers.hpp"
 #include "fmmtl/tree/TreeRange.hpp"

@@ -1,5 +1,5 @@
 #pragma once
-/** @file Traversal
+/** @file DualTraversal
  * @brief Generic dual-tree traversals for finding pairs of boxes
  * that satisfy some criteria.
  */
