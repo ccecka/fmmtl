@@ -63,23 +63,21 @@ int main(int argc, char** argv) {
 
   // Construct a set of charges and results
   std::vector<charge_type> charges = fmmtl::random_n(M);
-  std::vector<result_type> results(M);
+  std::vector<result_type> results(N);
 
   // Get the dimension of the sources and targets
   constexpr unsigned SD = fmmtl::dimension<source_type>::value;
   constexpr unsigned TD = fmmtl::dimension<target_type>::value;
 
   // Generate the matrix
-  kernel_value_type A[N*M];
-  for (unsigned i = 0; i < N; ++i) {
-    for (unsigned j = 0; j < M; ++j) {
+  std::vector<kernel_value_type> A(N*M);
+  for (unsigned i = 0; i < N; ++i)
+    for (unsigned j = 0; j < M; ++j)
       A[i*M+j] = kernel(targets[i], sources[j]);
-    }
-  }
 
   // Call the PLR Compression
   auto plr_plan
-      = plr_compression<TD,SD>(A, N, M,
+      = plr_compression<TD,SD>(A.data(), N, M,
                                reinterpret_cast<double*>(sources.data()),
                                reinterpret_cast<double*>(targets.data()),
                                max_rank, eps_tol);
