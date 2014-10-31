@@ -25,16 +25,12 @@ struct PLR_Matrix {
 
   using matrix_type     = flens::GeMatrix<flens::FullStorage<T> >;
 
-  // TODO: Still need a compressed (+parallel) storage type for dyadic boxes...
   struct dyadic_tree_leaf {
     source_box_type s;    //< Or charge_range for simplicity
-    target_box_type t;    //< Or result_range for simplicity
     matrix_type U, V;     //< Low-rank approximation of this block
-    template <class MatrixU, class MatrixVT>
-    dyadic_tree_leaf(const source_box_type& _s, const target_box_type& _t,
-                     MatrixU&& _u, MatrixVT&& _v)
-        : s(_s), t(_t),
-          U(std::forward<MatrixU>(_u)), V(std::forward<MatrixVT>(_v)) {}
+    template <class MatrixU, class MatrixV>
+    dyadic_tree_leaf(const source_box_type& _s, MatrixU&& _u, MatrixV&& _v)
+        : s(_s), U(std::forward<MatrixU>(_u)), V(std::forward<MatrixV>(_v)) {}
   };
 
   // Trees representing the dyadic block structure
@@ -42,15 +38,81 @@ struct PLR_Matrix {
   std::unique_ptr<target_tree_type> target_tree;
   std::unique_ptr<source_tree_type> source_tree;
 
-  // List of blocks, could use a better data structure...
-  std::vector<dyadic_tree_leaf> leaf_node;
+  // List of dyadic blocks by target box index
+  std::vector<std::vector<dyadic_tree_leaf>> leaf_nodes;
+  // Count of blocks by level
+  std::vector<unsigned> leaf_count;
+
+  template <class MatrixU, class MatrixV>
+  void add_leaf(const source_box_type& s, const target_box_type& t,
+                MatrixU&& u, MatrixV&& v) {
+    leaf_nodes[t.index()].emplace_back(s,
+                                       std::forward<MatrixU>(u),
+                                       std::forward<MatrixV>(v));
+    ++leaf_count[t.level()];
+  }
+
+  // y += A*x
+  template <typename CIterator, typename RIterator>
+  void prod_acc(CIterator x_first, CIterator x_last,
+                RIterator y_first, RIterator y_last) {
+    // TODO: size check
+    (void) x_last; (void) y_last;
+    using charge_type = typename std::iterator_traits<CIterator>::value_type;
+    using result_type = typename std::iterator_traits<RIterator>::value_type;
+    // Wrap the range in flens vectors for linear algebra
+    // Requires contiguous data
+    using charge_ref = flens::ArrayView<charge_type>;
+    using result_ref = flens::ArrayView<result_type>;
+
+    // Permute the charges to match the body order in the tree
+    auto p_charges = make_body_binding(*source_tree, x_first);
+    // Create permuted results, but don't bother initializing to existing
+    auto p_results = make_body_binding<result_type>(*target_tree);
+
+#pragma omp parallel default(shared)
+    for (unsigned level = 0; level < target_tree->levels(); ++level) {
+      if (leaf_count[level] == 0)
+        continue;
+      auto tb_end = target_tree->box_end(level);
+      // In parallel over all of the target boxes of this level
+#pragma omp for
+      for (auto tb_i = target_tree->box_begin(level); tb_i < tb_end; ++tb_i) {
+        // The target box
+        target_box_type t = *tb_i;
+        // The range of associated results
+        auto r = p_results[t];
+        flens::DenseVector<result_ref> y = result_ref(r.size(), &*std::begin(r));
+        // For all the source boxes in this tbox-level list
+        for (auto& leaf : leaf_nodes[t.index()]) {
+          // The range of charges
+          auto c = p_charges[leaf.s];
+          flens::DenseVector<charge_ref> x = charge_ref(c.size(), &*std::begin(c));
+          // Apply the (t,s) block
+          if (num_rows(leaf.U) == 0) {
+            y += leaf.V * x;
+          } else {
+            auto Vx = leaf.V * x;
+            y += leaf.U * Vx;
+          }
+        }
+      }
+    }
+
+    // Copy back permuted results
+    auto pri = target_tree->body_permute(y_first);
+    for (const auto& ri : p_results) {
+      *pri += ri;
+      ++pri;
+    }
+  }
 };
 
 
 /* y += A*x
  */
 template <typename PLR_M, typename RangeC, typename RangeR>
-void prod_acc(PLR_M& plr, RangeC&& x, RangeR& y) {
+void prod_acc(PLR_M& plr, RangeC& x, RangeR& y) {
   return prod_acc(plr, std::begin(x), std::end(x), std::begin(y), std::end(y));
 }
 
@@ -60,46 +122,7 @@ template <typename PLR_M, typename CIterator, typename RIterator>
 void prod_acc(PLR_M& plr,
               CIterator x_first, CIterator x_last,
               RIterator y_first, RIterator y_last) {
-  // TODO: size check
-  (void) x_last; (void) y_last;
-  using charge_type = typename std::iterator_traits<CIterator>::value_type;
-  using result_type = typename std::iterator_traits<RIterator>::value_type;
-  // Wrap the range in flens vectors for linear algebra
-  // Requires contiguous data
-  using charge_ref = flens::ArrayView<charge_type>;
-  using result_ref = flens::ArrayView<result_type>;
-
-  // Permute the charges to match the body order in the tree
-  auto p_charges = make_body_binding(*(plr.source_tree), x_first);
-  // Create permuted results, but don't bother initializing
-  auto p_results = make_body_binding<result_type>(*(plr.target_tree));
-
-  // Perform the matvec
-  // Evaluate the leaf low-rank decompositions
-  for (auto&& leaf : plr.leaf_node) {
-    // Get the range of charges and results associated with the boxes
-    auto c = p_charges[leaf.s];
-    auto r = p_results[leaf.t];
-
-    flens::DenseVector<charge_ref> x = charge_ref(c.size(), &*std::begin(c));
-    flens::DenseVector<result_ref> y = result_ref(r.size(), &*std::begin(r));
-
-    // Compute the product
-    // TODO: Parallelize
-    auto Vx = leaf.V * x;
-    if (num_rows(leaf.U) == 0)
-      y += Vx;
-    else
-      y += leaf.U * Vx;
-  }
-
-  // Copy back permuted results
-  auto pri = plr.target_tree->body_permute(y_first);
-  for (auto&& ri : p_results) {
-    *pri += ri;
-    ++pri;
-  }
-
+  return plr.prod_acc(x_first, x_last, y_first, y_last);
 }
 
 
@@ -134,6 +157,7 @@ PLR_Matrix<T,DT,DS>
 plr_compression(T* data, unsigned n, unsigned m,
                 const TT* trgs, const TS* srcs,
                 unsigned max_rank, double eps_tol) {
+  ScopeClock plr_construction_timer("PLR Matrix Construction: ");
 
   const Vec<DT,TT>* targets = reinterpret_cast<const Vec<DT,TT>*>(trgs);
   const Vec<DS,TS>* sources = reinterpret_cast<const Vec<DS,TS>*>(srcs);
@@ -148,12 +172,15 @@ plr_compression(T* data, unsigned n, unsigned m,
   { ScopeClock timer("Trees Complete: ");
 
   // C++11 overlooked make_unique
+  // TODO: Constructor
   plr_m.target_tree =
       std::unique_ptr<target_tree_type>(
           new target_tree_type(targets, targets + n, max_rank));
   plr_m.source_tree =
       std::unique_ptr<source_tree_type>(
           new source_tree_type(sources, sources + m, max_rank));
+  plr_m.leaf_nodes.resize(plr_m.target_tree->boxes());
+  plr_m.leaf_count.resize(plr_m.target_tree->levels());
 
   }
 
@@ -215,8 +242,7 @@ plr_compression(T* data, unsigned n, unsigned m,
       //std::cout << "AUTO ACCEPTED BLOCK, Rank " << r << std::endl;
 
       // Auto-accept A
-      plr_m.leaf_node.emplace_back(s, t,
-                                   matrix_type(), A(rows,cols));
+      plr_m.add_leaf(s, t, matrix_type(), A(rows,cols));
       // Do not recurse
       return 0;
     }
@@ -228,11 +254,11 @@ plr_compression(T* data, unsigned n, unsigned m,
     // Accept block and store low-rank approximation or recurse
     if (num_rows(U) != 0) {
       // Accept the block and store low-rank approx
-      std::cout << "ACCEPTED BLOCK, Rank " << num_cols(U) <<
-          " from " << n << "-by-" << m << std::endl;
+      //std::cout << "ACCEPTED BLOCK, Rank " << num_cols(U) <<
+      //    " from " << n << "-by-" << m << std::endl;
 
       // Store the low rank decomposition of this node
-      plr_m.leaf_node.emplace_back(s, t, U, VT);
+      plr_m.add_leaf(s, t, std::move(U), std::move(VT));
       // Do not recurse further
       return 0;
     } else {
@@ -246,8 +272,6 @@ plr_compression(T* data, unsigned n, unsigned m,
   fmmtl::traverse_if(plr_m.source_tree->root(),
                      plr_m.target_tree->root(),
                      evaluator);
-
-  std::cout << "PLR_Matrix RETURNING" << std::endl;
 
   return plr_m;
 }
