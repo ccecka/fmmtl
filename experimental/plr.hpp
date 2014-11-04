@@ -92,8 +92,7 @@ struct PLR_Matrix {
           if (num_rows(leaf.U) == 0) {
             y += leaf.V * x;
           } else {
-            auto Vx = leaf.V * x;
-            y += leaf.U * Vx;
+            y += leaf.U * (leaf.V * x);
           }
         }
       }

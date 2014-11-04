@@ -15,9 +15,11 @@ struct MyKernel {
   typedef Vec<2,value_type> source_type;
   typedef Vec<2,value_type> target_type;
   typedef value_type        charge_type;
-  typedef value_type        result_type;
 
-  typedef value_type        kernel_value_type;
+  //typedef double result_type;
+  //typedef double kernel_value_type;
+  typedef std::complex<double>   result_type;
+  typedef std::complex<double>   kernel_value_type;
 
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
@@ -108,16 +110,17 @@ int main(int argc, char** argv) {
       //std::cout << results[k] << "\t" << exact[k] << std::endl;
 
       // Individual relative error
-      double rel_error = norm_2(exact[k] - results[k]) / norm_2(exact[k]);
+      //double rel_error = norm_2(exact[k] - results[k]) / norm_2(exact[k]);
+      double rel_error = std::abs(exact[k] - results[k]) / std::abs(exact[k]);
       tot_ind_rel_err += rel_error;
       // Maximum relative error
       max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
 
       // Total relative error
-      tot_error_sq += norm_2_sq(exact[k] - results[k]);
-      tot_norm_sq  += norm_2_sq(exact[k]);
+      tot_error_sq += std::norm(exact[k] - results[k]);
+      tot_norm_sq  += std::norm(exact[k]);
     }
-    double tot_rel_err = sqrt(tot_error_sq/tot_norm_sq);
+    double tot_rel_err = std::sqrt(tot_error_sq/tot_norm_sq);
     std::cout << "Vector  relative error: " << tot_rel_err << std::endl;
 
     double ave_rel_err = tot_ind_rel_err / results.size();

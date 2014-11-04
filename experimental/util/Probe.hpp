@@ -38,7 +38,7 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
 
   using namespace flens;
   using matrix_type     = GeMatrix<FullStorage<T> >;
-  using vector_type     = DenseVector<Array<T> >;
+  using vector_type     = DenseVector<Array<double> >;
 
   // A is an n x m matrix
   unsigned n = num_rows(A);
@@ -70,10 +70,10 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
 
   if (erank <= max_rank) {
     auto r = _(1,erank);
-    const DiagMatrix<ConstArrayView<T> > DM = D(r);
+    const DiagMatrix<ConstArrayView<double> > DM = D(r);
 
     return std::make_tuple(matrix_type(U2(_,r) * DM),
-                           matrix_type(VT(r,r) * transpose(U1(_,r))));
+                           matrix_type(VT(r,r) * conjTrans(U1(_,r))));
   }
 
   return std::make_tuple(matrix_type(), matrix_type());
