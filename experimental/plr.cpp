@@ -110,15 +110,14 @@ int main(int argc, char** argv) {
       //std::cout << results[k] << "\t" << exact[k] << std::endl;
 
       // Individual relative error
-      //double rel_error = norm_2(exact[k] - results[k]) / norm_2(exact[k]);
-      double rel_error = std::abs(exact[k] - results[k]) / std::abs(exact[k]);
+      double rel_error = norm_2(exact[k] - results[k]) / norm_2(exact[k]);
       tot_ind_rel_err += rel_error;
       // Maximum relative error
       max_ind_rel_err  = std::max(max_ind_rel_err, rel_error);
 
       // Total relative error
-      tot_error_sq += std::norm(exact[k] - results[k]);
-      tot_norm_sq  += std::norm(exact[k]);
+      tot_error_sq += norm_2_sq(exact[k] - results[k]);
+      tot_norm_sq  += norm_2_sq(exact[k]);
     }
     double tot_rel_err = std::sqrt(tot_error_sq/tot_norm_sq);
     std::cout << "Vector  relative error: " << tot_rel_err << std::endl;
