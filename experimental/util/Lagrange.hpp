@@ -3,7 +3,7 @@
 #include <array>
 #include <algorithm>
 
-#include "fmmtl/meta/identity.hpp"
+#include "fmmtl/meta/functional.hpp"
 
 #include "Chebyshev.hpp"
 
