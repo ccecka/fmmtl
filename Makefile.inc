@@ -40,7 +40,8 @@ ifeq ($(CXX_VERSION_LT_48),1)
   $(error Makefile using g++ v$(shell $(CXX) -dumpversion), please use >= v4.8)
 endif
 # Check for CUDA compiler
-NVCC := $(shell which nvcc)
+USE_NVCC := $(shell which nvcc)
+NVCC     := $(USE_NVCC) -std=c++11 -ccbin=$(shell which g++)
 
 # Dependency directory and flags
 DEPSDIR := $(shell mkdir -p .deps; echo .deps)
@@ -56,10 +57,10 @@ INCLUDES += -I. -I$(FMMTL_DIR) -I$(KERNEL_DIR)
 INCLUDES += -I$(BOOST_DIR) -I$(FLENS_DIR)
 
 # Define cxx compile flags
-CXXFLAGS  = -fopenmp -funroll-loops -O3 -W -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors
+CXXFLAGS  = -fopenmp -funroll-loops -O3 -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors
 
 # Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
-NVCCFLAGS := -ccbin=g++-4.6 -arch=sm_20 -O3 --compiler-options "$(CXXFLAGS)" #-Xptxas="-v"
+NVCCFLAGS := -arch=sm_20 -O3 --compiler-options "$(CXXFLAGS)" -Xcompiler -Wno-unused-parameter #-Xptxas="-v"
 
 # Define any directories containing libraries
 #   To include directories use -Lpath/to/files
@@ -86,11 +87,11 @@ ifeq ($(LOG),1)
 	CXXFLAGS += -DFMMTL_LOGGING
 endif
 ifeq ($(NO_CUDA),1)
-	NVCC :=
+	USE_NVCC :=
 endif
 # Set up for CUDA if available
-ifeq ($(NVCC),)    # NVCC is not available
-else               # NVCC is available
+ifeq ($(USE_NVCC),)    # NVCC is not available
+else                   # NVCC is available
 	CXXFLAGS += -DFMMTL_WITH_CUDA
 	INCLUDES += -I$(CUDA_PATH)/include
 	# Use cuda lib64 if it exists, else cuda lib
@@ -142,7 +143,7 @@ $(EXEC): % : %.o
 
 # Default rule for creating a .o file from a .kern file
 %.o: %.kern
-ifeq ($(NVCC),)  # NVCC isn't available
+ifeq ($(USE_NVCC),)  # NVCC isn't available
 	ln -s $< $(<:%.kern=%.kern.cpp)
 	@$(MAKE) --no-print-directory $@
 else             # NVCC is availble
