@@ -41,7 +41,7 @@ ifeq ($(CXX_VERSION_LT_48),1)
 endif
 # Check for CUDA compiler
 USE_NVCC := $(shell which nvcc)
-NVCC     := $(USE_NVCC) -std=c++11 -ccbin=$(shell which g++)
+NVCC     := $(USE_NVCC) -std=c++11 -ccbin=g++-4.8 #$(shell which g++)
 
 # Dependency directory and flags
 DEPSDIR := $(shell mkdir -p .deps; echo .deps)
