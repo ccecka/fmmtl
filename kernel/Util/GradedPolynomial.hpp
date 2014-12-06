@@ -47,13 +47,13 @@ constexpr std::size_t last_non_zero(More... is) {
  */
 template <std::size_t... Is>
 struct MultiIndex : index_sequence<Is...> {
-  static constexpr std::size_t I  = monomial_index(Is...);
-  static constexpr std::size_t F  = product(factorial(Is)...);
-  static constexpr std::size_t D  = sizeof...(Is);
-  static constexpr std::size_t R  = sum(Is...);
-  static constexpr std::size_t LD = D - first_non_zero(Is...);
-  static constexpr std::size_t TD = D -  last_non_zero(Is...);
-  static constexpr std::size_t TDV = intseq_element<TD, index_sequence<Is...>>::value;
+  static constexpr std::size_t I   = monomial_index(Is...);
+  static constexpr std::size_t F   = product(factorial(Is)...);
+  static constexpr std::size_t D   = sizeof...(Is);
+  static constexpr std::size_t R   = sum(Is...);
+  static constexpr std::size_t LD  = D - first_non_zero(Is...);
+  static constexpr std::size_t TD  = D -  last_non_zero(Is...);
+  static constexpr std::size_t TDV = at<TD>(Is...);
 };
 
 
@@ -81,9 +81,9 @@ template <typename S>
 using as_multiindex_t = typename as_multiindex<S>::type;
 
 template <std::size_t DIM, std::size_t D>
-using MultiIndexUnit = as_multiindex_t<intseq_cat_t<make_intseq<D>,
+using MultiIndexUnit = as_multiindex_t<intseq_cat_t<idxseq_repeat_t<D>,
                                                     index_sequence<1>,
-                                                    make_intseq<DIM-D-1>>>;
+                                                    idxseq_repeat_t<DIM-D-1>>>;
 
 /** Represents a sequence of multiindexes in graded reverse lexigraphical order.
  * The sequence is parameterized:
@@ -149,6 +149,8 @@ struct GradedMonomialSequence {
   }
 };
 
+template <typename Seq>
+struct GMS_Iterator {};
 
 ///////////////////////////////////////
 // Static Forward Sequence Utilities //
@@ -163,23 +165,23 @@ struct size<GradedMonomialSequence<ORDER,DIM>>
 // begin GradedMonomialSequence  <0, 0, 0, ...>
 template <std::size_t ORDER, std::size_t DIM>
 struct begin<GradedMonomialSequence<ORDER,DIM>> {
-  using type = as_multiindex_t<make_intseq<DIM>>;
+  using type = GMS_Iterator<idxseq_repeat_t<DIM,0>>;
 };
 
 // end GradedMonomialSequence    <0, 0, ..., 0, ORDER+1>
 template <std::size_t ORDER, std::size_t DIM>
 struct end<GradedMonomialSequence<ORDER,DIM>> {
-  using type = as_multiindex_t<intseq_push_back_t<make_intseq<DIM-1>,
-                                                  index_t<ORDER+1>>>;
+  using type = GMS_Iterator<intseq_push_back_t<idxseq_repeat_t<DIM-1,0>,
+                                               index_t<ORDER+1>>>;
 };
 
-// deref MultiIndex
-template <std::size_t... I>
-struct deref<MultiIndex<I...>> {
-  using type = MultiIndex<I...>;
+// deref GMS_Iterator
+template <typename Seq>
+struct deref<GMS_Iterator<Seq>> {
+  using type = as_multiindex_t<Seq>;
 };
 
-// next MultiIndex
+// next GMS_Iterator
 template <std::size_t i, typename MJ>
 struct next_impl;
 
@@ -200,19 +202,20 @@ struct next_impl<i, index_sequence<j,J...>> {
 };
 
 template <std::size_t i, std::size_t... I>
-struct next<MultiIndex<i, I...> > {
-  using type = as_multiindex_t<typename next_impl<i,index_sequence<I...>>::type>;
+struct next<GMS_Iterator<index_sequence<i,I...>>> {
+  using type = GMS_Iterator<typename next_impl<i,index_sequence<I...>>::type>;
 };
 
 
 /*********************/
 /** GradedPolynomial */
 /*********************/
+// TODO: Need C++14 template lambdas...
 
 template <typename ArrayT, typename ArrayX>
 struct _pow {
   template <typename N>      // N is a MultiIndex<I...>
-  void operator()(N) {
+  constexpr void operator()(N) {
     using P = decltype(N{} - MultiIndexUnit<N::D,N::TD>{});
     std::get<N::I>(t) = std::get<P::I>(t) * std::get<N::TD>(x) / N::TDV;
   }
@@ -223,7 +226,7 @@ struct _pow {
 template <typename Array>
 struct _plus_eq {
   template <typename N>
-  void operator()(N) {
+  constexpr void operator()(N) {
     std::get<N::I>(a) += std::get<N::I>(t);
   }
   Array& a;
@@ -234,7 +237,7 @@ struct _plus_eq {
 template <typename N, typename Array>
 struct _sum_minus {
   template <typename K>
-  void operator()(K) {
+  constexpr void operator()(K) {
     using NmK = decltype(N{} - K{});
     std::get<N::I>(t) += std::get<K::I>(r) * std::get<NmK::I>(m);
   }
@@ -246,7 +249,7 @@ struct _sum_minus {
 template <typename N, typename Array>
 struct _sum_plus {
   template <typename K>
-  void operator()(K) {
+  constexpr void operator()(K) {
     using NpK = decltype(N{} + K{});
     std::get<N::I>(t) += std::get<K::I>(r) * std::get<NpK::I>(m);
   }
@@ -259,14 +262,14 @@ struct _sum_plus {
 template <typename Array>
 struct _sum_less {
   template <typename N>
-  void operator()(N) {
+  constexpr void operator()(N) {
     // a[N] += t[K] * m[N-K]
     sum<N,N>();
   }
 
   // Base case: K = <0,0,...>
   template <typename N, typename K>
-  typename std::enable_if<K::R == 0>::type
+  constexpr typename std::enable_if<K::R == 0>::type
   sum() {
     using NmK = decltype(N{} - K{});
     std::get<N::I>(a) += std::get<K::I>(t) * std::get<NmK::I>(m);
@@ -274,7 +277,7 @@ struct _sum_less {
 
   // Keep decrementing by the last non-zero of K
   template <typename N, typename K>
-  typename std::enable_if<K::R != 0>::type
+  constexpr typename std::enable_if<K::R != 0>::type
   sum() {
     using P   = decltype(K{} - MultiIndexUnit<K::D,K::TD>{});
     sum<N,P>();
@@ -290,7 +293,7 @@ struct _sum_less {
 template <std::size_t ORDER, typename Array>
 struct _sum_less_mag {
   template <typename N>
-  void operator()(N) {
+  constexpr void operator()(N) {
     using Seq = GradedMonomialSequence<ORDER - N::R, N::D>;
     using first = begin_t<Seq>;
     using last  = end_t<Seq>;
@@ -365,7 +368,6 @@ struct GradedPolynomial {
 
   typename MonoArray::iterator       end()       { return m_.end(); }
   typename MonoArray::const_iterator end() const { return m_.end(); }
-
 
         T& operator[](std::size_t i)       { return m_[i]; }
   const T& operator[](std::size_t i) const { return m_[i]; }
