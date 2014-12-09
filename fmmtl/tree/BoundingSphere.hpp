@@ -63,7 +63,7 @@ public:
 
 		//calculate pivot
 		auto temp_pos = max_pos-min_pos;
-		pivot_ = std::distance(temp_pos.begin(), std::max_element(temp_pos.begin(), temp_pos.end()));
+		pivot_ = std::max_element(temp_pos.begin(), temp_pos.end()) - temp_pos.begin();
 
 		//Update radius_
 		for (; first!=last; ++first) {
@@ -71,7 +71,6 @@ public:
 			if (dist > radius_)
 				radius_ = dist;
 		}
-		radius_ = std::sqrt(radius_);
 		return *this;
 	}
 
