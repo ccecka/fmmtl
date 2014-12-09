@@ -337,6 +337,27 @@ public:
 
 		std::vector<point_t> point;
 		
+		/** custome iterator, increment(), decrement() like an iterator to point_t type,
+		 * but dereference to a point_i_type
+		 */
+		struct point_index_iter
+			: public iterator_adaptor <point_index_iter, 						//Derived
+									   typename std::vector<point_t>::iterator,	//Base
+									   point_i_type,							//Value
+									   std::random_access_iterator_tag,			//IterCategory
+									   point_i_type&>							//Reference
+		{
+			point_index_iter() {}
+			explicit point_index_iter(typename std::vector<point_t>::iterator iter)
+				: point_index_iter::iterator_adaptor(iter) {}
+		private:
+			friend class boost::iterator_core_access;
+			//dereference to the first element of point_t, i.e., point_i_type
+			point_i_type& dereference() const {
+				return (*(this->base_reference())).first;
+			}
+		};
+
 		if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
 			std::random_access_iterator_tag>::value) 
 				point.reserve(std::distance(p_first, p_last));
@@ -371,9 +392,10 @@ public:
 			std::nth_element(p_begin, p_mid, p_end, myless_comp);
 
 			//build 2 child boxes
+			point_index_iter pii_begin(p_begin), pii_end(p_end), pii_mid(p_mid);
 			unsigned mid = p_mid - point.begin();
-			box_data_.emplace_back(box_data_[k].body_begin_, mid, p_first+box_data_[k].body_begin_, p_first+mid);
-			box_data_.emplace_back(mid, box_data_[k].body_end_, p_first+mid, p_first+box_data_[k].body_end_);
+			box_data_.emplace_back(box_data_[k].body_begin_, mid, pii_begin, pii_mid);
+			box_data_.emplace_back(mid, box_data_[k].body_end_, pii_mid, pii_end);
 		}
 
 		std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
