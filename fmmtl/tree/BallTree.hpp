@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <tuple>
 #include <iostream>
 
 #include <boost/range.hpp>
@@ -13,6 +14,7 @@
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/tree/BoundingSphere.hpp"
 #include "fmmtl/numeric/bits.hpp"
+#include "fmmtl/numeric/norm.hpp"
 
 namespace fmmtl {
 using boost::has_range_iterator;
@@ -54,12 +56,8 @@ private:
 
 		//memberwise constructor
 		BoxData(size_type bb, size_type be, const bounding_sphere_type& bs)
-			: body_begin_(bb), body_end_(be), bounding_sphere_(bs) {}	//XXX: use std::move()
+			: body_begin_(bb), body_end_(be), bounding_sphere_(bs) {}
 
-		//Ctor with BodyIterator
-		template <typename PointIter>
-		BoxData(size_type bb, size_type be, PointIter first, PointIter last)
-			: body_begin_(bb), body_end_(be), bounding_sphere_(first, last) {}
 	};
 
 	struct Body {
@@ -336,28 +334,8 @@ public:
 		typedef std::pair<point_i_type, unsigned> point_t;
 
 		std::vector<point_t> point;
+		std::vector<unsigned> pivot_arry;
 		
-		/** custome iterator, increment(), decrement() like an iterator to point_t type,
-		 * but dereference to a point_i_type
-		 */
-		struct point_index_iter
-			: public iterator_adaptor <point_index_iter, 						//Derived
-									   typename std::vector<point_t>::iterator,	//Base
-									   point_i_type,							//Value
-									   std::random_access_iterator_tag,			//IterCategory
-									   point_i_type&>							//Reference
-		{
-			point_index_iter() {}
-			explicit point_index_iter(typename std::vector<point_t>::iterator iter)
-				: point_index_iter::iterator_adaptor(iter) {}
-		private:
-			friend class boost::iterator_core_access;
-			//dereference to the first element of point_t, i.e., point_i_type
-			point_i_type& dereference() const {
-				return (*(this->base_reference())).first;
-			}
-		};
-
 		if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
 			std::random_access_iterator_tag>::value) 
 				point.reserve(std::distance(p_first, p_last));
@@ -366,21 +344,24 @@ public:
 		unsigned idx = 0;
 		for (auto pi = p_first; pi!=p_last; ++pi, ++idx)
 			point.emplace_back(*pi, idx);
-		BoundingSphere<point_i_type> root_bs(p_first, p_last);
 
 		permute_.reserve(point.size());
+		pivot_arry.reserve(point.size());
 
 		unsigned leaves = ceil_pow_2((point.size()+NCRIT-1)/NCRIT);
 		unsigned levels = std::log2(leaves);
 
+		auto bs_params = calc_bs_params(point.begin(), point.end());	//0: center, 1: radius_sq, 2: pivot
+		auto curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
+		pivot_arry.emplace_back(std::get<2>(bs_params));
+
 		box_data_.reserve(2*leaves-1);
-		box_data_.emplace_back(0, size_type(point.size()), root_bs);
+		box_data_.emplace_back(0, size_type(point.size()), curr_bs);
 
 		for (unsigned k=0; k<(1<<levels)-1; ++k) {
-			auto& bs = box_data_[k].bounding_sphere_;
+			auto pivot = pivot_arry[k];
 
 			//get the dimension with the largest spread (pivot)
-			size_type pivot = bs.pivot();
 			auto myless_comp = [pivot] (const point_t& a, const point_t& b) {
 				return a.first[pivot] < b.first[pivot];
 			};
@@ -392,10 +373,16 @@ public:
 			std::nth_element(p_begin, p_mid, p_end, myless_comp);
 
 			//build 2 child boxes
-			point_index_iter pii_begin(p_begin), pii_end(p_end), pii_mid(p_mid);
 			unsigned mid = p_mid - point.begin();
-			box_data_.emplace_back(box_data_[k].body_begin_, mid, pii_begin, pii_mid);
-			box_data_.emplace_back(mid, box_data_[k].body_end_, pii_mid, pii_end);
+			bs_params = calc_bs_params(p_begin, p_mid);	//0: center, 1: radius_sq, 2: pivot
+			curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
+			pivot_arry.emplace_back(std::get<2>(bs_params));
+			box_data_.emplace_back(box_data_[k].body_begin_, mid, curr_bs);
+
+			bs_params = calc_bs_params(p_mid, p_end);	//0: center, 1: radius_sq, 2: pivot
+			curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
+			pivot_arry.emplace_back(std::get<2>(bs_params));
+			box_data_.emplace_back(mid, box_data_[k].body_end_, curr_bs);
 		}
 
 		std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
@@ -407,6 +394,45 @@ public:
 
 	static unsigned max_dim(const point_type& p) {
 		return std::max_element(p.begin(), p.end()-p.begin());
+	}
+
+	/** calculate bounding sphere parameters : center, radius_sq and pivot for a given range of points [first, last)
+	 * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
+	 */
+	template <typename PointIndexIter>
+	std::tuple<point_type, double, unsigned> calc_bs_params(PointIndexIter first, PointIndexIter last) {
+		unsigned n = std::distance(first, last);
+		unsigned dim = (*first).first.size();
+		//calculate maximum spread in each dimension
+		auto min_pos((*first).first);	//stores minimum point position in each dimension
+		auto max_pos(min_pos);	//stores maxmium point position in each dimension
+		auto center = point_type(0,0,0);
+		double radius_sq = 0.;
+
+		//Update center for the BoundingSphere
+		for (auto new_first=first; new_first!=last; ++new_first) {
+			for (unsigned i=0; i<dim; ++i) {
+				center[i] += (*new_first).first[i];
+				if ((*new_first).first[i] < min_pos[i])
+					min_pos[i] = (*new_first).first[i];
+				if ((*new_first).first[i] > max_pos[i])
+					max_pos[i] = (*new_first).first[i];
+			}
+		}
+		for (unsigned i=0; i<dim; ++i)
+			center[i] /= n;
+
+		//calculate pivot
+		auto temp_pos = max_pos-min_pos;
+		unsigned pivot = std::max_element(temp_pos.begin(), temp_pos.end()) - temp_pos.begin();
+
+		//Update radius_sq
+		for (; first!=last; ++first) {
+			double dist_sq = norm_2_sq(center - (*first).first);	
+			if (dist_sq > radius_sq)
+				radius_sq = dist_sq;
+		}
+		return std::make_tuple(center, radius_sq, pivot);
 	}
 
 	BallTree (const BallTree&) {};
