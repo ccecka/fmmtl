@@ -54,7 +54,7 @@ class BoundingBox {
   template <typename IT>
   BoundingBox(IT first, IT last)
       : min_(*first), max_(min_) {
-    assert(first != last);
+    FMMTL_ASSERT(first != last);
     insert(++first, last);
   }
 

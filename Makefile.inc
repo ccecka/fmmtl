@@ -27,7 +27,7 @@ endif
 ifeq ($(kernel-name),)
 	kernel-name := $(shell uname -s)
 endif
-# Get the arch-name is empty
+# Get the arch-name if empty
 ifeq ($(arch-name),)
 	arch-name := $(shell uname -p)
 endif
@@ -75,6 +75,9 @@ LDLIBS  +=
 ######################
 
 ifeq ($(NDEBUG),1)
+	CXXFLAGS += -DNDEBUG
+endif
+ifeq ($(FMMTL_NDEBUG),1)
 	CXXFLAGS += -DFMMTL_NDEBUG
 endif
 ifeq ($(DEBUG),1)

@@ -48,7 +48,7 @@ constexpr std::size_t last_non_zero(More... is) {
 template <std::size_t... Is>
 struct MultiIndex : index_sequence<Is...> {
   static constexpr std::size_t I   = monomial_index(Is...);
-  static constexpr std::size_t F   = product(factorial(Is)...);
+  static constexpr double      F   = product(factorial(Is)...);
   static constexpr std::size_t D   = sizeof...(Is);
   static constexpr std::size_t R   = sum(Is...);
   static constexpr std::size_t LD  = D - first_non_zero(Is...);
@@ -159,7 +159,8 @@ struct GMS_Iterator {};
 // size GradedMonomialSequence
 template <std::size_t ORDER, std::size_t DIM>
 struct size<GradedMonomialSequence<ORDER,DIM>>
-    : std::integral_constant<std::size_t, combination(ORDER+DIM, DIM)> {
+    : std::integral_constant<std::size_t,
+                             std::size_t(combination(ORDER+DIM, DIM))> {
 };
 
 // begin GradedMonomialSequence  <0, 0, 0, ...>

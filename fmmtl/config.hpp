@@ -27,7 +27,7 @@
 #endif
 
 // Enable performance options in NDEBUG mode
-#if defined(FMMTL_NDEBUG)
+#if defined(FMMTL_NDEBUG) || defined(NDEBUG)
 #  define FMMTL_DISABLE_ASSERTS
 #  define FMMTL_DISABLE_CUDA_CHECKS
 #endif

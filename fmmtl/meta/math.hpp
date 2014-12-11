@@ -33,22 +33,22 @@ constexpr T product(const T& n, More... ns) {
 
 // Factorial
 // n! = n * (n-1) * (n-2) * ... * 1
-constexpr std::size_t factorial(std::size_t n) {
+constexpr double factorial(std::size_t n) {
 	return (n <= 1) ? 1 : n * factorial(n-1);
 };
 
 // Combinatorial Permutation
 // (n)_k = n! / (n-k)! = n * (n-1) * (n-2) * ... * (n-k+1)
-constexpr std::size_t permutation(std::size_t n, std::size_t k) {
+constexpr double permutation(std::size_t n, std::size_t k) {
 	return (k == 0) ? 1 : n * permutation(n-1,k-1);
 };
 
 // Combinatorial Combination -- Binomial Coefficient
 // n choose k = n! / (k! (n-k)!)
-constexpr std::size_t combination_impl(std::size_t n, std::size_t k) {
+constexpr double combination_impl(std::size_t n, std::size_t k) {
   return (k == 0) ? 1 : n * combination_impl(n-1,k-1) / k;
 }
-constexpr std::size_t combination(std::size_t n, std::size_t k) {
+constexpr double combination(std::size_t n, std::size_t k) {
   return (n/2 > k) ? combination_impl(n,n-k) : combination_impl(n,k);
 };
 
