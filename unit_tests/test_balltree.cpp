@@ -29,17 +29,25 @@ int main(int argc, char** argv)
 
   typedef Vec<dim,double> point_type;
 
+#if 1
   std::vector<point_type> points = fmmtl::random_n(N);
-  /*
-  std::vector<point_type> points;
-  points.emplace_back(1, 0, 0);
-  points.emplace_back(1, 100, 0);
-  points.emplace_back(0, 0, 0);
-  points.emplace_back(0, 100, 0);
-  */
-
   Clock timer;
   fmmtl::BallTree<dim> tree(points, 10);
+#else
+  std::vector<point_type> points;
+/*  points.emplace_back(0.2, 0, 0);
+  points.emplace_back(1.2, 0, 0);
+  points.emplace_back(0.2, 100, 0);
+  points.emplace_back(1.2, 100, 0);
+  */
+  points.emplace_back(1, 100, 0);
+  points.emplace_back(0, 0, 0);
+  points.emplace_back(1, 0, 0);
+  points.emplace_back(0, 100, 0);
+  Clock timer;
+  fmmtl::BallTree<dim> tree(points, 2);
+#endif
+
   double time = timer.seconds();
   std::cout << "BallTree Construction: " << time << std::endl;
 

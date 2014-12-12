@@ -134,7 +134,7 @@ private:
 		}
 
 		constexpr size_type num_children() const {
-			return 2;	//XXX: box in a full binary tree always has 2 children
+			return 2;
 		}
 		size_type num_bodies() const {
 			return std::distance(body_begin(), body_end());
@@ -238,7 +238,8 @@ public:
 	
 	template<typename PointIter>
 	BallTree(PointIter first, PointIter last, size_type n_crit = 256) {
-		insert(first, last, n_crit);
+//		insert_mwd(first, last, n_crit);
+		insert_pcfp(first, last, n_crit);
 	}
 
 	//return root Bounding Sphere
@@ -267,7 +268,7 @@ public:
 	}
 	//maximum possible level of any box in this tree
 	inline static size_type max_level() {
-		return size_type(-1);	//XXX: meaning?
+		return size_type(-1);
 	}
 	inline bool contains(const box_type& box) const {
 		return this==box.tree_;
@@ -323,9 +324,142 @@ public:
 	}
 
 	private:
+	/** Points Closest to Furthest Pair method to construct BoundingSpheres for a BallTree
+	 * each pair of children boxes are separated by finding the point, whose square distance to point1 and point2
+	 * are the median of all the points in parent box, point1 is defiend as the furthest point from the center of parent box,
+	 * point2 is defined as the furthest point from point1.
+	 */
 	template <typename PointIter>
-	void insert(PointIter p_first, PointIter p_last, size_type NCRIT) {
-		FMMTL_LOG("BallTree insert");
+	void insert_pcfp(PointIter p_first, PointIter p_last, size_type NCRIT) {
+		FMMTL_LOG("BallTree insert, Points Cloest to Furthest Pair");
+		assert (p_first != p_last);
+
+		// Create a point-idx pair vector
+		typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
+		typedef std::pair<point_i_type, unsigned> point_t;
+
+		std::vector<point_t> point;
+		
+		if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
+			std::random_access_iterator_tag>::value) 
+				point.reserve(std::distance(p_first, p_last));
+
+		//construct root bounding sphere, with point iterators
+		unsigned idx = 0;
+		for (auto pi = p_first; pi!=p_last; ++pi, ++idx)
+			point.emplace_back(*pi, idx);
+
+		permute_.reserve(point.size());
+
+		unsigned leaves = ceil_pow_2((point.size()+NCRIT-1)/NCRIT);
+		unsigned levels = std::log2(leaves);
+
+		box_data_.reserve(2*leaves-1);
+
+		point_type center;
+		double radius_sq;
+
+		//Calculate center and radius_sq based on PCFP approach
+		std::tie(center, radius_sq) = calc_bs_params_pcfp(point.begin(), point.end());
+		auto curr_bs = BoundingSphere<point_i_type>(center, radius_sq);
+		box_data_.emplace_back(0, point.size(), curr_bs);
+
+		auto point1 = furthest_point_from(point.begin(), point.end(), center);
+		auto point2 = furthest_point_from(point.begin(), point.end(), point1);
+
+		auto mycomp = [&point1, &point2](const point_t& a, const point_t& b) {
+			return norm_2_sq(a.first-point1) - norm_2_sq(a.first-point2)
+				< norm_2_sq(b.first-point1) - norm_2_sq(b.first-point2);
+		};
+
+		for (unsigned k=0; k<(1<<levels)-1; ++k) {
+			auto p_begin = point.begin() + box_data_[k].body_begin_;
+			auto p_end = point.begin() + box_data_[k].body_end_;
+			auto p_mid = p_begin + (p_end - p_begin + 1)/2;
+
+			//lambda function takes reference of point1 and point2, thus updating point1 and point2 can propagate into mycomp
+			center = box_data_[k].bounding_sphere_.center();
+			point1 = furthest_point_from(p_begin, p_end, center);
+			point2 = furthest_point_from(p_begin, p_end, point1);
+			std::nth_element(p_begin, p_mid, p_end, mycomp);
+
+			//build 2 child boxes
+			unsigned mid = p_mid - point.begin();
+			std::tie(center, radius_sq) = calc_bs_params_pcfp(p_begin, p_mid);
+			curr_bs = BoundingSphere<point_i_type>(center, radius_sq);
+			box_data_.emplace_back(box_data_[k].body_begin_, mid, curr_bs);
+
+			std::tie(center, radius_sq) = calc_bs_params_pcfp(p_mid, p_end);
+			curr_bs = BoundingSphere<point_i_type>(center, radius_sq);
+			box_data_.emplace_back(mid, box_data_[k].body_end_, curr_bs);
+		}
+
+		std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
+		assert (box_data_.size() <= 2*leaves-1);
+
+		for (auto&& p : point)
+			permute_.push_back(p.second);
+	}
+
+	/** calculate bounding sphere parameters for Points Closest to Furthest Pair method :
+	 * center, radius_sq for a given range of points [first, last)
+	 * and rearrange the data points in the range [p_first, p_last) to conform to PCFP rules
+	 * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
+	 * @return a std::pair, first == center, second == radius_sq
+	 */
+	template <typename PointIndexIter>
+	std::pair<point_type, double> calc_bs_params_pcfp(PointIndexIter p_first, PointIndexIter p_last) {
+		unsigned n = 0;
+		unsigned dim = (*p_first).first.size();
+
+		auto center = point_type(0,0,0);
+		double radius_sq = 0.;
+
+		//Calculate center for the BoundingSphere
+		for (auto new_first=p_first; new_first!=p_last; ++new_first) {
+			++n;
+			for (unsigned i=0; i<dim; ++i)
+				center[i] += (*new_first).first[i];
+		}
+		for (unsigned i=0; i<dim; ++i)
+			center[i] /= n;
+
+		//Update radius_sq
+		for (; p_first!=p_last; ++p_first) {
+			double dist_sq = norm_2_sq(center - (*p_first).first);	
+			if (dist_sq > radius_sq)
+				radius_sq = dist_sq;
+		}
+		return std::make_pair(center, radius_sq);
+	}
+
+	/** calculate furthest point from a target point
+	 * @param[in] target, chosen point to calculate distance from
+	 * @param[in] p_first, p_last, range of <point, index> pair defined in [p_first, p_last)
+	 * @return furthest point from @a target, in range [p_first, p_last)
+	 * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
+	 */
+	template <typename PointIndexIter>
+	point_type furthest_point_from(PointIndexIter p_first, PointIndexIter p_last, const point_type& target) {
+		auto p_max = p_first;
+		double max_dist_sq = 0.;
+		for (; p_first!=p_last; ++p_first) {
+			double dist_sq = norm_2_sq(target - (*p_first).first);
+			if (dist_sq > max_dist_sq) {
+				max_dist_sq = dist_sq;
+				p_max = p_first;
+			}
+		}
+		return (*p_max).first;
+	}
+
+	/** Median of Widest Dimension method to construct BoundingSpheres for a BallTree
+	 * each pair of children boxes are split at the median of the widest dimension of their parent box
+	 * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
+	 */
+	template <typename PointIter>
+	void insert_mwd(PointIter p_first, PointIter p_last, size_type NCRIT) {
+		FMMTL_LOG("BallTree insert, Median of Widest Dimension");
 		//possibly convert N-dimensional point to polar coordinates and store them
 		assert (p_first != p_last);
 
@@ -351,17 +485,16 @@ public:
 		unsigned leaves = ceil_pow_2((point.size()+NCRIT-1)/NCRIT);
 		unsigned levels = std::log2(leaves);
 
-		auto bs_params = calc_bs_params(point.begin(), point.end());	//0: center, 1: radius_sq, 2: pivot
+		auto bs_params = calc_bs_params_mwd(point.begin(), point.end());	//0: center, 1: radius_sq, 2: pivot
 		auto curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
 		pivot_arry.emplace_back(std::get<2>(bs_params));
 
 		box_data_.reserve(2*leaves-1);
-		box_data_.emplace_back(0, size_type(point.size()), curr_bs);
+		box_data_.emplace_back(0, point.size(), curr_bs);
 
 		for (unsigned k=0; k<(1<<levels)-1; ++k) {
-			auto pivot = pivot_arry[k];
-
 			//get the dimension with the largest spread (pivot)
+			auto pivot = pivot_arry[k];
 			auto myless_comp = [pivot] (const point_t& a, const point_t& b) {
 				return a.first[pivot] < b.first[pivot];
 			};
@@ -374,12 +507,12 @@ public:
 
 			//build 2 child boxes
 			unsigned mid = p_mid - point.begin();
-			bs_params = calc_bs_params(p_begin, p_mid);	//0: center, 1: radius_sq, 2: pivot
+			bs_params = calc_bs_params_mwd(p_begin, p_mid);	//0: center, 1: radius_sq, 2: pivot
 			curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
 			pivot_arry.emplace_back(std::get<2>(bs_params));
 			box_data_.emplace_back(box_data_[k].body_begin_, mid, curr_bs);
 
-			bs_params = calc_bs_params(p_mid, p_end);	//0: center, 1: radius_sq, 2: pivot
+			bs_params = calc_bs_params_mwd(p_mid, p_end);	//0: center, 1: radius_sq, 2: pivot
 			curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
 			pivot_arry.emplace_back(std::get<2>(bs_params));
 			box_data_.emplace_back(mid, box_data_[k].body_end_, curr_bs);
@@ -392,25 +525,22 @@ public:
 			permute_.push_back(p.second);
 	}
 
-	static unsigned max_dim(const point_type& p) {
-		return std::max_element(p.begin(), p.end()-p.begin());
-	}
-
-	/** calculate bounding sphere parameters : center, radius_sq and pivot for a given range of points [first, last)
+	/** calculate bounding sphere parameters for Median of Widest Dimension method :
+	 * center, radius_sq and pivot for a given range of points [first, last)
 	 * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
 	 */
 	template <typename PointIndexIter>
-	std::tuple<point_type, double, unsigned> calc_bs_params(PointIndexIter first, PointIndexIter last) {
-		unsigned n = std::distance(first, last);
-		unsigned dim = (*first).first.size();
+	std::tuple<point_type, double, unsigned> calc_bs_params_mwd(PointIndexIter p_first, PointIndexIter p_last) {
+		unsigned n = std::distance(p_first, p_last);
+		unsigned dim = (*p_first).first.size();
 		//calculate maximum spread in each dimension
-		auto min_pos((*first).first);	//stores minimum point position in each dimension
+		auto min_pos((*p_first).first);	//stores minimum point position in each dimension
 		auto max_pos(min_pos);	//stores maxmium point position in each dimension
 		auto center = point_type(0,0,0);
 		double radius_sq = 0.;
 
 		//Update center for the BoundingSphere
-		for (auto new_first=first; new_first!=last; ++new_first) {
+		for (auto new_first=p_first; new_first!=p_last; ++new_first) {
 			for (unsigned i=0; i<dim; ++i) {
 				center[i] += (*new_first).first[i];
 				if ((*new_first).first[i] < min_pos[i])
@@ -427,12 +557,16 @@ public:
 		unsigned pivot = std::max_element(temp_pos.begin(), temp_pos.end()) - temp_pos.begin();
 
 		//Update radius_sq
-		for (; first!=last; ++first) {
-			double dist_sq = norm_2_sq(center - (*first).first);	
+		for (; p_first!=p_last; ++p_first) {
+			double dist_sq = norm_2_sq(center - (*p_first).first);	
 			if (dist_sq > radius_sq)
 				radius_sq = dist_sq;
 		}
 		return std::make_tuple(center, radius_sq, pivot);
+	}
+
+	static unsigned max_dim(const point_type& p) {
+		return std::max_element(p.begin(), p.end()-p.begin());
 	}
 
 	BallTree (const BallTree&) {};
