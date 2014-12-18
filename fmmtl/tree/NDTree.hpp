@@ -10,9 +10,9 @@
 #include <iomanip>
 
 #include <boost/range.hpp>
-#include <boost/iterator/iterator_adaptor.hpp>
-#include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/permutation_iterator.hpp>
+
+#include "fmmtl/tree/util/CountedProxyIterator.hpp"
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
@@ -21,8 +21,7 @@
 
 namespace fmmtl {
 using boost::has_range_iterator;
-using boost::iterator_adaptor;
-using boost::counting_iterator;
+
 
 /** In-place bucket sort using counting sort
  *
@@ -78,8 +77,6 @@ class NDTree {
   struct Box;
   struct Body;
   struct BoxData;
-  struct BoxIterator;
-  struct BodyIterator;
 
   // Morton coder to order the points
   typedef MortonCoder<DIM> coder_type;
@@ -98,8 +95,8 @@ class NDTree {
   //! Public type declarations
   typedef Box           box_type;
   typedef Body          body_type;
-  typedef BoxIterator   box_iterator;
-  typedef BodyIterator  body_iterator;
+  using box_iterator  = CountedProxyIterator<Box,  const NDTree, size_type>;
+  using body_iterator = CountedProxyIterator<Body, const NDTree, size_type>;
 
  private:
   // Tree representation
@@ -161,6 +158,7 @@ class NDTree {
    private:
     size_type idx_;
     tree_type* tree_;
+    friend body_iterator;
     Body(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
       FMMTL_ASSERT(idx_ < tree_->size());
@@ -251,8 +249,8 @@ class NDTree {
     }
 
     //! Write a Box to an output stream
-    inline friend std::ostream& operator<<(std::ostream& s,
-                                           const box_type& b) {
+    friend std::ostream& operator<<(std::ostream& s,
+                                    const box_type& b) {
       size_type num_bodies = b.num_bodies();
       size_type first_body = b.body_begin()->index();
       size_type last_body = first_body + num_bodies - 1;
@@ -263,82 +261,18 @@ class NDTree {
                << " " << first_body << "-" << last_body
                << "): " << b.center() << " - " << b.extents();
     }
+
    private:
     size_type idx_;
     tree_type* tree_;
+    friend box_iterator;
     Box(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
     }
-    inline BoxData& data() const {
+    BoxData& data() const {
       return tree_->box_data_[idx_];
     }
     friend class NDTree;
-  };
-
-  /** @struct Tree::BoxIterator
-   * @brief Random access iterator for Boxes in the tree
-   */
-  struct BoxIterator
-      : public iterator_adaptor<BoxIterator,                     // Derived
-                                counting_iterator<size_type>,    // BaseType
-                                Box,                             // Value
-                                std::random_access_iterator_tag, // IterCategory
-                                Box>                             // Reference
-  {
-    //! Construct an invalid BoxIterator
-    inline BoxIterator() {}
-    //! The index of this box iterator
-    inline size_type index() const {
-      return *(this->base_reference());
-    }
-   private:
-    const tree_type* tree_;
-    friend class NDTree;
-    inline BoxIterator(size_type idx, const tree_type* tree)
-        : BoxIterator::iterator_adaptor(counting_iterator<size_type>(idx)),
-          tree_(tree) {
-    }
-    inline BoxIterator(const Box& b)
-        : BoxIterator::iterator_adaptor(counting_iterator<size_type>(b.idx_)),
-          tree_(b.tree_) {
-    }
-    friend class boost::iterator_core_access;
-    inline Box dereference() const {
-      return Box(index(), tree_);
-    }
-  };
-
-  /** @struct Tree::BodyIterator
-   * @brief Random access iterator class for Bodies in the tree
-   */
-  struct BodyIterator
-      : public iterator_adaptor<BodyIterator,                    // Derived
-                                counting_iterator<size_type>,    // BaseType
-                                Body,                            // Value
-                                std::random_access_iterator_tag, // IterCategory
-                                Body>                            // Reference
-  {
-    //! Construct an invalid BodyIterator
-    inline BodyIterator() {}
-    //! The index of this body iterator
-    inline size_type index() const {
-      return *(this->base_reference());
-    }
-   private:
-    const tree_type* tree_;
-    friend class NDTree;
-    inline BodyIterator(size_type idx, const tree_type* tree)
-        : BodyIterator::iterator_adaptor(counting_iterator<size_type>(idx)),
-          tree_(tree) {
-    }
-    inline BodyIterator(const Body& b)
-        : BodyIterator::iterator_adaptor(counting_iterator<size_type>(b.idx_)),
-          tree_(b.tree_) {
-    }
-    friend class boost::iterator_core_access;
-    inline Body dereference() const {
-      return Body(index(), tree_);
-    }
   };
 
  public:
@@ -370,39 +304,35 @@ class NDTree {
   }
 
   /** The number of bodies contained in this tree */
-  inline size_type size() const {
+  size_type size() const {
     return permute_.size();
   }
   /** The number of bodies contained in this tree */
-  inline size_type bodies() const {
+  size_type bodies() const {
     return size();
   }
 
   /** The number of boxes contained in this tree */
-  inline size_type boxes() const {
+  size_type boxes() const {
     return box_data_.size();
   }
 
   /** The number of boxes contained in level L of this tree */
-  inline size_type boxes(size_type L) const {
+  size_type boxes(size_type L) const {
     return level_offset_[L+1] - level_offset_[L];
   }
 
   /** The maximum level of any box in this tree */
-  inline size_type levels() const {
+  size_type levels() const {
     return level_offset_.size() - 1;
-  }
-  /** The maximum possible level of any box in this tree */
-  inline static size_type max_level() {
-    return MortonCoder<DIM>::levels() - 1;
   }
 
   /** Returns true if the box is contained in this tree, false otherwise */
-  inline bool contains(const box_type& box) const {
+  bool contains(const box_type& box) const {
     return this == box.tree_;
   }
   /** Returns true if the body is contained in this tree, false otherwise */
-  inline bool contains(const body_type& body) const {
+  bool contains(const body_type& body) const {
     return this == body.tree_;
   }
 
@@ -478,11 +408,11 @@ class NDTree {
   }
 
   /** Write an NDTree to an output stream */
-  inline friend std::ostream& operator<<(std::ostream& s,
-                                         const tree_type& t) {
+  friend std::ostream& operator<<(std::ostream& s,
+                                  const tree_type& t) {
     struct {
-      inline std::ostream& print(std::ostream& s,
-                                 const box_type& box) {
+      std::ostream& print(std::ostream& s,
+                          const box_type& box) {
         s << std::string(2*box.level(), ' ') << box;
         if (!box.is_leaf())
           for (auto ci = box.child_begin(); ci != box.child_end(); ++ci)
@@ -507,7 +437,7 @@ class NDTree {
     // If iterators are random access, we can reserve space efficiently
     // Compile-time predicate!
     if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
-                     std::random_access_iterator_tag>::value)
+        std::random_access_iterator_tag>::value)
       codes.reserve(std::distance(p_first, p_last));
 
     // Initialize code-index pairs
@@ -529,7 +459,7 @@ class NDTree {
     for (size_type L = 1; L < level_offset_.size(); ++L) {
 
       // Define the bucketer for this next level
-      const size_type shift = DIM * (max_level() - (L-1));
+      const size_type shift = DIM * (coder_type::levels() - L);
       auto bucketer = [=] (const code_pair& v) {
         return (v.first >> shift) & (max_children-1);
       };
@@ -587,7 +517,7 @@ class NDTree {
    */
   point_type get_center(code_type c, size_type level) {
     // Mask for boxes of this level
-    code_type mask = (code_type(1) << (DIM*(max_level()-level+1))) - 1;
+    code_type mask = (code_type(1) << (DIM*(coder_type::levels()-level))) - 1;
     return coder_.center(c & ~mask /*cmin*/, c | mask /*cmax*/);
   }
 

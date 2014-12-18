@@ -12,9 +12,9 @@
 #include <iomanip>
 
 #include <boost/range.hpp>
-#include <boost/iterator/iterator_adaptor.hpp>
-#include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/permutation_iterator.hpp>
+
+#include "fmmtl/tree/util/CountedProxyIterator.hpp"
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
@@ -24,8 +24,6 @@
 
 namespace fmmtl {
 using boost::has_range_iterator;
-using boost::iterator_adaptor;
-using boost::counting_iterator;
 
 
 //! Class for tree structure
@@ -35,8 +33,6 @@ class KDTree {
   struct Box;
   struct Body;
   struct BoxData;
-  struct BoxIterator;
-  struct BodyIterator;
 
   // The type of this tree
   typedef KDTree<DIM> tree_type;
@@ -51,8 +47,8 @@ class KDTree {
   //! Public type declarations
   typedef Box           box_type;
   typedef Body          body_type;
-  typedef BoxIterator   box_iterator;
-  typedef BodyIterator  body_iterator;
+  using box_iterator  = CountedProxyIterator<Box,  const KDTree, size_type>;
+  using body_iterator = CountedProxyIterator<Body, const KDTree, size_type>;
 
  private:
   // Tree representation
@@ -92,6 +88,7 @@ class KDTree {
    private:
     size_type idx_;
     tree_type* tree_;
+    friend body_iterator;
     Body(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
       FMMTL_ASSERT(idx_ < tree_->size());
@@ -195,6 +192,7 @@ class KDTree {
    private:
     size_type idx_;
     tree_type* tree_;
+    friend box_iterator;
     Box(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
       FMMTL_ASSERT(idx_ < tree_->boxes());
@@ -203,72 +201,6 @@ class KDTree {
       return tree_->box_data_[idx_];
     }
     friend class KDTree;
-  };
-
-  /** @struct Tree::BoxIterator
-   * @brief Random access iterator for Boxes in the tree
-   */
-  struct BoxIterator
-      : public iterator_adaptor<BoxIterator,                     // Derived
-                                counting_iterator<size_type>,    // BaseType
-                                Box,                             // Value
-                                std::random_access_iterator_tag, // IterCategory
-                                Box>                             // Reference
-  {
-    //! Construct an invalid BoxIterator
-    inline BoxIterator() {}
-    //! The index of this box iterator
-    inline size_type index() const {
-      return *(this->base_reference());
-    }
-   private:
-    const tree_type* tree_;
-    friend class KDTree;
-    inline BoxIterator(size_type idx, const tree_type* tree)
-        : BoxIterator::iterator_adaptor(counting_iterator<size_type>(idx)),
-          tree_(tree) {
-    }
-    inline BoxIterator(const Box& b)
-        : BoxIterator::iterator_adaptor(counting_iterator<size_type>(b.idx_)),
-          tree_(b.tree_) {
-    }
-    friend class boost::iterator_core_access;
-    inline Box dereference() const {
-      return Box(index(), tree_);
-    }
-  };
-
-  /** @struct Tree::BodyIterator
-   * @brief Random access iterator class for Bodies in the tree
-   */
-  struct BodyIterator
-      : public iterator_adaptor<BodyIterator,                    // Derived
-                                counting_iterator<size_type>,    // BaseType
-                                Body,                            // Value
-                                std::random_access_iterator_tag, // IterCategory
-                                Body>                            // Reference
-  {
-    //! Construct an invalid BodyIterator
-    inline BodyIterator() {}
-    //! The index of this body iterator
-    inline size_type index() const {
-      return *(this->base_reference());
-    }
-   private:
-    const tree_type* tree_;
-    friend class KDTree;
-    inline BodyIterator(size_type idx, const tree_type* tree)
-        : BodyIterator::iterator_adaptor(counting_iterator<size_type>(idx)),
-          tree_(tree) {
-    }
-    inline BodyIterator(const Body& b)
-        : BodyIterator::iterator_adaptor(counting_iterator<size_type>(b.idx_)),
-          tree_(b.tree_) {
-    }
-    friend class boost::iterator_core_access;
-    inline Body dereference() const {
-      return Body(index(), tree_);
-    }
   };
 
  public:
@@ -320,10 +252,6 @@ class KDTree {
   /** The maximum level of any box in this tree */
   inline size_type levels() const {
     return std::log2(boxes());  // XXX: Slow?
-  }
-  /** The maximum possible level of any box in this tree */
-  inline static size_type max_level() {
-    return size_type(-1);
   }
 
   /** Returns true if the box is contained in this tree, false otherwise */

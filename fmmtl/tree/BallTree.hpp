@@ -7,8 +7,8 @@
 #include <iostream>
 
 #include <boost/range.hpp>
-#include <boost/iterator/iterator_adaptor.hpp>
-#include <boost/iterator/counting_iterator.hpp>
+
+#include "fmmtl/tree/util/CountedProxyIterator.hpp"
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
@@ -18,67 +18,70 @@
 
 namespace fmmtl {
 using boost::has_range_iterator;
-using boost::iterator_adaptor;
-using boost::counting_iterator;
+
 
 template <unsigned DIM>
 class BallTree {
+  // Predeclarations
   struct Box;
   struct Body;
   struct BoxData;
-  struct BoxIterator;
-  struct BodyIterator;
 
+  // The type of this tree
   typedef BallTree<DIM> tree_type;
 
  public:
+  //! The type of indices and integers in this tree
   typedef unsigned size_type;
-  typedef Vec<DIM, double> point_type;
 
-  typedef Box box_type;
-  typedef Body body_type;
-  typedef BoxIterator box_iterator;
-  typedef BodyIterator body_iterator;
+  //! The spacial point type used for centers and extents
+  typedef Vec<DIM,double> point_type;
+
+  //! Public type declarations
+  typedef Box           box_type;
+  typedef Body          body_type;
+  using box_iterator  = CountedProxyIterator<Box,  const BallTree, size_type>;
+  using body_iterator = CountedProxyIterator<Body, const BallTree, size_type>;
 
  private:
-  //Representation
+  // Representation
   std::vector<size_type> permute_;
   std::vector<BoxData> box_data_;
 
   struct BoxData {
     typedef BoundingSphere<point_type> bounding_sphere_type;
-    //first body index in the box
+
+    // Index of the first body in this box
     size_type body_begin_;
-    //one-past-last body index in the box
+    // Index of one-past-last body in this box
     size_type body_end_;
-    //Bounding sphere
+    // Bounding sphere
     bounding_sphere_type bounding_sphere_;
 
-    //memberwise constructor
+    // Constructor
     BoxData(size_type bb, size_type be, const bounding_sphere_type& bs)
         : body_begin_(bb), body_end_(be), bounding_sphere_(bs) {}
-
   };
 
   struct Body {
    public:
-    //Construct an invalid Body
+    // Construct an invalid Body
     Body() {}
-    //original order of the body
+    // Original order of the body
     size_type number() const {
       return tree_->permute_[idx_];
     }
-    //current order
+    // Current order of this body
     size_type index() const {
       return idx_;
     }
-
    private:
     size_type idx_;
     tree_type* tree_;
+    friend body_iterator;
     Body(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
-      FMMTL_ASSERT(idx_<tree_->size());
+      FMMTL_ASSERT(idx_ < tree_->size());
     }
     friend class BallTree;
   };
@@ -88,7 +91,7 @@ class BallTree {
     typedef typename tree_type::box_iterator box_iterator;
     typedef typename tree_type::body_iterator body_iterator;
 
-    //Construct an invalid Box
+    // Construct an invalid Box
     Box() {}
 
     size_type index() const {
@@ -102,11 +105,11 @@ class BallTree {
       return 0;
     }
 
-    //return the radius of this bounding sphere
+    // The radius of this bounding sphere
     double radius() const {
       return data().bounding_sphere_.radius();
     }
-    //return the center coordinate of this bounding sphere
+    // The center of this bounding sphere
     point_type center() const {
       return data().bounding_sphere_.center();
     }
@@ -159,12 +162,13 @@ class BallTree {
                << " (L" << b.level() << ", P" << parent_idx
                << ", " << num_bodies << (num_bodies == 1 ? " body" : " bodies")
                << " " << first_body << "-" << last_body
-               << "): Center: " << b.center() << ";\t Radius: " << b.radius();
+               << "): Center: " << b.center() << "; Radius: " << b.radius();
     }
 
    private:
     size_type idx_;
     tree_type* tree_;
+    friend box_iterator;
     Box(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
       FMMTL_ASSERT(idx_<tree_->boxes());
@@ -175,71 +179,19 @@ class BallTree {
     friend class BallTree;
   };	//end struct Box
 
-  struct BoxIterator
-      : public iterator_adaptor<	BoxIterator,						//Derived class
-									counting_iterator<size_type>,		//BaseType
-									Box,								//Value
-									std::random_access_iterator_tag,	//iterator_category
-									Box>								//Reference
-  {
-   public:
-    inline BoxIterator() {}
-    inline size_type index() const {
-      return *(this->base_reference());
-    }
-
-   private:
-    const tree_type* tree_;
-    friend class BallTree;
-    inline BoxIterator(size_type idx, const tree_type* tree)
-        : BoxIterator::iterator_adaptor(counting_iterator<size_type>(idx)), tree_(tree) {}
-    inline BoxIterator(const Box& b)
-        : BoxIterator::iterator_adaptor(counting_iterator<size_type>(b.idx_)), tree_(b.tree_) {}
-
-    friend class boost::iterator_core_access;
-    inline Box dereference() const {
-      return Box(index(), tree_);
-    }
-  };
-
-  struct BodyIterator
-      : public iterator_adaptor<	BodyIterator,						//Derived class
-									counting_iterator<size_type>,		//BaseType
-									Body,								//Value
-									std::random_access_iterator_tag,	//iterator_category
-									Body>								//Reference
-  {
-   public:
-    inline BodyIterator() {}
-    inline size_type index() const {
-      return *(this->base_reference());
-    }
-
-   private:
-    const tree_type* tree_;
-    friend class BallTree;
-    inline BodyIterator(size_type idx, const tree_type* tree)
-        : BodyIterator::iterator_adaptor(counting_iterator<size_type>(idx)), tree_(tree) {}
-    inline BodyIterator(const Box& b)
-        : BodyIterator::iterator_adaptor(counting_iterator<size_type>(b.idx_)), tree_(b.tree_) {}
-
-    friend class boost::iterator_core_access;
-    inline Body dereference() const {
-      return Body(index(), tree_);
-    }
-  };
-
  public:
 
-  //Tree constructor with Range
-  template<typename Range>
-  BallTree(const Range& rng, size_type n_crit = 256, typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
-      : BallTree(rng.begin(), rng.end(), n_crit) {}
+  // BallTree constructor with Range
+  template <typename Range>
+  BallTree(const Range& rng, size_type n_crit = 256,
+           typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
+      : BallTree(rng.begin(), rng.end(), n_crit) {
+  }
 
   template<typename PointIter>
   BallTree(PointIter first, PointIter last, size_type n_crit = 256) {
-    //		insert_mwd(first, last, n_crit);
-    insert_pcfp(first, last, n_crit);
+    //insert_mwd(first, last, n_crit);    // Median of Widest Dimension
+    insert_pcfp(first, last, n_crit);   // Points Closest to Furthest Pair
   }
 
   //return root Bounding Sphere
@@ -265,10 +217,6 @@ class BallTree {
   }
   inline size_type levels() const {
     return std::log2(boxes());
-  }
-  //maximum possible level of any box in this tree
-  inline static size_type max_level() {
-    return size_type(-1);
   }
   inline bool contains(const box_type& box) const {
     return this==box.tree_;
