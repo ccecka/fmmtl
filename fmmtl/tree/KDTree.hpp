@@ -392,6 +392,7 @@ class KDTree {
                            root_bb.min(), root_bb.max());
 
     // For every box that is created
+    unsigned end_k = (1 << levels) - 1;
     for (unsigned k = 0; k < (1 << levels)-1; ++k) {
 
       // Get the bounding box of the current box
@@ -408,7 +409,6 @@ class KDTree {
       auto p_end   = point.begin() + box_data_[k].body_end_;
       auto p_mid   = p_begin + (p_end - p_begin + 1) / 2;
       std::nth_element(p_begin, p_mid, p_end, comp);
-
 
       // Record the child boxes
       unsigned mid = p_mid - point.begin();
