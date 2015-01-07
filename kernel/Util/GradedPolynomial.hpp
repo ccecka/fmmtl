@@ -1,4 +1,5 @@
 #include <iterator>
+#include <numeric>
 
 #include "fmmtl/meta/integer_sequence.hpp"
 #include "fmmtl/meta/for_each.hpp"
@@ -420,6 +421,19 @@ struct GradedPolynomial {
 };
 
 // TODO: Specialization for DIM=1?
+
+/** Inner product */
+template <typename Array, typename T, std::size_t DIM, std::size_t ORDER>
+T inner_prod(const pow_et<Array,ORDER>& x,
+             const GradedPolynomial<T,DIM,ORDER>& g) {
+  // Precompute the multiindex power: x^m / m!
+  GradedPolynomial<T,DIM,ORDER> t(x.r, T{1});
+
+  // TODO: Fuse with pow
+  return std::inner_product(g.begin(), g.end(), t.begin(), T{});
+}
+
+
 
 } // end namespace fmmtl
 
