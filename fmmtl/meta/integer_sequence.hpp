@@ -36,8 +36,8 @@ using index_t = std::integral_constant<std::size_t, N>;
 // TODO: Use C++14 std::integer_sequence
 template <typename T, T... N>
 struct integer_sequence {
+  using type = integer_sequence;
   using value_type = T;
-  using type = integer_sequence<T, N...>;
   static constexpr std::size_t size() noexcept {
     return sizeof...(N);
   }
@@ -52,18 +52,18 @@ namespace detail {
 
 // Glue two sets of integer_sequence together
 template <typename I1, typename I2>
-struct concat_integer_sequence;
+struct glue_integer_sequence;
 
 template <typename T, T... N1, T... N2>
-struct concat_integer_sequence<integer_sequence<T, N1...>,
-                               integer_sequence<T, N2...>> {
+struct glue_integer_sequence<integer_sequence<T, N1...>,
+                             integer_sequence<T, N2...>> {
   using type = integer_sequence<T, N1..., (sizeof...(N1) + N2)...>;
 };
 
 template <typename T, std::size_t N>
 struct make_integer_sequence_
-    : concat_integer_sequence<typename make_integer_sequence_<T,    N/2>::type,
-                              typename make_integer_sequence_<T,N - N/2>::type> {
+    : glue_integer_sequence<typename make_integer_sequence_<T,    N/2>::type,
+                            typename make_integer_sequence_<T,N - N/2>::type> {
 };
 
 template <typename T>
@@ -152,49 +152,60 @@ template <typename... Seq>
 using intseq_cat_t = typename intseq_cat<Seq...>::type;
 
 ///////////////
-// make_intseq
+// intseq_repeat
 template <std::size_t N, typename T = std::size_t, T i = 0>
-struct make_intseq_ {
-  using type = intseq_cat_t<typename make_intseq_<(N+0)/2, T, i>::type,
-                            typename make_intseq_<(N+1)/2, T, i>::type>;
+struct intseq_repeat
+    : intseq_cat<typename intseq_repeat<    N/2, T, i>::type,
+                 typename intseq_repeat<N - N/2, T, i>::type> {
 };
 
 template <typename T, T i>
-struct make_intseq_<0, T, i> {
+struct intseq_repeat<0, T, i> {
   using type = integer_sequence<T>;
 };
 
 template <typename T, T i>
-struct make_intseq_<1, T, i> {
+struct intseq_repeat<1, T, i> {
   using type = integer_sequence<T, i>;
 };
 
 template <std::size_t N, typename T = std::size_t, T i = 0>
-using make_intseq = typename make_intseq_<N, T, i>::type;
+using intseq_repeat_t = typename intseq_repeat<N, T, i>::type;
+
+template <std::size_t N, std::size_t i = 0>
+using idxseq_repeat_t = typename intseq_repeat<N, std::size_t, i>::type;
 
 /////////////////////////////////////////////
-// intseq_element -- TODO: O(1) or O(log(N))
+// intseq_element
+namespace detail {
+
+template <std::size_t N, typename S = make_index_sequence<N>>
+struct at;
+
+template <std::size_t N, std::size_t... ignore>
+struct at<N, index_sequence<ignore...>> {
+  template <typename Nth>
+  static constexpr Nth apply(decltype(ignore,(void*)0)..., Nth nth, ...)
+  { return nth; }
+};
+
+} // end namespace detail
+
+template <std::size_t N, typename... Xs>
+constexpr auto at(Xs... xs) -> decltype(*detail::at<N>::apply(&xs...)) {
+  return *detail::at<N>::apply(&xs...);
+}
+
 template <std::size_t N, typename Seq>
 struct intseq_element {};
 
-template <std::size_t N, typename T, T i, T... rest>
-struct intseq_element<N, integer_sequence<T, i, rest...>>
-    : intseq_element<N-1, integer_sequence<T, rest...>> {
+template <std::size_t N, typename T, T... I>
+struct intseq_element<N, integer_sequence<T, I...>> {
+  using type = std::integral_constant<T, at<N>(I...)>;
 };
-
-template <typename T, T i, T... rest>
-struct intseq_element<0, integer_sequence<T, i, rest...>>
-    : std::integral_constant<T, i> {
-};
-
-template<typename N, typename Seq>
-using intseq_element_aux = intseq_element<N::value, Seq>;
 
 template<std::size_t N, typename Seq>
 using intseq_element_t = typename intseq_element<N, Seq>::type;
-
-template<typename N, typename Seq>
-using intseq_element_aux_t = typename intseq_element<N::value, Seq>::type;
 
 ////////////////
 // intseq_front

@@ -253,6 +253,13 @@ norm_2(const Vec<N,T>& a) {
   using std::sqrt;
   return sqrt(norm_2_sq(a));
 }
+/** Optimization of L2 norm for N==1 */
+template <typename T>
+FMMTL_INLINE
+typename norm_type<Vec<1,T> >::type
+norm_2(const Vec<1,T>& a) {
+  return norm_2(a[0]);
+}
 /** Compute the L1 norm of a Vec */
 template <std::size_t N, typename T>
 FMMTL_INLINE

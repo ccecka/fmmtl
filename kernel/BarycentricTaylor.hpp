@@ -7,10 +7,9 @@
 
 #include <numeric>
 
-#include "Barycentric.kern"
-
 #include "fmmtl/Expansion.hpp"
 
+#include "Barycentric.kern"
 #include "Util/GradedPolynomial.hpp"
 
 
@@ -49,8 +48,8 @@ class BarycentricTaylor
            const point_type& center, multipole_type& M) const {
     //Mt += pow(center-source, k) * charge;
 
+    // For all k < P,  M[k] = pow(r,k)/k! * charge
     double r = center[0] - source[0];
-    // For all k < P,  M[k] = pow(x,k)/k! * charge
     double rk = charge;               // rk = r^k / k! * charge
     M[0] += rk;                       // k == 0
     for (unsigned k = 1; k <= P; ++k)
@@ -131,8 +130,10 @@ class BarycentricTaylor
   // Define the L2T
   void L2T(const local_type& L, const point_type& center,
            const target_type& target, result_type& result) const {
-    double r = target[0] - center[0];
+    // result += inner_prod(pow(target-center,k), L);
+
     // result += sum_k pow(r,k)/k! * L[k]
+    double r = target[0] - center[0];
     double rk = 1;                         // rk = r^k / k!
     result += L[0];                        // k == 0
     for (unsigned k = 1; k <= P; ++k)

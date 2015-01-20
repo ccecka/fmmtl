@@ -357,7 +357,7 @@ class KDTree {
   void insert(PointIter p_first, PointIter p_last, size_type NCRIT) {
     FMMTL_LOG("KDTree Insert");
 
-    assert(p_first != p_last);
+    FMMTL_ASSERT(p_first != p_last);
 
     // Create a point-idx pair vector
     typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
@@ -420,7 +420,7 @@ class KDTree {
     }
 
     // Assert no re-allocation
-    assert(box_data_.size() <= 2*leaves-1);
+    FMMTL_ASSERT(box_data_.size() <= 2*leaves-1);
 
     // Extract the permutation idx
     for (auto&& p : point)

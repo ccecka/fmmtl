@@ -27,7 +27,7 @@ endif
 ifeq ($(kernel-name),)
 	kernel-name := $(shell uname -s)
 endif
-# Get the arch-name is empty
+# Get the arch-name if empty
 ifeq ($(arch-name),)
 	arch-name := $(shell uname -p)
 endif
@@ -41,7 +41,7 @@ ifeq ($(CXX_VERSION_LT_48),1)
 endif
 # Check for CUDA compiler
 USE_NVCC := $(shell which nvcc)
-NVCC     := $(USE_NVCC) -std=c++11 -ccbin=$(shell which g++)
+NVCC     := $(USE_NVCC) -std=c++11 -ccbin=g++-4.8 #$(shell which g++)
 
 # Dependency directory and flags
 DEPSDIR := $(shell mkdir -p .deps; echo .deps)
@@ -75,6 +75,9 @@ LDLIBS  +=
 ######################
 
 ifeq ($(NDEBUG),1)
+	CXXFLAGS += -DNDEBUG
+endif
+ifeq ($(FMMTL_NDEBUG),1)
 	CXXFLAGS += -DFMMTL_NDEBUG
 endif
 ifeq ($(DEBUG),1)
