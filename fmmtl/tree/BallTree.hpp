@@ -1,25 +1,32 @@
 #pragma once
+/** @file KDTree
+ * @brief A binary tree constructed by splitting each box by a median.
+ */
 
 #include <vector>
 #include <algorithm>
+#include <type_traits>
 #include <iterator>
-#include <tuple>
+
 #include <iostream>
+#include <iomanip>
 
 #include <boost/range.hpp>
+#include <boost/iterator/permutation_iterator.hpp>
 
 #include "fmmtl/tree/util/CountedProxyIterator.hpp"
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/tree/BoundingSphere.hpp"
+
 #include "fmmtl/numeric/bits.hpp"
-#include "fmmtl/numeric/norm.hpp"
 
 namespace fmmtl {
 using boost::has_range_iterator;
 
 
+//! Class for tree structure
 template <unsigned DIM>
 class BallTree {
   // Predeclarations
@@ -44,8 +51,11 @@ class BallTree {
   using body_iterator = CountedProxyIterator<Body, const BallTree, size_type>;
 
  private:
-  // Representation
+  // Tree representation
+
+  // Permutation: permute_[i] is the current idx of originally ith point
   std::vector<size_type> permute_;
+  // Vector of data describing a box
   std::vector<BoxData> box_data_;
 
   struct BoxData {
@@ -64,14 +74,13 @@ class BallTree {
   };
 
   struct Body {
-   public:
-    // Construct an invalid Body
+    /** Construct an invalid Body */
     Body() {}
-    // Original order of the body
+    //! The original order this body was seen
     size_type number() const {
       return tree_->permute_[idx_];
     }
-    // Current order of this body
+    //! The current order of this body
     size_type index() const {
       return idx_;
     }
@@ -86,73 +95,87 @@ class BallTree {
     friend class BallTree;
   };
 
+  // A box of the tree
   struct Box {
-   public:
-    typedef typename tree_type::box_iterator box_iterator;
+    typedef typename tree_type::box_iterator  box_iterator;
     typedef typename tree_type::body_iterator body_iterator;
 
-    // Construct an invalid Box
+    //! Construct an invalid Box
     Box() {}
-
+    //! The index of this box
     size_type index() const {
       return idx_;
     }
+    //! The level of this box (root level is 0)
     size_type level() const {
-      return std::log2(idx_+1);
+      return std::log2(idx_+1);  // XXX: Slow? do this with bits
+    }
+    point_type extents() const {
+      return data().bounding_box_.max() - data().bounding_box_.min();
     }
     double volume() const {
       //XXX: need this function?
       return 0;
     }
-
-    // The radius of this bounding sphere
     double radius() const {
       return data().bounding_sphere_.radius();
     }
-    // The center of this bounding sphere
+    //! The center of this box
     point_type center() const {
       return data().bounding_sphere_.center();
     }
+
+    //! The parent box of this box
     Box parent() const {
       FMMTL_ASSERT(!(*this == tree_->root()));
-      return Box ((idx_ - 1)/2, tree_);
-    }
-    bool is_leaf() const {
-      return (2*idx_+1 >= tree_->boxes());
+      return Box((idx_-1)/2, tree_);
     }
 
+    //! True if this box is a leaf and has no children
+    bool is_leaf() const {
+      return 2*idx_+1 >= tree_->box_data_.size();
+    }
+    //! The begin iterator to the child boxes contained in this box
     box_iterator child_begin() const {
       FMMTL_ASSERT(!is_leaf());
       return box_iterator(2*idx_+1, tree_);
     }
+    //! The end iterator to the child boxes contained in this box
     box_iterator child_end() const {
       FMMTL_ASSERT(!is_leaf());
       return box_iterator(2*idx_+3, tree_);
     }
-    body_iterator body_begin() const {
-      return body_iterator(data().body_begin_, tree_);
-    }
-    body_iterator body_end() const {
-      return body_iterator(data().body_end_, tree_);
-    }
-
+    //! The number of children this box has
     constexpr size_type num_children() const {
       return 2;
     }
+
+    //! The begin iterator to the bodies contained in this box
+    body_iterator body_begin() const {
+      return body_iterator(data().body_begin_, tree_);
+    }
+    //! The end iterator to the bodies contained in this box
+    body_iterator body_end() const {
+      return body_iterator(data().body_end_, tree_);
+    }
+    //! The number of bodies this box contains
     size_type num_bodies() const {
       return std::distance(body_begin(), body_end());
     }
 
-    bool operator==(const Box& rhs) const {
-      FMMTL_ASSERT(tree_==rhs.tree_);
-      return idx_ == rhs.idx_;
+    //! Equality comparison operator
+    bool operator==(const Box& b) const {
+      FMMTL_ASSERT(tree_ == b.tree_);
+      return idx_ == b.idx_;
     }
-    bool operator<(const Box& rhs) const {
-      FMMTL_ASSERT(tree_==rhs.tree_);
-      return idx_ < rhs.idx_;
+    //! Comparison operator for std:: containers and algorithms
+    bool operator<(const Box& b) const {
+      FMMTL_ASSERT(tree_ == b.tree_);
+      return idx_ < b.idx_;
     }
 
-    inline friend std::ostream& operator<<(std::ostream& s, const box_type& b) {
+    //! Write a Box to an output stream
+    friend std::ostream& operator<<(std::ostream& s, const box_type& b) {
       size_type num_bodies = b.num_bodies();
       size_type first_body = b.body_begin()->index();
       size_type last_body = first_body + num_bodies - 1;
@@ -171,95 +194,149 @@ class BallTree {
     friend box_iterator;
     Box(size_type idx, const tree_type* tree)
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
-      FMMTL_ASSERT(idx_<tree_->boxes());
+      FMMTL_ASSERT(idx_ < tree_->boxes());
     }
     inline BoxData& data() const {
       return tree_->box_data_[idx_];
     }
     friend class BallTree;
-  };	//end struct Box
+  };
 
  public:
 
-  // BallTree constructor with Range
+  /** Construct a tree encompassing a bounding box
+   * and insert a range of points */
   template <typename Range>
   BallTree(const Range& rng, size_type n_crit = 256,
            typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
       : BallTree(rng.begin(), rng.end(), n_crit) {
   }
 
-  template<typename PointIter>
+  /** Construct an tree encompassing a bounding box
+   * and insert a range of points */
+  template <typename PointIter>
   BallTree(PointIter first, PointIter last, size_type n_crit = 256) {
-    //insert_mwd(first, last, n_crit);    // Median of Widest Dimension
-    insert_pcfp(first, last, n_crit);   // Points Closest to Furthest Pair
+    insert(first, last, n_crit);
   }
 
-  //return root Bounding Sphere
+  /** Return the Bounding Box that this BallTree encompasses */
   BoundingSphere<point_type> bounding_sphere() const {
     return box_data_[0].bounding_sphere_;
   }
+
+  /** Return the center of this BallTree */
   point_type center() const {
     return root().center();
   }
 
+  /** The number of bodies contained in this tree */
   inline size_type size() const {
     return permute_.size();
   }
+  /** The number of bodies contained in this tree */
   inline size_type bodies() const {
     return size();
   }
+
+  /** The number of boxes contained in this tree */
   inline size_type boxes() const {
     return box_data_.size();
   }
-  //return the number of boxes on level L
+
+  /** The number of boxes contained in level L of this tree */
   inline size_type boxes(size_type L) const {
-    return (1 << L);	// 1<<L == pow(2, L), assuming it's a full binary tree
-  }
-  inline size_type levels() const {
-    return std::log2(boxes());
-  }
-  inline bool contains(const box_type& box) const {
-    return this==box.tree_;
-  }
-  inline bool contains(const body_type& body) const {
-    return this==body.tree_;
+    return (1 << L);
   }
 
-  //return the root box of this tree
+  /** The maximum level of any box in this tree */
+  inline size_type levels() const {
+    return std::log2(boxes());  // XXX: Slow?
+  }
+
+  /** Returns true if the box is contained in this tree, false otherwise */
+  inline bool contains(const box_type& box) const {
+    return this == box.tree_;
+  }
+  /** Returns true if the body is contained in this tree, false otherwise */
+  inline bool contains(const body_type& body) const {
+    return this == body.tree_;
+  }
+
+  /** Return the root box of this tree */
   box_type root() const {
     return Box(0, this);
   }
-  box_type box(size_type idx) const {
+  /** Return a box given its index */
+  box_type box(const size_type idx) const {
     FMMTL_ASSERT(idx < box_data_.size());
     return Box(idx, this);
   }
-  body_type body(size_type idx) const {
+  /** Return a body given its index */
+  body_type body(const size_type idx) const {
     FMMTL_ASSERT(idx < size());
     return Body(idx, this);
   }
-
+  /** Return an iterator to the first body in this tree */
   body_iterator body_begin() const {
     return body_iterator(0, this);
   }
+  /** Return an iterator one past the last body in this tree */
   body_iterator body_end() const {
     return body_iterator(bodies(), this);
   }
-
+  /** Return an iterator to the first box in this tree */
   box_iterator box_begin() const {
     return box_iterator(0, this);
   }
+  /** Return an iterator one past the last box in this tree */
   box_iterator box_end() const {
     return box_iterator(boxes(), this);
   }
-  //return an iterator to the first box on level L
-  box_iterator box_begin(size_type L) const {}
-  //return an iterator to one past the last box on level L
-  box_iterator box_end(size_type L) const {}
+  /** Return an iterator to the first box at level L in this tree
+   * @pre L < levels()
+   */
+  box_iterator box_begin(size_type L) const {
+    FMMTL_ASSERT(L < levels());
+    return box_iterator((1 << L) - 1, this);
+  }
+  /** Return an iterator one past the last box at level L in this tree
+   * @pre L < levels()
+   */
+  box_iterator box_end(size_type L) const {
+    FMMTL_ASSERT(L < levels());
+    return box_iterator((1 << (L+1)) - 1, this);
+  }
 
-  inline friend std::ostream& operator<<(std::ostream& s, const tree_type& t)
-  {
+  template <typename RandomAccessIter>
+  struct body_permuted_iterator {
+    typedef typename std::vector<size_type>::const_iterator permute_iter;
+    typedef boost::permutation_iterator<RandomAccessIter, permute_iter> type;
+  };
+
+  /** Tranform (permute) an iterator so its traversal follows the same order as
+   * the bodies contained in this tree
+   */
+  template <typename RandomAccessIter>
+  typename body_permuted_iterator<RandomAccessIter>::type
+  body_permute(RandomAccessIter it, const body_iterator& bi) const {
+    return boost::make_permutation_iterator(it, permute_.cbegin() + bi.index());
+  }
+
+  /** Tranform (permute) an iterator so its traversal follows the same order as
+   * the bodies contained in this tree
+   *
+   * Specialized for bi = body_begin().
+   */
+  template <typename RandomAccessIter>
+  typename body_permuted_iterator<RandomAccessIter>::type
+  body_permute(RandomAccessIter it) const {
+    return body_permute(it, body_begin());
+  }
+
+  /** Write a BallTree to an output stream */
+  friend std::ostream& operator<<(std::ostream& s, const BallTree& t) {
     struct {
-      inline std::ostream& print(std::ostream& s, const box_type& box) {
+      std::ostream& print(std::ostream& s, const box_type& box) {
         s << std::string(2*box.level(), ' ') << box;
         if (!box.is_leaf())
           for (auto ci = box.child_begin(); ci != box.child_end(); ++ci)
@@ -272,253 +349,138 @@ class BallTree {
   }
 
  private:
-  /** Points Closest to Furthest Pair method to construct BoundingSpheres for a BallTree
-   * each pair of children boxes are separated by finding the point, whose square distance to point1 and point2
-   * are the median of all the points in parent box, point1 is defiend as the furthest point from the center of parent box,
-   * point2 is defined as the furthest point from point1.
-   */
+  //! TODO: Make dynamic and public?
   template <typename PointIter>
-  void insert_pcfp(PointIter p_first, PointIter p_last, size_type NCRIT) {
-    FMMTL_LOG("BallTree insert, Points Cloest to Furthest Pair");
-    assert (p_first != p_last);
+  void insert(PointIter p_first, PointIter p_last, size_type NCRIT) {
+    FMMTL_LOG("BallTree Insert");
+
+    assert(p_first != p_last);
 
     // Create a point-idx pair vector
     typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
-    typedef std::pair<point_i_type, unsigned> point_t;
+
+    // XXX: Generalize?
+    static_assert(std::is_same<point_i_type, point_type>::value,
+                  "PointIter value_type must be point_type");
+
+    typedef std::pair<point_type, unsigned> point_t;
 
     std::vector<point_t> point;
-
+    // If iterators are random access, we can reserve space efficiently
     if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
         std::random_access_iterator_tag>::value)
       point.reserve(std::distance(p_first, p_last));
 
-    //construct root bounding sphere, with point iterators
+    // Copy to point-idx pair
     unsigned idx = 0;
-    for (auto pi = p_first; pi!=p_last; ++pi, ++idx)
+    for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
       point.emplace_back(*pi, idx);
-
+    }
     permute_.reserve(point.size());
 
-    unsigned leaves = ceil_pow_2((point.size()+NCRIT-1)/NCRIT);
-    unsigned levels = std::log2(leaves);
-
-    box_data_.reserve(2*leaves-1);
-
-    point_type center;
-    double radius_sq;
-
-    //Calculate center and radius_sq based on PCFP approach
-    std::tie(center, radius_sq) = calc_bs_params_pcfp(point.begin(), point.end());
-    auto curr_bs = BoundingSphere<point_i_type>(center, radius_sq);
-    box_data_.emplace_back(0, point.size(), curr_bs);
-
-    auto point1 = furthest_point_from(point.begin(), point.end(), center);
-    auto point2 = furthest_point_from(point.begin(), point.end(), point1);
-
-    auto mycomp = [&point1, &point2](const point_t& a, const point_t& b) {
-      return norm_2_sq(a.first-point1) - norm_2_sq(a.first-point2)
-      < norm_2_sq(b.first-point1) - norm_2_sq(b.first-point2);
+    // Helper std::pair projection operator
+    struct pair2point {
+      point_type& operator()(point_t& p) const { return p.first; }
     };
+    using proj = boost::transform_iterator<pair2point, decltype(point.begin())>;
 
-    for (unsigned k=0; k<(1<<levels)-1; ++k) {
-      auto p_begin = point.begin() + box_data_[k].body_begin_;
-      auto p_end = point.begin() + box_data_[k].body_end_;
-      auto p_mid = p_begin + (p_end - p_begin + 1)/2;
-
-      //lambda function takes reference of point1 and point2, thus updating point1 and point2 can propagate into mycomp
-      center = box_data_[k].bounding_sphere_.center();
-      point1 = furthest_point_from(p_begin, p_end, center);
-      point2 = furthest_point_from(p_begin, p_end, point1);
-      std::nth_element(p_begin, p_mid, p_end, mycomp);
-
-      //build 2 child boxes
-      unsigned mid = p_mid - point.begin();
-      std::tie(center, radius_sq) = calc_bs_params_pcfp(p_begin, p_mid);
-      curr_bs = BoundingSphere<point_i_type>(center, radius_sq);
-      box_data_.emplace_back(box_data_[k].body_begin_, mid, curr_bs);
-
-      std::tie(center, radius_sq) = calc_bs_params_pcfp(p_mid, p_end);
-      curr_bs = BoundingSphere<point_i_type>(center, radius_sq);
-      box_data_.emplace_back(mid, box_data_[k].body_end_, curr_bs);
-    }
-
-    std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
-    assert (box_data_.size() <= 2*leaves-1);
-
-    for (auto&& p : point)
-      permute_.push_back(p.second);
-  }
-
-  /** calculate bounding sphere parameters for Points Closest to Furthest Pair method :
-   * center, radius_sq for a given range of points [first, last)
-   * and rearrange the data points in the range [p_first, p_last) to conform to PCFP rules
-   * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
-   * @return a std::pair, first == center, second == radius_sq
-   */
-  template <typename PointIndexIter>
-  std::pair<point_type, double> calc_bs_params_pcfp(PointIndexIter p_first, PointIndexIter p_last) {
-    unsigned n = 0;
-    unsigned dim = (*p_first).first.size();
-
-    auto center = point_type(0,0,0);
-    double radius_sq = 0.;
-
-    //Calculate center for the BoundingSphere
-    for (auto new_first=p_first; new_first!=p_last; ++new_first) {
-      ++n;
-      for (unsigned i=0; i<dim; ++i)
-        center[i] += (*new_first).first[i];
-    }
-    for (unsigned i=0; i<dim; ++i)
-      center[i] /= n;
-
-    //Update radius_sq
-    for (; p_first!=p_last; ++p_first) {
-      double dist_sq = norm_2_sq(center - (*p_first).first);
-      if (dist_sq > radius_sq)
-        radius_sq = dist_sq;
-    }
-    return std::make_pair(center, radius_sq);
-  }
-
-  /** calculate furthest point from a target point
-   * @param[in] target, chosen point to calculate distance from
-   * @param[in] p_first, p_last, range of <point, index> pair defined in [p_first, p_last)
-   * @return furthest point from @a target, in range [p_first, p_last)
-   * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
-   */
-  template <typename PointIndexIter>
-  point_type furthest_point_from(PointIndexIter p_first, PointIndexIter p_last, const point_type& target) {
-    auto p_max = p_first;
-    double max_dist_sq = 0.;
-    for (; p_first!=p_last; ++p_first) {
-      double dist_sq = norm_2_sq(target - (*p_first).first);
-      if (dist_sq > max_dist_sq) {
-        max_dist_sq = dist_sq;
-        p_max = p_first;
-      }
-    }
-    return (*p_max).first;
-  }
-
-  /** Median of Widest Dimension method to construct BoundingSpheres for a BallTree
-   * each pair of children boxes are split at the median of the widest dimension of their parent box
-   * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
-   */
-  template <typename PointIter>
-  void insert_mwd(PointIter p_first, PointIter p_last, size_type NCRIT) {
-    FMMTL_LOG("BallTree insert, Median of Widest Dimension");
-    //possibly convert N-dimensional point to polar coordinates and store them
-    assert (p_first != p_last);
-
-    // Create a point-idx pair vector
-    typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
-    typedef std::pair<point_i_type, unsigned> point_t;
-
-    std::vector<point_t> point;
-    std::vector<unsigned> pivot_arry;
-
-    if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
-        std::random_access_iterator_tag>::value)
-      point.reserve(std::distance(p_first, p_last));
-
-    //construct root bounding sphere, with point iterators
-    unsigned idx = 0;
-    for (auto pi = p_first; pi!=p_last; ++pi, ++idx)
-      point.emplace_back(*pi, idx);
-
-    permute_.reserve(point.size());
-    pivot_arry.reserve(point.size());
-
-    unsigned leaves = ceil_pow_2((point.size()+NCRIT-1)/NCRIT);
+    // The number of leaf boxes that will be created
+    // (Smallest power of two greater than or equal to ceil(N/NCRIT))
+    unsigned leaves = ceil_pow_2((point.size() + NCRIT - 1) / NCRIT);
     unsigned levels = std::log2(leaves);
 
-    auto bs_params = calc_bs_params_mwd(point.begin(), point.end());	//0: center, 1: radius_sq, 2: pivot
-    auto curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
-    pivot_arry.emplace_back(std::get<2>(bs_params));
+    // Reserve the number of boxes that will be added
+    box_data_.reserve(2*leaves - 1);
 
-    box_data_.reserve(2*leaves-1);
-    box_data_.emplace_back(0, point.size(), curr_bs);
+    // Push the root sphere which contains all points
+    box_data_.emplace_back(0, size_type(point.size()),
+                           approx_bounding_sphere(proj(point.begin()),
+                                                  proj(point.end())));
 
-    for (unsigned k=0; k<(1<<levels)-1; ++k) {
-      //get the dimension with the largest spread (pivot)
-      auto pivot = pivot_arry[k];
-      auto myless_comp = [pivot] (const point_t& a, const point_t& b) {
-        return a.first[pivot] < b.first[pivot];
-      };
-
-      //partition the points in the dimension @a pivot, with the median
+    // For every box that is created
+    unsigned end_k = (1 << levels) - 1;
+    for (unsigned k = 0; k < end_k; ++k) {
+      // The range of points in this box
       auto p_begin = point.begin() + box_data_[k].body_begin_;
-      auto p_end = point.begin() + box_data_[k].body_end_;
-      auto p_mid = p_begin + (p_end - p_begin + 1)/2;
-      std::nth_element(p_begin, p_mid, p_end, myless_comp);
+      auto p_end   = point.begin() + box_data_[k].body_end_;
 
-      //build 2 child boxes
-      unsigned mid = p_mid - point.begin();
-      bs_params = calc_bs_params_mwd(p_begin, p_mid);	//0: center, 1: radius_sq, 2: pivot
-      curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
-      pivot_arry.emplace_back(std::get<2>(bs_params));
-      box_data_.emplace_back(box_data_[k].body_begin_, mid, curr_bs);
+      // Invariant of helper functions
+      assert(p_begin != p_end);
 
-      bs_params = calc_bs_params_mwd(p_mid, p_end);	//0: center, 1: radius_sq, 2: pivot
-      curr_bs = BoundingSphere<point_i_type>(std::get<0>(bs_params), std::get<1>(bs_params));
-      pivot_arry.emplace_back(std::get<2>(bs_params));
-      box_data_.emplace_back(mid, box_data_[k].body_end_, curr_bs);
+      // Compute the furthest point from the center
+      const point_type& p1 = furthest_point_from(proj(p_begin), proj(p_end),
+                                                 box(k).center());
+      // Compute the furthest point from point1
+      const point_type& p2 = furthest_point_from(proj(p_begin), proj(p_end),
+                                                 p1);
+
+      // Partition on the median: balanced tree, but worse spheres
+      auto p_mid = p_begin + (p_end - p_begin) / 2;
+      point_type r = p2 - p1;
+      std::nth_element(p_begin, p_mid, p_end,
+                       [&](const point_t& a, const point_t& b) {
+           return inner_prod(a.first-p1, r) < inner_prod(b.first-p1, r);
+        });
+
+      /*
+      // Partition on proximity: better spheres, potentially unbalanced
+      // Would need to account for the possibility of empty boxes
+      auto p_mid = std::partition(p_begin, p_end, [&] (const point_t& a) {
+          return norm_2_sq(a.first-p1) < norm_2_sq(a.first-p2);
+        });
+      */
+
+      // Record the child boxes
+      size_type mid = p_mid - point.begin();
+      box_data_.emplace_back(box_data_[k].body_begin_, mid,
+                             approx_bounding_sphere(proj(p_begin), proj(p_mid)));
+
+      box_data_.emplace_back(mid, box_data_[k].body_end_,
+                             approx_bounding_sphere(proj(p_mid), proj(p_end)));
     }
 
-    std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
-    assert (box_data_.size() <= 2*leaves-1);
+    // Assert no re-allocation
+    assert(box_data_.size() <= 2*leaves-1);
 
-    for (auto&& p : point)
+    // Extract the permutation idx
+    for (const point_t& p : point)
       permute_.push_back(p.second);
   }
 
-  /** calculate bounding sphere parameters for Median of Widest Dimension method :
-   * center, radius_sq and pivot for a given range of points [first, last)
-   * @tparam PointIndexIter takes the form of std::vector<point_type, unsigned>::iterator
+  /** Calculate the approximate bounding sphere of a set of points
+   * using the Points Closest to Furthest Pair approach.
    */
-  template <typename PointIndexIter>
-  std::tuple<point_type, double, unsigned> calc_bs_params_mwd(PointIndexIter p_first, PointIndexIter p_last) {
-    unsigned n = std::distance(p_first, p_last);
-    unsigned dim = (*p_first).first.size();
-    //calculate maximum spread in each dimension
-    auto min_pos((*p_first).first);	//stores minimum point position in each dimension
-    auto max_pos(min_pos);	//stores maxmium point position in each dimension
-    auto center = point_type(0,0,0);
-    double radius_sq = 0.;
+  template <typename PointIter>
+  BoundingSphere<point_type> approx_bounding_sphere(PointIter first,
+                                                    PointIter last) {
+    auto n = std::distance(first, last);
+    point_type center = std::accumulate(first, last, point_type{}) / n;
 
-    //Update center for the BoundingSphere
-    for (auto new_first=p_first; new_first!=p_last; ++new_first) {
-      for (unsigned i=0; i<dim; ++i) {
-        center[i] += (*new_first).first[i];
-        if ((*new_first).first[i] < min_pos[i])
-          min_pos[i] = (*new_first).first[i];
-        if ((*new_first).first[i] > max_pos[i])
-          max_pos[i] = (*new_first).first[i];
-      }
-    }
-    for (unsigned i=0; i<dim; ++i)
-      center[i] /= n;
+    double r_sq = std::accumulate(first, last, double{},
+                                  [&] (double r_sq, point_type& p) {
+                                    return std::max(r_sq, norm_2_sq(center-p));
+                                  });
 
-    //calculate pivot
-    auto temp_pos = max_pos-min_pos;
-    unsigned pivot = std::max_element(temp_pos.begin(), temp_pos.end()) - temp_pos.begin();
-
-    //Update radius_sq
-    for (; p_first!=p_last; ++p_first) {
-      double dist_sq = norm_2_sq(center - (*p_first).first);
-      if (dist_sq > radius_sq)
-        radius_sq = dist_sq;
-    }
-    return std::make_tuple(center, radius_sq, pivot);
+    return {center, r_sq};
   }
 
-  static unsigned max_dim(const point_type& p) {
-    return std::max_element(p.begin(), p.end()-p.begin());
+  /** Find the point in a set of points that is furthest away from a target point
+   */
+  template <typename PointIter>
+  const point_type& furthest_point_from(PointIter first,
+                                        PointIter last,
+                                        const point_type& target) {
+    using pair = std::pair<double, const point_type*>;
+    return *std::accumulate(first, last, pair{},
+                            [&] (const pair& r, const point_type& p) {
+                              return std::max(r, pair{norm_2_sq(target-p), &p});
+                            }).second;
   }
 
-  BallTree (const BallTree&) {};
+  // Just making sure for now
+  BallTree(const BallTree&) {};
   void operator=(const BallTree&) {};
-};	//end BallTree
+};
 
-}	//end namespace fmmtl
+
+} // end namespace fmmtl

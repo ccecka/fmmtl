@@ -385,7 +385,6 @@ class KDTree {
     unsigned levels = std::log2(leaves);
 
     // Reserve the number of boxes that will be added
-
     box_data_.reserve(2*leaves - 1);
     // Push the root box which contains all points
     box_data_.emplace_back(0, size_type(point.size()),
@@ -393,7 +392,7 @@ class KDTree {
 
     // For every box that is created
     unsigned end_k = (1 << levels) - 1;
-    for (unsigned k = 0; k < (1 << levels)-1; ++k) {
+    for (unsigned k = 0; k < end_k; ++k) {
 
       // Get the bounding box of the current box
       auto& bb = box_data_[k].bounding_box_;
@@ -421,7 +420,6 @@ class KDTree {
     }
 
     // Assert no re-allocation
-    std::cout << box_data_.size() << "\t" << 2*leaves-1 << std::endl;
     assert(box_data_.size() <= 2*leaves-1);
 
     // Extract the permutation idx
