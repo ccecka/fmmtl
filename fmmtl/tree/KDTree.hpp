@@ -361,7 +361,12 @@ class KDTree {
 
     // Create a point-idx pair vector
     typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
-    typedef std::pair<point_i_type, unsigned> point_t;
+
+    // XXX: Generalize?
+    static_assert(std::is_same<point_i_type, point_type>::value,
+                  "PointIter value_type must be point_type");
+
+    typedef std::pair<point_type, unsigned> point_t;
 
     std::vector<point_t> point;
     // If iterators are random access, we can reserve space efficiently
