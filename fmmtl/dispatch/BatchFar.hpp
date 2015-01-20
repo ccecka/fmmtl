@@ -18,6 +18,7 @@ class BatchFar {
   typedef typename Context::target_box_type target_box_type;
 
   //! CSR-like storage of box pairs
+  // XXX: Need to also protect against parent-box races!!
   std::vector<target_box_type> target_box_list;
   std::vector<std::vector<source_box_type>> source_boxes;
 
@@ -39,23 +40,29 @@ class BatchFar {
   void execute(Context& c) {
     FMMTL_LOG("FarBatch");
     // Choose which operators are available and dispatch to it
+    // XXX: Hacky version
 
-    // Need iterator style for OMP compatibility.
+    if (ExpansionTraits<typename Context::expansion_type>::has_L2T) {
+      // Need iterator style for OMP compatibility.
 #pragma omp parallel for
-    for (auto ti = target_box_list.begin(); ti < target_box_list.end(); ++ti) {
-      target_box_type& tb = *ti;
-      auto s_end = source_boxes[tb.index()].end();
-      for (auto si = source_boxes[tb.index()].begin(); si != s_end; ++si) {
-        // A hacky adaption on the operator graph
-        // TODO: Actually measure/autotune these
-        if (ExpansionTraits<typename Context::expansion_type>::has_M2L) {
-          M2L::eval(c, *si, tb);
-        } else if (ExpansionTraits<typename Context::expansion_type>::has_S2M) {
-          M2T::eval(c, *si, tb);
-        } else if (ExpansionTraits<typename Context::expansion_type>::has_L2T) {
-          S2L::eval(c, *si, tb);
+      for (auto ti = target_box_list.begin(); ti < target_box_list.end(); ++ti) {
+        target_box_type& tb = *ti;
+        auto s_end = source_boxes[tb.index()].end();
+        for (auto si = source_boxes[tb.index()].begin(); si != s_end; ++si) {
+          // A hacky adaption on the operator graph
+          // TODO: Actually measure/autotune these
+          if (ExpansionTraits<typename Context::expansion_type>::has_M2L) {
+            M2L::eval(c, *si, tb);
+          } else if (ExpansionTraits<typename Context::expansion_type>::has_L2T) {
+            S2L::eval(c, *si, tb);
+          }
         }
       }
+    } else if (ExpansionTraits<typename Context::expansion_type>::has_S2M) {
+      // XXX: can't run in parallel with the current data structure
+      for (auto tb : target_box_list)
+        for (auto sb : source_boxes[tb.index()])
+          M2T::eval(c, sb, tb);
     }
   }
 };

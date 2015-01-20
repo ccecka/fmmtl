@@ -18,7 +18,7 @@
 
 #include "fmmtl/util/Logger.hpp"
 #include "fmmtl/numeric/Vec.hpp"
-#include "fmmtl/tree/BoundingBox.hpp"
+#include "fmmtl/tree/BoundingSphere.hpp"
 
 #include "fmmtl/numeric/bits.hpp"
 
@@ -28,14 +28,14 @@ using boost::has_range_iterator;
 
 //! Class for tree structure
 template <unsigned DIM>
-class KDTree {
+class BallTree {
   // Predeclarations
   struct Box;
   struct Body;
   struct BoxData;
 
   // The type of this tree
-  typedef KDTree<DIM> tree_type;
+  typedef BallTree<DIM> tree_type;
 
  public:
   //! The type of indices and integers in this tree
@@ -47,8 +47,8 @@ class KDTree {
   //! Public type declarations
   typedef Box           box_type;
   typedef Body          body_type;
-  using box_iterator  = CountedProxyIterator<Box,  const KDTree, size_type>;
-  using body_iterator = CountedProxyIterator<Body, const KDTree, size_type>;
+  using box_iterator  = CountedProxyIterator<Box,  const BallTree, size_type>;
+  using body_iterator = CountedProxyIterator<Body, const BallTree, size_type>;
 
  private:
   // Tree representation
@@ -59,19 +59,18 @@ class KDTree {
   std::vector<BoxData> box_data_;
 
   struct BoxData {
+    typedef BoundingSphere<point_type> bounding_sphere_type;
+
     // Index of the first body in this box
     size_type body_begin_;
     // Index of one-past-last body in this box
     size_type body_end_;
+    // Bounding sphere
+    bounding_sphere_type bounding_sphere_;
 
-    // Bounding Box of this box
-    BoundingBox<point_type> bounding_box_;
-
-    BoxData(size_type bb, size_type be,
-            const point_type& min, const point_type& max)
-        : body_begin_(bb), body_end_(be),
-          bounding_box_(min,max) {
-    }
+    // Constructor
+    BoxData(size_type bb, size_type be, const bounding_sphere_type& bs)
+        : body_begin_(bb), body_end_(be), bounding_sphere_(bs) {}
   };
 
   struct Body {
@@ -93,10 +92,10 @@ class KDTree {
         : idx_(idx), tree_(const_cast<tree_type*>(tree)) {
       FMMTL_ASSERT(idx_ < tree_->size());
     }
-    friend class KDTree;
+    friend class BallTree;
   };
 
-  // A tree-aligned box
+  // A box of the tree
   struct Box {
     typedef typename tree_type::box_iterator  box_iterator;
     typedef typename tree_type::body_iterator body_iterator;
@@ -115,15 +114,15 @@ class KDTree {
       return data().bounding_box_.max() - data().bounding_box_.min();
     }
     double volume() const {
-      const point_type& e = extents();
-      return std::accumulate(e.begin(), e.end(), 1.0, std::multiplies<double>());
+      //XXX: need this function?
+      return 0;
     }
     double radius() const {
-      return norm_2(extents()) / 2.0;
+      return data().bounding_sphere_.radius();
     }
     //! The center of this box
     point_type center() const {
-      return (data().bounding_box_.max() + data().bounding_box_.min()) / 2;
+      return data().bounding_sphere_.center();
     }
 
     //! The parent box of this box
@@ -176,8 +175,7 @@ class KDTree {
     }
 
     //! Write a Box to an output stream
-    inline friend std::ostream& operator<<(std::ostream& s,
-                                           const box_type& b) {
+    friend std::ostream& operator<<(std::ostream& s, const box_type& b) {
       size_type num_bodies = b.num_bodies();
       size_type first_body = b.body_begin()->index();
       size_type last_body = first_body + num_bodies - 1;
@@ -187,8 +185,9 @@ class KDTree {
                << " (L" << b.level() << ", P" << parent_idx
                << ", " << num_bodies << (num_bodies == 1 ? " body" : " bodies")
                << " " << first_body << "-" << last_body
-               << "): " << b.center() << " - " << b.extents();
+               << "): Center: " << b.center() << "; Radius: " << b.radius();
     }
+
    private:
     size_type idx_;
     tree_type* tree_;
@@ -200,7 +199,7 @@ class KDTree {
     inline BoxData& data() const {
       return tree_->box_data_[idx_];
     }
-    friend class KDTree;
+    friend class BallTree;
   };
 
  public:
@@ -208,24 +207,24 @@ class KDTree {
   /** Construct a tree encompassing a bounding box
    * and insert a range of points */
   template <typename Range>
-  KDTree(const Range& rng, size_type n_crit = 256,
-         typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
-      : KDTree(rng.begin(), rng.end(), n_crit) {
+  BallTree(const Range& rng, size_type n_crit = 256,
+           typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
+      : BallTree(rng.begin(), rng.end(), n_crit) {
   }
 
   /** Construct an tree encompassing a bounding box
    * and insert a range of points */
   template <typename PointIter>
-  KDTree(PointIter first, PointIter last, size_type n_crit = 256) {
+  BallTree(PointIter first, PointIter last, size_type n_crit = 256) {
     insert(first, last, n_crit);
   }
 
-  /** Return the Bounding Box that this KDTree encompasses */
-  BoundingBox<point_type> bounding_box() const {
-    return box_data_[0].bounding_box_;
+  /** Return the Bounding Box that this BallTree encompasses */
+  BoundingSphere<point_type> bounding_sphere() const {
+    return box_data_[0].bounding_sphere_;
   }
 
-  /** Return the center of this KDTree */
+  /** Return the center of this BallTree */
   point_type center() const {
     return root().center();
   }
@@ -334,12 +333,10 @@ class KDTree {
     return body_permute(it, body_begin());
   }
 
-  /** Write an KDTree to an output stream */
-  inline friend std::ostream& operator<<(std::ostream& s,
-                                         const tree_type& t) {
+  /** Write a BallTree to an output stream */
+  friend std::ostream& operator<<(std::ostream& s, const BallTree& t) {
     struct {
-      inline std::ostream& print(std::ostream& s,
-                                 const box_type& box) {
+      std::ostream& print(std::ostream& s, const box_type& box) {
         s << std::string(2*box.level(), ' ') << box;
         if (!box.is_leaf())
           for (auto ci = box.child_begin(); ci != box.child_end(); ++ci)
@@ -355,29 +352,37 @@ class KDTree {
   //! TODO: Make dynamic and public?
   template <typename PointIter>
   void insert(PointIter p_first, PointIter p_last, size_type NCRIT) {
-    FMMTL_LOG("KDTree Insert");
+    FMMTL_LOG("BallTree Insert");
 
-    FMMTL_ASSERT(p_first != p_last);
+    assert(p_first != p_last);
 
     // Create a point-idx pair vector
     typedef typename std::iterator_traits<PointIter>::value_type point_i_type;
-    typedef std::pair<point_i_type, unsigned> point_t;
+
+    // XXX: Generalize?
+    static_assert(std::is_same<point_i_type, point_type>::value,
+                  "PointIter value_type must be point_type");
+
+    typedef std::pair<point_type, unsigned> point_t;
 
     std::vector<point_t> point;
     // If iterators are random access, we can reserve space efficiently
-    // Compile-time predicate!
     if (std::is_same<typename std::iterator_traits<PointIter>::iterator_category,
-                     std::random_access_iterator_tag>::value)
+        std::random_access_iterator_tag>::value)
       point.reserve(std::distance(p_first, p_last));
 
+    // Copy to point-idx pair
     unsigned idx = 0;
-    BoundingBox<point_i_type> root_bb(*p_first);
     for (PointIter pi = p_first; pi != p_last; ++pi, ++idx) {
       point.emplace_back(*pi, idx);
-      root_bb |= point.back().first;
     }
-
     permute_.reserve(point.size());
+
+    // Helper std::pair projection operator
+    struct pair2point {
+      point_type& operator()(point_t& p) const { return p.first; }
+    };
+    using proj = boost::transform_iterator<pair2point, decltype(point.begin())>;
 
     // The number of leaf boxes that will be created
     // (Smallest power of two greater than or equal to ceil(N/NCRIT))
@@ -386,54 +391,96 @@ class KDTree {
 
     // Reserve the number of boxes that will be added
     box_data_.reserve(2*leaves - 1);
-    // Push the root box which contains all points
+
+    // Push the root sphere which contains all points
     box_data_.emplace_back(0, size_type(point.size()),
-                           root_bb.min(), root_bb.max());
+                           approx_bounding_sphere(proj(point.begin()),
+                                                  proj(point.end())));
 
     // For every box that is created
     unsigned end_k = (1 << levels) - 1;
     for (unsigned k = 0; k < end_k; ++k) {
-
-      // Get the bounding box of the current box
-      auto& bb = box_data_[k].bounding_box_;
-
-      // Make a comparator for the largest dimension
-      const unsigned dim = max_dim(bb.max() - bb.min());
-      auto comp = [=] (const point_t& a, const point_t& b) {
-        return a.first[dim] < b.first[dim];
-      };
-
-      // Partition the points on the median of this dimension
+      // The range of points in this box
       auto p_begin = point.begin() + box_data_[k].body_begin_;
       auto p_end   = point.begin() + box_data_[k].body_end_;
-      auto p_mid   = p_begin + (p_end - p_begin + 1) / 2;
-      std::nth_element(p_begin, p_mid, p_end, comp);
+
+      // Invariant of helper functions
+      assert(p_begin != p_end);
+
+      // Compute the furthest point from the center
+      const point_type& p1 = furthest_point_from(proj(p_begin), proj(p_end),
+                                                 box(k).center());
+      // Compute the furthest point from point1
+      const point_type& p2 = furthest_point_from(proj(p_begin), proj(p_end),
+                                                 p1);
+
+      // Partition on the median: balanced tree, but worse spheres
+      auto p_mid = p_begin + (p_end - p_begin) / 2;
+      point_type r = p2 - p1;
+      std::nth_element(p_begin, p_mid, p_end,
+                       [&](const point_t& a, const point_t& b) {
+           return inner_prod(a.first-p1, r) < inner_prod(b.first-p1, r);
+        });
+
+      /*
+      // Partition on proximity: better spheres, potentially unbalanced
+      // Would need to account for the possibility of empty boxes
+      auto p_mid = std::partition(p_begin, p_end, [&] (const point_t& a) {
+          return norm_2_sq(a.first-p1) < norm_2_sq(a.first-p2);
+        });
+      */
 
       // Record the child boxes
-      unsigned mid = p_mid - point.begin();
-      point_type split = bb.max();
-      split[dim] = (*p_mid).first[dim];
-      box_data_.emplace_back(box_data_[k].body_begin_, mid, bb.min(), split);
-      split = bb.min();
-      split[dim] = (*p_mid).first[dim];
-      box_data_.emplace_back(mid, box_data_[k].body_end_, split, bb.max());
+      size_type mid = p_mid - point.begin();
+      box_data_.emplace_back(box_data_[k].body_begin_, mid,
+                             approx_bounding_sphere(proj(p_begin), proj(p_mid)));
+
+      box_data_.emplace_back(mid, box_data_[k].body_end_,
+                             approx_bounding_sphere(proj(p_mid), proj(p_end)));
     }
 
     // Assert no re-allocation
-    FMMTL_ASSERT(box_data_.size() <= 2*leaves-1);
+    assert(box_data_.size() <= 2*leaves-1);
 
     // Extract the permutation idx
-    for (auto&& p : point)
+    for (const point_t& p : point)
       permute_.push_back(p.second);
   }
 
-  static unsigned max_dim(const point_type& p) {
-    return std::max_element(p.begin(), p.end()) - p.begin();
+  /** Calculate the approximate bounding sphere of a set of points
+   * using the Points Closest to Furthest Pair approach.
+   */
+  template <typename PointIter>
+  BoundingSphere<point_type> approx_bounding_sphere(PointIter first,
+                                                    PointIter last) {
+    auto n = std::distance(first, last);
+    point_type center = std::accumulate(first, last, point_type{}) / n;
+
+    double r_sq = std::accumulate(first, last, double{},
+                                  [&] (double r_sq, point_type& p) {
+                                    return std::max(r_sq, norm_2_sq(center-p));
+                                  });
+
+    return {center, r_sq};
+  }
+
+  /** Find the point in a set of points that is furthest away from a target point
+   */
+  template <typename PointIter>
+  const point_type& furthest_point_from(PointIter first,
+                                        PointIter last,
+                                        const point_type& target) {
+    using pair = std::pair<double, const point_type*>;
+    return *std::accumulate(first, last, pair{},
+                            [&] (const pair& r, const point_type& p) {
+                              return std::max(r, pair{norm_2_sq(target-p), &p});
+                            }).second;
   }
 
   // Just making sure for now
-  KDTree(const KDTree&) {};
-  void operator=(const KDTree&) {};
+  BallTree(const BallTree&) {};
+  void operator=(const BallTree&) {};
 };
+
 
 } // end namespace fmmtl
