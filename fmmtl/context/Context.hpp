@@ -6,6 +6,8 @@
 
 /** TODO: Write Context and Tree concepts */
 
+#include <functional>
+
 #include "fmmtl/meta/kernel_traits.hpp"
 #include "fmmtl/meta/tree_traits.hpp"
 
