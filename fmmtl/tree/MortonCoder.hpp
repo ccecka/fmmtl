@@ -10,6 +10,8 @@
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/tree/BoundingBox.hpp"
 
+#include "fmmtl/numeric/bits.hpp"
+
 namespace fmmtl {
 
 /** @class MortonCoder
@@ -144,10 +146,38 @@ struct MortonCoder {
 };
 
 
+/**************************
+ ***** Generic Coder ******
+ **************************/
+
+#if 1
+/** Spread the bits of an (unsigned) code_type by
+ * inserting DIM-1 0s between each bit. (see bits/spread_bits_)
+ */
+template <unsigned DIM>
+inline
+typename MortonCoder<DIM>::code_type
+MortonCoder<DIM>::spread_bits(typename MortonCoder<DIM>::code_type x) {
+  return spread_bits_<DIM>(x);
+}
+
+/** Compact the bits of an (unsigned) code_type by
+ * keeping every DIM-1 bit. (see bits/compact_bits_)
+ */
+template <unsigned DIM>
+inline
+typename MortonCoder<DIM>::code_type
+MortonCoder<DIM>::compact_bits(typename MortonCoder<DIM>::code_type x) {
+  return compact_bits_<DIM>(x);
+}
+#endif
+
 /***************************
  ***** Specializations *****
  ***************************/
+// Mostly for explication -- the above generates equivalent code
 
+#if 1
 /** Spread the bits of a 32-bit number (null op)
  * @param x 32-bit integer
  * @return 32-bit integer
@@ -253,5 +283,6 @@ inline unsigned MortonCoder<4>::compact_bits(unsigned x) {
   x = (x | (x >> 12)) & 0b00000000000000000000000011111111;
   return x;
 }
+#endif
 
 } // end namespace fmmtl
