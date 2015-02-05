@@ -47,4 +47,4 @@ inline std::ostream& operator<<(std::ostream& s, const BoundingSphere<P>& b) {
 	return s << "]";
 }
 
-}//end namespace fmmtl
+} //end namespace fmmtl

@@ -146,7 +146,7 @@ class KDTree {
       return box_iterator(2*idx_+3, tree_);
     }
     //! The number of children this box has
-    constexpr size_type num_children() const {
+    static constexpr size_type num_children() {
       return 2;
     }
 

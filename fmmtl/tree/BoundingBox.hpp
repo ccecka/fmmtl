@@ -39,7 +39,7 @@ class BoundingBox {
 
   /** Construct the minimal bounding box containing @a p.
    * @post contains(@a p) && min() == @a p && max() == @a p */
-  explicit BoundingBox(const point_type& p)
+  explicit BoundingBox(const point_type& p = point_type())
       : min_(p), max_(p) {
   }
   /** Construct the minimal bounding box containing @a p1 and @a p2.
@@ -154,6 +154,21 @@ BoundingBox<P> operator|(BoundingBox<P> b, const P& p) {
 template <typename P>
 BoundingBox<P> operator|(BoundingBox<P> b1, const BoundingBox<P>& b2) {
   return b1 |= b2;
+}
+
+/** Compute minimum box-to-point squared distance
+ */
+template <typename P>
+double norm_2_sq(const BoundingBox<P>& bb, const P& p) {
+  double result = 0;    // XXX: double
+  for (unsigned i = 0; i < p.size(); ++i) {
+    auto low = bb.min()[i] - p[i];
+    low = low < 0 ? 0 : low;
+    auto hi  = p[i] - bb.max()[i];
+    hi = hi < 0 ? 0 : hi;
+    result += (low + hi) * (low + hi);
+  }
+  return result;
 }
 
 
