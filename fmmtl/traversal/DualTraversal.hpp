@@ -4,6 +4,8 @@
  * that satisfy some criteria.
  */
 
+// TODO: Deprecate in favor of Traversal.hpp?
+
 #include <utility>
 #include <tuple>
 #include <queue>
@@ -58,7 +60,7 @@ struct traversal_impl<breadth_first,T> {
  *   box_iterator child_begin() const;
  *   box_iterator child_end() const;
  *   bool is_leaf() const;   // XXX, abstract on base case?
- *   double volume() const;  // XXX, abstract on splitting criteria?
+ *   double radius_sq() const;  // XXX, abstract on splitting criteria?
  * }
  *
  * concept FarEvaluator {
@@ -94,7 +96,7 @@ inline void traverse_nearfar(SourceBox sbox, TargetBox tbox,
     switch (code) {
       case 0: {             // sbox and tbox are not leaves
         // Split the larger of the two into children and interact
-        if (sbox.volume() > tbox.volume()) {
+        if (sbox.radius_sq() > tbox.radius_sq()) {
           case 1:           // tbox is a leaf, sbox is not a leaf
             // Split the source box into children
             auto c_end = sbox.child_end();

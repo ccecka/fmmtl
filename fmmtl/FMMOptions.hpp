@@ -5,20 +5,23 @@
 
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 #include "fmmtl/config.hpp"
 
 /** Class to define compile-time and run-time FMM options */
 class FMMOptions {
   struct DefaultMAC {
-    double theta_;
-    DefaultMAC(double theta) : theta_(theta) {}
+    double theta_sq_;
+    DefaultMAC(double theta) : theta_sq_(theta * theta) {}
 
     template <typename BOX>
     bool operator()(const BOX& b1, const BOX& b2) const {
-      double r0_normSq = norm_2_sq(b1.center() - b2.center());
-      double rhs = (b1.radius() + b2.radius()) / theta_;
-      return r0_normSq > rhs*rhs;
+      double r0_sq = norm_2_sq(b1.center() - b2.center());
+      double r1_sq = b1.radius_sq();
+      double r2_sq = b2.radius_sq();
+      double r_sq = r1_sq + r2_sq + 2*std::sqrt(r1_sq*r2_sq);
+      return theta_sq_ * r0_sq > r_sq;
     }
   };
 

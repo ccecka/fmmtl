@@ -184,16 +184,15 @@ class NDTree {
                                        idx_);
       return it - tree_->level_offset_.begin() - 1;
     }
+
+    //! The dimension of each side of this box
     point_type extents() const {
       const BoundingBox<point_type> bb = tree_->coder_.bounding_box();
       return (bb.max() - bb.min()) / (1 << level());
     }
-    double volume() const {
-      point_type e = extents();
-      return std::accumulate(e.begin(), e.end(), 1.0, std::multiplies<double>());
-    }
-    double radius() const {
-      return norm_2(extents()) / 2.0;
+    //! The squared radius of this box
+    double radius_sq() const {
+      return norm_2_sq(extents()) / 4.0;
     }
     //! The center of this box
     const point_type& center() const {

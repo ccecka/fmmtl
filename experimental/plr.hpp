@@ -155,7 +155,8 @@ template <unsigned DT, unsigned DS,
 PLR_Matrix<T,DT,DS>
 plr_compression(T* data, unsigned n, unsigned m,
                 const TT* trgs, const TS* srcs,
-                unsigned max_rank, double eps_tol) {
+                unsigned max_rank, double eps_tol,
+                unsigned init_depth = 0) {
   ScopeClock plr_construction_timer("PLR Matrix Construction: ");
 
   const Vec<DT,TT>* targets = reinterpret_cast<const Vec<DT,TT>*>(trgs);
@@ -267,10 +268,24 @@ plr_compression(T* data, unsigned n, unsigned m,
     }
   };
 
-  // Perform the traversal
-  fmmtl::traverse_if(plr_m.source_tree->root(),
-                     plr_m.target_tree->root(),
-                     evaluator);
+  // Perform the traversal, starting at init_depth
+  for (auto sbox : boxes(plr_m.source_tree, init_depth)) {
+    for (auto tbox : boxes(plr_m.source_tree, init_depth)) {
+      fmmtl::traverse_if(sbox, tbox, evaluator);
+    }
+  }
 
   return plr_m;
+}
+
+
+
+/** Black Box PLR
+ *
+ *
+ */
+template <typename MatrixType>
+PLR_Matrix<T,1,1>
+plr_compression(MatrixType* M, unsigned max_rank, double eps_tol) {
+
 }

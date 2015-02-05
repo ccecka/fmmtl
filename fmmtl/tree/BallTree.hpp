@@ -110,15 +110,16 @@ class BallTree {
     size_type level() const {
       return std::log2(idx_+1);  // XXX: Slow? do this with bits
     }
+
+    //! The dimension of each side of this box
     point_type extents() const {
-      return data().bounding_box_.max() - data().bounding_box_.min();
+      point_type e;
+      e.fill(2*std::sqrt(radius_sq()));
+      return e;
     }
-    double volume() const {
-      //XXX: need this function?
-      return 0;
-    }
-    double radius() const {
-      return data().bounding_sphere_.radius();
+    //! The squared radius of this box
+    double radius_sq() const {
+      return data().bounding_sphere_.radius_sq();
     }
     //! The center of this box
     point_type center() const {
@@ -185,7 +186,8 @@ class BallTree {
                << " (L" << b.level() << ", P" << parent_idx
                << ", " << num_bodies << (num_bodies == 1 ? " body" : " bodies")
                << " " << first_body << "-" << last_body
-               << "): Center: " << b.center() << "; Radius: " << b.radius();
+               << "): Center: " << b.center()
+               << "; Radius: " << std::sqrt(b.radius_sq());
     }
 
    private:

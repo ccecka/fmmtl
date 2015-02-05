@@ -111,19 +111,18 @@ class KDTree {
     size_type level() const {
       return std::log2(idx_+1);  // XXX: Slow? do this with bits
     }
+
+    //! The dimension of each side of this box
     point_type extents() const {
       return data().bounding_box_.max() - data().bounding_box_.min();
     }
-    double volume() const {
-      const point_type& e = extents();
-      return std::accumulate(e.begin(), e.end(), 1.0, std::multiplies<double>());
-    }
-    double radius() const {
-      return norm_2(extents()) / 2.0;
+    //! The squared radius of this box
+    double radius_sq() const {
+      return norm_2_sq(extents()) / 4.0;
     }
     //! The center of this box
     point_type center() const {
-      return (data().bounding_box_.max() + data().bounding_box_.min()) / 2;
+      return (data().bounding_box_.max() + data().bounding_box_.min()) / 2.0;
     }
 
     //! The parent box of this box
