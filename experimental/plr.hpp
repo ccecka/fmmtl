@@ -269,8 +269,8 @@ plr_compression(T* data, unsigned n, unsigned m,
   };
 
   // Perform the traversal, starting at init_depth
-  for (auto sbox : boxes(plr_m.source_tree, init_depth)) {
-    for (auto tbox : boxes(plr_m.source_tree, init_depth)) {
+  for (auto sbox : boxes(init_depth, *plr_m.source_tree)) {
+    for (auto tbox : boxes(init_depth, *plr_m.target_tree)) {
       fmmtl::traverse_if(sbox, tbox, evaluator);
     }
   }
@@ -279,7 +279,7 @@ plr_compression(T* data, unsigned n, unsigned m,
 }
 
 
-
+#if 0
 /** Black Box PLR
  *
  *
@@ -289,3 +289,4 @@ PLR_Matrix<T,1,1>
 plr_compression(MatrixType* M, unsigned max_rank, double eps_tol) {
 
 }
+#endif
