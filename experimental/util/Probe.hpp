@@ -22,7 +22,6 @@
  *    DenseMatrix:  (U2 D2)   matrix of size n-by-r, where r <= max_rank.
  *    DenseMatrix:  (V2T U1T) matrix of size r-by-m, where r <= max_rank.
  *
- * @pre max_rank < min(num_rows(A), num_cols(A))
  * @post num_rows(std::get<0>(result)) == 0 if no such factorization.
  *
  * @note Only uses matrix-matrix products of A and transpose(A).
@@ -64,12 +63,11 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
                      matrix_type(A * U1),
                      D, U2, VT);
 
-  // Find the eps-rank in [0,max_rank+1]
-  unsigned erank = max_rank+1;
-  while (D(erank)/D(1) < eps_tol) --erank;
+  // Find the eps-rank
+  while (D(rc)/D(1) < eps_tol) --rc;
 
-  if (erank <= max_rank) {
-    auto r = _(1,erank);
+  if (rc <= max_rank) {
+    auto r = _(1,rc);
     const DiagMatrix<ConstArrayView<double> > DM = D(r);
 
     return std::make_tuple(matrix_type(U2(_,r) * DM),

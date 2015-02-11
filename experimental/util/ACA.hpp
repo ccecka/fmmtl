@@ -3,6 +3,7 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <random>
 
 #include <fmmtl/numeric/flens.hpp>
 
@@ -21,7 +22,8 @@ template <class MatrixIn,
           class MatrixOut = flens::matrix<typename MatrixIn::ElementType> >
 std::tuple<MatrixOut,MatrixOut>
 adaptive_cross_approx(const MatrixIn& A,
-                      const double eps_tol, const unsigned max_rank) {
+                      const double eps_tol,
+                      typename MatrixIn::IndexType max_rank) {
   using value_type = typename MatrixIn::ElementType;
   using size_type  = typename MatrixIn::IndexType;
   flens::Underscore<size_type> _;
@@ -33,14 +35,17 @@ adaptive_cross_approx(const MatrixIn& A,
   const size_type n_rows = num_rows(A);
   const size_type n_cols = num_cols(A);
 
+  std::random_device rd;
+  std::mt19937 generator(rd());
+
   // A stack of row indices to use
   std::vector<size_type> row_idx(n_rows);
   std::iota(row_idx.begin(), row_idx.end(), 0);
-  std::random_shuffle(row_idx.begin(), row_idx.end());
+  std::shuffle(row_idx.begin(), row_idx.end(), generator);
   // A stack of col indices to use
   std::vector<size_type> col_idx(n_cols);
   std::iota(col_idx.begin(), col_idx.end(), 0);
-  std::random_shuffle(col_idx.begin(), col_idx.end());
+  std::shuffle(col_idx.begin(), col_idx.end(), generator);
 
   /*  INITIALIZATION  */
 
@@ -58,7 +63,7 @@ adaptive_cross_approx(const MatrixIn& A,
   // Repeat till the desired tolerance is obtained
   do {
 
-    auto&& row = V(current_rank, _);
+    auto row = V(current_rank, _);
 
     // Repeat until we find a good row
     while (true) {
@@ -96,7 +101,7 @@ adaptive_cross_approx(const MatrixIn& A,
         goto return_statement;
     }
 
-    auto&& col = U(_, current_rank);
+    auto col = U(_, current_rank);
 
     // Repeat until we find a good col
     while (true) {

@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef USE_CXXLAPACK
-#  define USE_CXXLAPACK
+#ifndef ALWAYS_USE_CXXLAPACK
+#  define ALWAYS_USE_CXXLAPACK
 #endif
 
 #include <flens/flens.cxx>
