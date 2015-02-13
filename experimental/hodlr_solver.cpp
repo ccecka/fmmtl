@@ -18,12 +18,12 @@ int main() {
   // Parameters
   //
 
-  unsigned N = 1 << 13;     // rows
+  unsigned N = 1 << 11;     // rows
   unsigned M = N;           // cols -- square for inversion
   unsigned leaf_size = 32;  // maximum size of the tree leaves
   // TODO: Make interpolative decomposition closure
   double tolerance = 1e-10; // tolerance of the interpolative decomposition
-  unsigned max_rank = 10;   // maximum rank of the interpolative decomposition
+  unsigned max_rank = 30;   // maximum rank of the interpolative decomposition
 
   // Define types from FLENS
   using namespace flens;
@@ -38,29 +38,14 @@ int main() {
   // Setup
   //
 
-  // Create a test matrix
-  MatrixType A(N,M);
-  for (unsigned i = 1; i <= N; ++i)
-    for (unsigned j = 1; j <= M; ++j)
-      A(i,j) = 1;
-  A.diag(0) = 2;
-
-  // Initialize a random RHS,   A*X = B
-  unsigned Nb = 2;
-  MatrixType B(N,Nb);
-  for (unsigned i = 1; i <= N; ++i)
-    for (unsigned j = 1; j <= Nb; ++j)
-      B(i,j) = fmmtl::random<double>::get();
-
-  // Initialize the sources/targets as the integers [0,N) (TODO: make implicit)
+  // Initialize the sources/targets as random values
   using source_type = Vec<1,double>;
   using target_type = Vec<1,double>;
-  std::vector<source_type> sources(M);
+  std::vector<source_type> sources = fmmtl::random_n(M);
   std::vector<target_type>& targets = sources;
-  for (unsigned i = 0; i < M; ++i) sources[i] = source_type(i);
 
   // Construct the trees
-  // TODO: Implicit trees over the integers, though this could be any 1D Tree
+  // TODO: Implicit trees if over the integers, though this could be any 1D Tree
   using source_tree_type = fmmtl::NDTree<1>;
   using target_tree_type = fmmtl::NDTree<1>;
   using target_box_type  = typename target_tree_type::box_type;
@@ -72,8 +57,21 @@ int main() {
   // Permute the sources/targets to match the body order in the tree
   auto p_sources = make_body_binding(source_tree, sources);
   auto p_targets = make_body_binding(target_tree, targets);
-  assert(std::equal(p_sources.begin(), p_sources.end(), sources.begin()));
-  assert(std::equal(p_targets.begin(), p_targets.end(), targets.begin()));
+
+  // Create a test matrix
+  MatrixType A(N,M);
+  for (unsigned i = 1; i <= N; ++i)
+    for (unsigned j = 1; j <= M; ++j)
+      //A(i,j) = 1;
+      A(i,j) = std::exp(-norm_2_sq(p_targets[i-1] - p_sources[j-1]));
+  A.diag(0) = 2;
+
+  // Initialize a random RHS,   A*X = B
+  unsigned Nb = 1;
+  MatrixType B(N,Nb);
+  for (unsigned i = 1; i <= N; ++i)
+    for (unsigned j = 1; j <= Nb; ++j)
+      B(i,j) = fmmtl::random<double>::get();
 
   // Helper functions for transforming tree boxes to flens index ranges
   auto range = [](const source_box_type& b) {
@@ -106,6 +104,7 @@ int main() {
     MatrixType& U  = box_u[tbox];
     MatrixType& VT = box_v[sbox];
     std::tie(U,VT) = probe_svd(A(range(tbox),range(sbox)), max_rank, tolerance);
+    //std::cout << "Level " << tbox.level() << ": " << num_rows(U) << "," << num_cols(U) << " -- " << num_rows(VT) << "," << num_cols(VT) << std::endl;
     return 0; // Done with this block
   };
 
@@ -261,5 +260,6 @@ int main() {
   }
 
   MatrixType ResX = exactX - testX;
+  //for (unsigned i = 1; i <= N; ++i) std::cout << i << ":\t" << exactX(i,1) << "\t" << testX(i,1) << "\t" << ResX(i,1) << std::endl;
   std::cout << "Solved residual norm_F = " << frobenius_norm(ResX) << std::endl;
 }

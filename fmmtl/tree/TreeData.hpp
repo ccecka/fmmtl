@@ -81,6 +81,12 @@ struct BodyBind {
   const T& operator[](const typename Tree::body_type& body) const {
     return data[body.index()];
   }
+  T& operator[](typename Tree::size_type i) {
+    return data[i];
+  }
+  const T& operator[](typename Tree::size_type i) const {
+    return data[i];
+  }
 
   iterator operator[](const typename Tree::body_iterator& bi) {
     return std::begin(data) + bi.index();
