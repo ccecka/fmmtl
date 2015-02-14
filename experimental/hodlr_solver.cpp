@@ -18,9 +18,9 @@ int main() {
   // Parameters
   //
 
-  unsigned N = 1 << 11;     // rows
+  unsigned N = 1 << 14;     // rows
   unsigned M = N;           // cols -- square for inversion
-  unsigned leaf_size = 32;  // maximum size of the tree leaves
+  unsigned leaf_size = 64;  // maximum size of the tree leaves
   // TODO: Make interpolative decomposition closure
   double tolerance = 1e-10; // tolerance of the interpolative decomposition
   unsigned max_rank = 30;   // maximum rank of the interpolative decomposition
@@ -63,7 +63,8 @@ int main() {
   for (unsigned i = 1; i <= N; ++i)
     for (unsigned j = 1; j <= M; ++j)
       //A(i,j) = 1;
-      A(i,j) = std::exp(-norm_2_sq(p_targets[i-1] - p_sources[j-1]));
+      //A(i,j) = std::exp(-norm_2_sq(p_targets[i-1] - p_sources[j-1]));
+      A(i,j) = std::exp(-2*norm_2_sq(std::sin(2*3.141592653*(p_targets[i-1][0]-p_sources[i-1][0])))/2);
   A.diag(0) = 2;
 
   // Initialize a random RHS,   A*X = B
@@ -154,7 +155,7 @@ int main() {
 #endif
 
   //
-  // HODLR inverse using interpolation decompositions
+  // HODLR inverse using interpolative decompositions
   //
 
   // Copy the low-rank block approximations to the inverted factor approximations

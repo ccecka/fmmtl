@@ -12,6 +12,7 @@ include ../Makefile.inc
 
 plr:      LDLIBS += -llapack
 plr_test: LDLIBS += -llapack
+plr_implicit: LDLIBS += -L/usr/local/Cellar/openblas/0.2.12/lib -lopenblas -llapack
 svd_test: LDLIBS += -llapack
 probe:    LDLIBS += -llapack
 

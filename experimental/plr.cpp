@@ -68,8 +68,8 @@ int main(int argc, char** argv) {
   std::vector<result_type> results(N);
 
   // Get the dimension of the sources and targets
-  constexpr unsigned SD = fmmtl::dimension<source_type>::value;
-  constexpr unsigned TD = fmmtl::dimension<target_type>::value;
+  constexpr unsigned DS = fmmtl::dimension<source_type>::value;
+  constexpr unsigned DT = fmmtl::dimension<target_type>::value;
 
   // Generate the matrix
   std::vector<kernel_value_type> A(N*M);
@@ -79,9 +79,9 @@ int main(int argc, char** argv) {
 
   // Call the PLR Compression
   auto plr_plan
-      = plr_compression<TD,SD>(A.data(), N, M,
-                               reinterpret_cast<double*>(sources.data()),
+      = plr_compression<DT,DS>(A.data(), N, M,
                                reinterpret_cast<double*>(targets.data()),
+                               reinterpret_cast<double*>(sources.data()),
                                max_rank, eps_tol);
 
   // Perform the matvec
