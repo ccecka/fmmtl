@@ -13,17 +13,27 @@
 #include "util/Probe.hpp"
 
 
-int main() {
+int main(int argc, char** argv) {
   //
   // Parameters
   //
 
   unsigned N = 1 << 14;     // rows
-  unsigned M = N;           // cols -- square for inversion
   unsigned leaf_size = 64;  // maximum size of the tree leaves
   // TODO: Make interpolative decomposition closure
   double tolerance = 1e-10; // tolerance of the interpolative decomposition
-  unsigned max_rank = 30;   // maximum rank of the interpolative decomposition
+  unsigned max_rank = 10;   // maximum rank of the interpolative decomposition
+
+  // Parse custom command line args
+  for (int i = 1; i < argc; ++i) {
+    if (strcmp(argv[i],"-N") == 0) {
+      N = atoi(argv[++i]);
+    }
+  }
+
+  unsigned M = N;           // cols -- square for inversion
+
+  std::cout << "N = " << N << std::endl;
 
   // Define types from FLENS
   using namespace flens;
@@ -151,7 +161,7 @@ int main() {
   exactR = A * B;
   }
   MatrixType ResR = exactR - testR;
-  std::cout << "Matvec residual norm_F = " << frobenius_norm(ResR) << std::endl;
+  std::cout << "Matvec rel norm_F = " << frobenius_norm(ResR)/frobenius_norm(exactR) << std::endl;
 #endif
 
   //
@@ -262,5 +272,5 @@ int main() {
 
   MatrixType ResX = exactX - testX;
   //for (unsigned i = 1; i <= N; ++i) std::cout << i << ":\t" << exactX(i,1) << "\t" << testX(i,1) << "\t" << ResX(i,1) << std::endl;
-  std::cout << "Solved residual norm_F = " << frobenius_norm(ResX) << std::endl;
+  std::cout << "Solved rel norm_F = " << frobenius_norm(ResX)/frobenius_norm(exactX) << std::endl;
 }
