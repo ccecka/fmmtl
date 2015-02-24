@@ -4,6 +4,7 @@
 #include "fmmtl/Direct.hpp"
 
 #include "LaplaceSpherical.hpp"
+#include "LaplaceCartesian.hpp"
 #include "YukawaCartesian.hpp"
 //#include "StokesSpherical.hpp"
 
@@ -70,7 +71,8 @@ void single_level_test(const Expansion& K) {
 }
 
 int main() {
-  LaplaceSpherical K(5);
+  //LaplaceSpherical K(5);
+  LaplaceCartesian<5> K;
   //YukawaCartesian K(10, 0.1);
   //StokesSpherical K(5);
 

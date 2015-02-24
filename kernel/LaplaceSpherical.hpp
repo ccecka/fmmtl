@@ -8,15 +8,14 @@
 
 #include <complex>
 #include <cmath>
-#include <cassert>
 
 #include "fmmtl/Expansion.hpp"
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/numeric/Complex.hpp"
 
-#include "kernel/Util/SphericalMultipole3D.hpp"
-
 #include "Laplace.kern"
+#include "Util/SphericalMultipole3D.hpp"
+
 
 class LaplaceSpherical
     : public fmmtl::Expansion<LaplaceKernel, LaplaceSpherical> {

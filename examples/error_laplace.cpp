@@ -8,6 +8,7 @@
 #include "fmmtl/util/Clock.hpp"
 
 #include "LaplaceSpherical.hpp"
+#include "LaplaceCartesian.hpp"
 
 
 int main(int argc, char **argv)
@@ -29,9 +30,10 @@ int main(int argc, char **argv)
 
   // Init kernel
   typedef LaplaceSpherical kernel_type;
-  kernel_type K;
+  kernel_type K(5);
+  //typedef LaplaceCartesian<5> kernel_type;
+  //kernel_type K;
 
-  typedef kernel_type::point_type  point_type;
   typedef kernel_type::source_type source_type;
   typedef kernel_type::target_type target_type;
   typedef kernel_type::charge_type charge_type;

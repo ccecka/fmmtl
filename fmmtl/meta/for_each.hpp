@@ -38,16 +38,16 @@ using next_t = typename next<T>::type;
 template <typename First, typename Last, typename F>
 constexpr
 typename std::enable_if<std::is_same<First,Last>::value>::type
-for_each_impl(F&&) {}
+for_each(F&&) {}
 
 template <typename First, typename Last, typename F>
 constexpr
 typename std::enable_if<!std::is_same<First,Last>::value>::type
-for_each_impl(F&& f) {
-  using i    = typename fmmtl::deref<First>::type;
-  using Next = typename fmmtl::next<First>::type;
+for_each(F&& f) {
+  using i    = fmmtl::deref_t<First>;
+  using Next = fmmtl::next_t<First>;
 
-  std::forward<F>(f)(i{}), void(), for_each_impl<Next,Last>(std::forward<F>(f));
+  std::forward<F>(f)(i{}), void(), for_each<Next,Last>(std::forward<F>(f));
 }
 
 /** Static for_each over a static forward iterator range.
@@ -62,7 +62,7 @@ template <typename First, typename Last, typename F>
 constexpr
 void
 for_each(First, Last, F&& f) {
-  return for_each_impl<First,Last>(std::forward<F>(f));
+  return for_each<First,Last>(std::forward<F>(f));
 }
 
 /** Static for_each for a forward sequence.
@@ -80,10 +80,10 @@ template <typename Sequence, typename F>
 constexpr
 void
 for_each(Sequence, F&& f) {
-  using First = typename fmmtl::begin<Sequence>::type;
-  using Last  = typename fmmtl::end<Sequence>::type;
+  using First = fmmtl::begin_t<Sequence>;
+  using Last  = fmmtl::end_t<Sequence>;
 
-  return for_each_impl<First,Last>(std::forward<F>(f));
+  return for_each<First,Last>(std::forward<F>(f));
 }
 
 /** Static for_each for an integer_sequence.
@@ -96,6 +96,24 @@ void
 for_each(integer_sequence<T,I...>, F&& f) {
   using eat = int[];
   (void) eat {0,(void(std::forward<F>(f)(std::integral_constant<T,I>{})),0)...};
+}
+
+// reduce
+template <typename First, typename Last, typename T, typename Op>
+constexpr
+typename std::enable_if<std::is_same<First,Last>::value, T>::type
+reduce(const T& t, Op) {
+  return t;
+}
+
+template <typename First, typename Last, typename T, typename Op>
+constexpr
+typename std::enable_if<!std::is_same<First,Last>::value, T>::type
+reduce(const T& t, Op op) {
+  using i    = fmmtl::deref_t<First>;
+  using Next = fmmtl::next_t<First>;
+
+  return reduce<Next,Last>(op(t,i{}), op);
 }
 
 }

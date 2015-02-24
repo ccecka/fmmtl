@@ -399,14 +399,14 @@ template <std::size_t I, std::size_t N, typename T>
 typename Vec<N,T>::reference
 get(Vec<N,T>& a) {
   FMMTL_STATIC_ASSERT(I < N, "I must be less than N.");
-  return a[I];
+  return a.elem[I];
 }
 
 template <std::size_t I, std::size_t N, typename T>
 typename Vec<N,T>::const_reference
 get(const Vec<N,T>& a) {
   FMMTL_STATIC_ASSERT(I < N, "I must be less than N.");
-  return a[I];
+  return a.elem[I];
 }
 
 template <std::size_t N, typename T>

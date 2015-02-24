@@ -1,5 +1,7 @@
-#include <iterator>
+#pragma once
+
 #include <numeric>
+#include <iostream>
 
 #include "fmmtl/meta/integer_sequence.hpp"
 #include "fmmtl/meta/for_each.hpp"
@@ -23,14 +25,6 @@ monomial_index(More... is) {
   return monomial_index_impl(1, is...);
 }
 
-constexpr std::size_t first_non_zero() {
-  return 0;
-}
-template <typename... More>
-constexpr std::size_t first_non_zero(std::size_t i, More... is) {
-  return (i!=0) ? 1+sizeof...(is) : first_non_zero(is...);
-}
-
 constexpr std::size_t last_nz_(std::size_t c) {
   return c;
 }
@@ -52,20 +46,39 @@ struct MultiIndex : index_sequence<Is...> {
   static constexpr double      F   = product(factorial(Is)...);
   static constexpr std::size_t D   = sizeof...(Is);
   static constexpr std::size_t R   = sum(Is...);
-  static constexpr std::size_t LD  = D - first_non_zero(Is...);
   static constexpr std::size_t TD  = D -  last_non_zero(Is...);
   static constexpr std::size_t TDV = at<TD>(Is...);
 };
 
-
 template <std::size_t... Is, std::size_t... Js>
-MultiIndex<(Is+Js)...> operator+(MultiIndex<Is...>, MultiIndex<Js...>) {
+MultiIndex<(Is+Js)...>
+operator+(MultiIndex<Is...>, MultiIndex<Js...>) {
   return {};
 }
 
 template <std::size_t... Is, std::size_t... Js>
-MultiIndex<(Is-Js)...> operator-(MultiIndex<Is...>, MultiIndex<Js...>) {
+MultiIndex<(Is > Js ? Is-Js : 0)...>
+operator-(MultiIndex<Is...>, MultiIndex<Js...>) {
   return {};
+}
+
+template <std::size_t... Is, std::size_t... Js>
+constexpr bool
+operator<=(MultiIndex<Is...>, MultiIndex<Js...>) {
+  return std::integral_constant<bool, product((Is <= Js)...)>::value;
+}
+
+template <std::size_t N, std::size_t... Is>
+constexpr std::size_t get(MultiIndex<Is...>) {
+  return intseq_element_t<N,index_sequence<Is...>>::value;
+}
+
+std::ostream& operator<<(std::ostream& s, fmmtl::index_sequence<>) {
+  return s;
+}
+template <std::size_t i, std::size_t... Is>
+std::ostream& operator<<(std::ostream& s, fmmtl::index_sequence<i, Is...>) {
+  return s << i << " " << fmmtl::index_sequence<Is...>{};
 }
 
 /////////////////
@@ -184,136 +197,159 @@ struct deref<GMS_Iterator<Seq>> {
 };
 
 // next GMS_Iterator
-template <std::size_t i, typename MJ>
+template <std::size_t... I>
 struct next_impl;
 
 template <std::size_t i>
-struct next_impl<i, index_sequence<>> {
+struct next_impl<i> {
   using type = index_sequence<i+1>;
 };
 
-template <std::size_t i, std::size_t... J>
-struct next_impl<i, index_sequence<0,J...>> {
-  using type = intseq_cat_t<index_sequence<0>,
-                            typename next_impl<i,index_sequence<J...>>::type>;
+template <std::size_t i, std::size_t... I>
+struct next_impl<i,0,I...> {
+  using type = intseq_cat_t<index_sequence<0>, typename next_impl<i,I...>::type>;
 };
 
-template <std::size_t i, std::size_t j, std::size_t... J>
-struct next_impl<i, index_sequence<j,J...>> {
-  using type = index_sequence<i+1,j-1,J...>;
+template <std::size_t i, std::size_t j, std::size_t... I>
+struct next_impl<i,j,I...> {
+  using type = index_sequence<i+1,j-1,I...>;
 };
 
 template <std::size_t i, std::size_t... I>
 struct next<GMS_Iterator<index_sequence<i,I...>>> {
-  using type = GMS_Iterator<typename next_impl<i,index_sequence<I...>>::type>;
+  using type = GMS_Iterator<typename next_impl<i,I...>::type>;
 };
-
 
 /*********************/
 /** GradedPolynomial */
 /*********************/
 // TODO: Need C++14 template lambdas...
 
+using std::get;
+
+
 template <typename ArrayT, typename ArrayX>
 struct _pow {
   template <typename N>      // N is a MultiIndex<I...>
   constexpr void operator()(N) {
     using P = decltype(N{} - MultiIndexUnit<N::D,N::TD>{});
-    std::get<N::I>(t) = std::get<P::I>(t) * std::get<N::TD>(x) / N::TDV;
+    get<N::I>(t) = get<P::I>(t) * get<N::TD>(x) / N::TDV;
   }
   ArrayT& t;
   const ArrayX& x;
 };
 
-template <typename Array>
+template <typename ArrayA, typename ArrayB>
 struct _plus_eq {
   template <typename N>
   constexpr void operator()(N) {
-    std::get<N::I>(a) += std::get<N::I>(t);
+    get<N::I>(a) += get<N::I>(b);
   }
-  Array& a;
-  const Array& t;
+  ArrayA& a;
+  const ArrayB& b;
 };
 
-
-template <typename N, typename Array>
-struct _sum_minus {
+// Accumulate N-K (inner loops)
+template <typename N, typename ArrayT, typename ArrayR, typename ArrayM>
+struct _acc_nmk {
   template <typename K>
-  constexpr void operator()(K) {
+  constexpr typename std::enable_if<K{} <= N{}>::type
+  operator()(K) {
     using NmK = decltype(N{} - K{});
-    std::get<N::I>(t) += std::get<K::I>(r) * std::get<NmK::I>(m);
+    get<N::I>(t) += get<K::I>(r) * get<NmK::I>(m);
   }
-  Array& t;
-  const Array& r;
-  const Array& m;
+  template <typename K>
+  constexpr typename std::enable_if<!(K{} <= N{})>::type
+  operator()(K) {
+  }
+  ArrayT& t;
+  const ArrayR& r;
+  const ArrayM& m;
 };
 
-template <typename N, typename Array>
-struct _sum_plus {
+// Accumulate N+K (inner loops)
+template <typename N, typename ArrayT, typename ArrayR, typename ArrayM>
+struct _acc_npk {
   template <typename K>
   constexpr void operator()(K) {
     using NpK = decltype(N{} + K{});
-    std::get<N::I>(t) += std::get<K::I>(r) * std::get<NpK::I>(m);
+    get<N::I>(t) += get<K::I>(r) * get<NpK::I>(m);
   }
-  Array& t;
-  const Array& r;
-  const Array& m;
+  ArrayT& t;
+  const ArrayR& r;
+  const ArrayM& m;
 };
 
 
-template <typename Array>
-struct _sum_less {
+
+template <typename ArrayA, typename ArrayR, typename ArrayM>
+struct _sum_to_n_mag {
   template <typename N>
   constexpr void operator()(N) {
-    // a[N] += t[K] * m[N-K]
-    sum<N,N>();
+    using Seq = GradedMonomialSequence<N::R, N::D>;
+    using F   = _acc_nmk<N,ArrayA,ArrayR,ArrayM>;
+    for_each<begin_t<Seq>, end_t<Seq>>(F{a,r,m});
   }
-
-  // Base case: K = <0,0,...>
-  template <typename N, typename K>
-  constexpr typename std::enable_if<K::R == 0>::type
-  sum() {
-    using NmK = decltype(N{} - K{});
-    std::get<N::I>(a) += std::get<K::I>(t) * std::get<NmK::I>(m);
-  }
-
-  // Keep decrementing by the last non-zero of K
-  template <typename N, typename K>
-  constexpr typename std::enable_if<K::R != 0>::type
-  sum() {
-    using P   = decltype(K{} - MultiIndexUnit<K::D,K::TD>{});
-    sum<N,P>();
-    using NmK = decltype(N{} - K{});
-    std::get<N::I>(a) += std::get<K::I>(t) * std::get<NmK::I>(m);
-  }
-  Array& a;
-  const Array& t;
-  const Array& m;
+  ArrayA& a;
+  const ArrayR& r;
+  const ArrayM& m;
 };
 
+template <typename ArrayA, typename ArrayR, typename ArrayM>
+_sum_to_n_mag<ArrayA, ArrayR, ArrayM>
+sum_to_n_mag(ArrayA& a, const ArrayR& r, const ArrayM& m) {
+  return {a,r,m};
+}
 
-template <std::size_t ORDER, typename Array>
-struct _sum_less_mag {
+template <std::size_t ORDER,
+          typename ArrayA, typename ArrayR = ArrayA, typename ArrayM = ArrayA>
+struct _sum_to_npk_mag {
   template <typename N>
   constexpr void operator()(N) {
     using Seq = GradedMonomialSequence<ORDER - N::R, N::D>;
-    using first = begin_t<Seq>;
-    using last  = end_t<Seq>;
-    for_each(first{}, last{}, _sum_plus<N,Array>{a,r,m});
+    using F   = _acc_npk<N,ArrayA,ArrayR,ArrayM>;
+    for_each<begin_t<Seq>, end_t<Seq>>(F{a,r,m});
   }
-  Array& a;
-  const Array& r;
-  const Array& m;
+  ArrayA& a;
+  const ArrayR& r;
+  const ArrayM& m;
 };
 
+template <std::size_t ORDER, typename ArrayA, typename ArrayR, typename ArrayM>
+_sum_to_npk_mag<ORDER, ArrayA, ArrayR, ArrayM>
+sum_to_npk_mag(ArrayA& a, const ArrayR& r, const ArrayM& m) {
+  return {a,r,m};
+}
 
+template <std::size_t P, typename ArrayA, typename ArrayR, typename ArrayM>
+struct _sum_to_k_mag {
+  template <typename N>
+  void operator()(N) {
+    using Seq = GradedMonomialSequence<P, N::D>;
+    using F   = _acc_npk<N,ArrayA,ArrayR,ArrayM>;
+    for_each<begin_t<Seq>, end_t<Seq>>(F{a,r,m});
+  }
+
+  ArrayA& a;
+  const ArrayR& r;
+  const ArrayM& m;
+};
+
+template <std::size_t ORDER, typename ArrayA, typename ArrayR, typename ArrayM>
+_sum_to_k_mag<ORDER, ArrayA, ArrayR, ArrayM>
+sum_to_k_mag(ArrayA& a, const ArrayR& r, const ArrayM& m) {
+  return {a,r,m};
+}
 
 
 /** Quickie expression template for nice syntax */
 template <std::size_t ORDER>
 struct multiindex {};
 
-template <typename A1, typename A2>
+struct gp_mult {};
+struct gp_div  {};
+
+template <typename A1, typename Op, typename A2>
 struct gp_et {
   const A1& a1;
   const A2& a2;
@@ -324,9 +360,9 @@ struct pow_et {
   const ArrayLike& r;
 
   template <typename T>
-  gp_et<pow_et, T> operator*(const T& t) const { return {*this, t}; }
+  gp_et<pow_et, gp_mult, T> operator*(const T& t) const { return {*this, t}; }
   template <typename T>
-  gp_et<T, pow_et> operator/(const T& t) const { return {t, *this}; }
+  gp_et<pow_et, gp_div, T>  operator/(const T& t) const { return {*this, t}; }
 };
 
 template <typename ArrayLike, std::size_t ORDER>
@@ -336,12 +372,12 @@ pow_et<ArrayLike,ORDER> pow(const ArrayLike& r, multiindex<ORDER>) {
 
 
 
-template <typename T, std::size_t DIM, std::size_t ORDER>
+template <typename T, std::size_t D, std::size_t P>
 struct GradedPolynomial {
+  static constexpr std::size_t ORDER = P;
+  static constexpr std::size_t DIM   = D;
   using sequence = GradedMonomialSequence<ORDER,DIM>;
   static constexpr std::size_t N = size<sequence>::value;
-
-  using MultiIndex = multiindex<ORDER>;
 
   // The monomials (in reverse graded lexigraphic order) of this polynomial
   using MonoArray = std::array<T,N>;
@@ -353,7 +389,7 @@ struct GradedPolynomial {
   template <typename ArrayLike>
   GradedPolynomial(const ArrayLike& a, const T& a0) {
     // Set the <0,0,...,0> monomial to the constant
-    std::get<0>(m_) = a0;
+    get<0>(m_) = a0;
     // Skip the <0,0,...,0> monomial...
     using second = next_t<begin_t<sequence> >;
     using last   = end_t<sequence>;
@@ -364,6 +400,8 @@ struct GradedPolynomial {
   void fill(const T& value) {
     m_.fill(value);
   }
+
+  static constexpr std::size_t size() noexcept { return N; }
 
   typename MonoArray::iterator       begin()       { return m_.begin(); }
   typename MonoArray::const_iterator begin() const { return m_.begin(); }
@@ -378,14 +416,16 @@ struct GradedPolynomial {
    */
   template <typename Array>
   GradedPolynomial&
-  operator+=(const gp_et<pow_et<Array,ORDER>,T>& x) {
-    // Precompute the multiindex power: x^m / m!
+  operator+=(const gp_et<pow_et<Array,ORDER>,gp_mult,T>& x) {
+    static_assert(fmmtl::dimension<Array>::value == DIM, "Array::size() != DIM");
+
+    // Precompute the multiindex power: c x^m / m!
     GradedPolynomial t(x.a1.r, x.a2);
 
-    // Accumulate into m_, TODO: Fuse with recurrence!
+    // Accumulate into m_, TODO: Fuse with recurrence?
     using first = begin_t<sequence>;
     using last  = end_t<sequence>;
-    for_each(first{}, last{}, _plus_eq<MonoArray>{m_, t.m_});
+    for_each<first, last>(_plus_eq<MonoArray,MonoArray>{m_, t.m_});
     return *this;
   }
 
@@ -393,14 +433,16 @@ struct GradedPolynomial {
    */
   template <typename Array>
   GradedPolynomial&
-  operator+=(const gp_et<pow_et<Array,ORDER>,GradedPolynomial>& x) {
+  operator+=(const gp_et<pow_et<Array,ORDER>,gp_mult,GradedPolynomial>& x) {
+    static_assert(fmmtl::dimension<Array>::value == DIM, "Array::size() != DIM");
+
     // Precompute the multiindex power: x^m / m!
     GradedPolynomial t(x.a1.r, T{1});
 
     // Now compute the matvec... TODO: Fuse with recurrence?
     using first = begin_t<sequence>;
     using last  = end_t<sequence>;
-    for_each(first{}, last{}, _sum_less<MonoArray>{m_, t.m_, x.a2.m_});
+    for_each<first, last>(sum_to_n_mag(m_, t.m_, x.a2.m_));
     return *this;
   }
 
@@ -408,17 +450,57 @@ struct GradedPolynomial {
    */
   template <typename Array>
   GradedPolynomial&
-  operator+=(const gp_et<GradedPolynomial,pow_et<Array,ORDER>>& x) {
+  operator+=(const gp_et<pow_et<Array,ORDER>,gp_div,GradedPolynomial>& x) {
+    static_assert(fmmtl::dimension<Array>::value == DIM, "Array::size() != DIM");
+
     // Precompute the multiindex power: x^m / m!
-    GradedPolynomial t(x.a2.r, T{1});
+    GradedPolynomial t(x.a1.r, T{1});
 
     // Now compute the matvec... TODO: Fuse with recurrence?
     using first = begin_t<sequence>;
     using last  = end_t<sequence>;
-    for_each(first{}, last{}, _sum_less_mag<ORDER,MonoArray>{m_, t.m_, x.a1.m_});
+    for_each<first, last>(sum_to_npk_mag<ORDER>(m_, t.m_, x.a2.m_));
     return *this;
   }
+
+#if 0
+  /** Compute this[n] += sum_k gp1[k] * gp2[n-k]
+   */
+  template <typename T1, std::size_t P1,
+            typename T2, std::size_t P2>
+  GradedPolynomial&
+  operator+=(const gp_et<GradedPolynomial<T1,D,P1>, gp_mult, GradedPolynomial<T2,D,P2> >& x) {
+
+  }
+
+  /** Compute this[n] += sum_k gp1[k] * gp2[n+k]
+   */
+  template <typename T1, std::size_t P1,
+            typename T2, std::size_t P2>
+  GradedPolynomial&
+  operator+=(const gp_et<GradedPolynomial<T1,D,P1>, gp_div, GradedPolynomial<T2,D,P2> >& x) {
+    using OuterSequence = fmmtl::GradedMonomialSequence<std::min(P,P2), DIM>;
+
+    using first = begin_t<sequence>;
+    using last  = end_t<sequence>;
+    for_each<first, last>(_sum_to_mag<ORDER,MonoArray>{m_, t.m_, x.a1.m_});
+    return *this;
+  }
+
+  template <typename T2, std::size_t D2, std::size_t P2>
+  gp_et<GradedPolynomial,gp_mult,GradedPolynomial<T2,D2,P2> >
+  operator*(const GradedPolynomial<T2,D2,P2>& gp) const {
+    return {*this, gp}
+  }
+
+  template <typename T2, std::size_t D2, std::size_t P2>
+  gp_et<GradedPolynomial,gp_div,GradedPolynomial<T2,D2,P2> >
+  operator*(const GradedPolynomial<T2,D2,P2>& gp) const {
+    return {*this, gp}
+  }
+#endif
 };
+
 
 // TODO: Specialization for DIM=1?
 
@@ -434,10 +516,17 @@ T inner_prod(const pow_et<Array,ORDER>& x,
 }
 
 
+template <std::size_t N, typename T, std::size_t D, std::size_t P>
+const T& get(const GradedPolynomial<T,D,P>& g) {
+  return get<N>(g.m_);
+}
 
-} // end namespace fmmtl
+template <std::size_t N, typename T, std::size_t D, std::size_t P>
+T& get(GradedPolynomial<T,D,P>& g) {
+  return get<N>(g.m_);
+}
 
-
+}
 
 #if 0
 using namespace fmmtl;
@@ -445,14 +534,6 @@ using namespace fmmtl;
 #include <iostream>
 #include <array>
 #include "fmmtl/util/Clock.hpp"
-
-std::ostream& operator<<(std::ostream& s, index_sequence<>) {
-  return s;
-}
-template <std::size_t i, std::size_t... Is>
-std::ostream& operator<<(std::ostream& s, index_sequence<i, Is...>) {
-  return s << i << " " << index_sequence<Is...>{};
-}
 
 
 int main() {
