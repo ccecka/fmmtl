@@ -1,11 +1,8 @@
 #pragma once
 
-#include <array>
+#include <boost/math/constants/constants.hpp>
 
-#include <boost/math/special_functions/cos_pi.hpp>
-
-#include "fmmtl/numeric/Vec.hpp"
-#include "fmmtl/meta/integer_range.hpp"
+#include "fmmtl/meta/integer_sequence.hpp"
 
 /** Computes the ith Chebyshev node of an N-sized quadrature on [-1/2, 1/2] */
 template <typename T>
@@ -34,4 +31,4 @@ constexpr T ChebyshevImpl<T,index_sequence<Is...>>::x[];
 
 /** Precompute N Chebyshev nodes of type T in the range [-1/2, 1/2] */
 template <typename T, std::size_t N>
-struct Chebyshev : public ChebyshevImpl<T,make_index_sequence<N>> {};
+struct Chebyshev : ChebyshevImpl<T,make_index_sequence<N>> {};
