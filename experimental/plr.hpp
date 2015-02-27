@@ -255,11 +255,12 @@ plr_compression(T* data, unsigned n, unsigned m,
   // Define types from FLENS
   using namespace flens;
   using MatrixType     = GeMatrix<FullStorage<T> >;
-  using MatrixRefType  = GeMatrix<FullStorageView<T, RowMajor> >;
+  using DataRefType    = FullStorageView<T, RowMajor>;
+  using MatrixRefType  = GeMatrix<DataRefType>;
   const Underscore<typename MatrixType::IndexType>  _;
 
   // Wrap the data into a FLENS matrix for easy access
-  MatrixRefType pA = data_ref_type(n, m, data, m);
+  MatrixRefType pA = DataRefType(n, m, data, m);
 
   // Permute the matrix data to match the source/target order
   // SLOW WAY
