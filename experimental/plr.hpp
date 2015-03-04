@@ -116,9 +116,9 @@ struct PLR_Matrix {
     using result_ref = flens::ArrayView<result_type>;
 
     // Permute the charges to match the body order in the tree
-    auto p_charges = make_body_binding(*source_tree, x_first);
+    auto p_charges = fmmtl::make_body_binding(*source_tree, x_first);
     // Create permuted results, but don't bother initializing to existing
-    auto p_results = make_body_binding<result_type>(*target_tree);
+    auto p_results = fmmtl::make_body_binding<result_type>(*target_tree);
 
 #pragma omp parallel default(shared)
     for (unsigned level = 0; level < target_tree->levels(); ++level) {

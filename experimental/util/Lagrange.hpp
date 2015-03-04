@@ -23,16 +23,16 @@ template <typename T, typename Seq>
 struct LagrangeWeightImpl;
 
 template <typename T, std::size_t... Is>
-struct LagrangeWeightImpl<T,index_sequence<Is...>> {
+struct LagrangeWeightImpl<T,fmmtl::index_sequence<Is...>> {
   static constexpr std::size_t N = sizeof...(Is);
   static constexpr T w[N] = { (T(1) / lagrange_weight<T,N>(Is))... };
 };
 template <typename T, std::size_t... Is>
-constexpr T LagrangeWeightImpl<T,index_sequence<Is...>>::w[];
+constexpr T LagrangeWeightImpl<T,fmmtl::index_sequence<Is...>>::w[];
 
 /** Precompute N Chebyshev nodes of type T in the range [-1/2, 1/2] */
 template <typename T, std::size_t N>
-struct LagrangeWeight : LagrangeWeightImpl<T,make_index_sequence<N>> {};
+struct LagrangeWeight : LagrangeWeightImpl<T,fmmtl::make_index_sequence<N>> {};
 
 
 

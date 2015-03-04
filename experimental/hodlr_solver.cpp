@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
   // Parameters
   //
 
-  unsigned N = 1 << 14;     // rows
+  unsigned N = 1 << 12;     // rows
   unsigned leaf_size = 64;  // maximum size of the tree leaves
   // TODO: Make interpolative decomposition closure
   double tolerance = 1e-10; // tolerance of the interpolative decomposition
@@ -65,8 +65,8 @@ int main(int argc, char** argv) {
 
   // TODO: Null-op if implicit trees
   // Permute the sources/targets to match the body order in the tree
-  auto p_sources = make_body_binding(source_tree, sources);
-  auto p_targets = make_body_binding(target_tree, targets);
+  auto p_sources = fmmtl::make_body_binding(source_tree, sources);
+  auto p_targets = fmmtl::make_body_binding(target_tree, targets);
 
   // Create a test matrix
   MatrixType A(N,M);
@@ -98,8 +98,8 @@ int main(int argc, char** argv) {
   // Interpolative Decomposition of off-diagonal blocks
   //
 
-  auto box_u = make_box_binding<MatrixType>(target_tree);
-  auto box_v = make_box_binding<MatrixType>(source_tree);
+  auto box_u = fmmtl::make_box_binding<MatrixType>(target_tree);
+  auto box_v = fmmtl::make_box_binding<MatrixType>(source_tree);
 
   // Define the dyadic decomp traversal operator -- TODO: Use custom traversal?
   auto decomp_offdiag = [&](const source_box_type& sbox,

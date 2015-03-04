@@ -143,11 +143,11 @@ int main(int argc, char** argv) {
 
   // Associate a multipoleAB with each source box
   typedef std::vector<std::array<complex_type,pow_(Q,D)>> multipole_type;
-  auto multipole = make_box_binding<multipole_type>(source_tree);
+  auto multipole = fmmtl::make_box_binding<multipole_type>(source_tree);
 
   // Associate a localAB with each target box
   typedef std::vector<std::array<complex_type,pow_(Q,D)>> local_type;
-  auto local = make_box_binding<local_type>(target_tree);
+  auto local = fmmtl::make_box_binding<local_type>(target_tree);
 
   // Permute the sources and charges
   auto p_sources = make_body_binding(source_tree, sources);

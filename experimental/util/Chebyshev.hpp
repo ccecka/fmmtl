@@ -22,13 +22,13 @@ template <typename T, typename Seq>
 struct ChebyshevImpl;
 
 template <typename T, std::size_t... Is>
-struct ChebyshevImpl<T,index_sequence<Is...>> {
+struct ChebyshevImpl<T,fmmtl::index_sequence<Is...>> {
   static constexpr std::size_t N = sizeof...(Is);
   static constexpr T x[N] = { chebyshev_node<T>(Is, N)... };
 };
 template <typename T, std::size_t... Is>
-constexpr T ChebyshevImpl<T,index_sequence<Is...>>::x[];
+constexpr T ChebyshevImpl<T,fmmtl::index_sequence<Is...>>::x[];
 
 /** Precompute N Chebyshev nodes of type T in the range [-1/2, 1/2] */
 template <typename T, std::size_t N>
-struct Chebyshev : ChebyshevImpl<T,make_index_sequence<N>> {};
+struct Chebyshev : ChebyshevImpl<T,fmmtl::make_index_sequence<N>> {};

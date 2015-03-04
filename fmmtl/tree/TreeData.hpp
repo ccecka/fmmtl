@@ -4,6 +4,8 @@
 #include <vector>
 
 
+namespace fmmtl {
+
 /** Maps boxes and box iterators to data and data iterators
  */
 template <typename T, typename Tree>
@@ -14,8 +16,14 @@ struct BoxBind {
 
   container_type data;
 
-  BoxBind(const Tree&, unsigned size)
-      : data(size) {
+  BoxBind() {
+  }
+  BoxBind(const Tree& tree)
+      : data(tree.boxes()) {
+  }
+
+  bool empty() {
+    return data.empty();
   }
 
   T& operator[](const typename Tree::box_type& box) {
@@ -35,7 +43,7 @@ struct BoxBind {
 
 template <typename T, typename Tree>
 BoxBind<T,Tree> make_box_binding(const Tree& tree) {
-  return {tree, tree.boxes()};
+  return {tree};
 }
 
 
@@ -121,3 +129,5 @@ BodyBind<Type, Tree>
 make_body_binding(const Tree& tree) {
   return {tree.bodies()};
 }
+
+} // end namespace fmmtl

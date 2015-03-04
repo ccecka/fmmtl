@@ -15,8 +15,7 @@ class ordered_vector {
 
   // Empty base class optimization for trivial comparators
   struct internal : public Compare {
-    internal(const Compare& comp, unsigned size)
-        : Compare(comp), size_(size) {}
+    internal(const Compare& comp) : Compare(comp), size_(0) {}
     unsigned size_;
     std::array<T,K> data_;
   };
@@ -35,7 +34,7 @@ class ordered_vector {
 
   // Default construction
   ordered_vector(const Compare& comp = Compare())
-      : int_(comp, 0) {
+      : int_(comp) {
   }
 
   unsigned size() const {
@@ -56,19 +55,15 @@ class ordered_vector {
   }
 
   ordered_vector& operator+=(const T& v) {
-    if (size() < K)
+    if (int_.size_ < K)
       insert(int_.size_++, v);
     else if (int_(v,int_.data_[K-1]))
       insert(K-1, v);
     return *this;
   }
 
-  operator std::vector<T>() const {
-    return std::vector<T>(begin(), end());
-  }
-
   bool operator==(const ordered_vector& v) const {
-    return std::equal(begin(), end(), v.begin());
+    return size() == v.size() && std::equal(begin(), end(), v.begin());
   }
 };  // end ordered_vector
 
@@ -76,12 +71,9 @@ class ordered_vector {
 /** Print an ordered_vector to an output stream */
 template <class T, std::size_t K, class C>
 std::ostream& operator<<(std::ostream& s, const ordered_vector<T,K,C>& ov) {
-  s << "(";
-  auto first = ov.begin(), last = ov.end();
-  if (first < last)
-    s << *first;
-  for (++first; first < last; ++first)
-    s << ", " << *first;
+  s << "(" << ov[0];
+  for (unsigned i = 1; i < K; ++i)
+    s << ", " << ov[i];
   return s << ")";
 }
 
@@ -200,7 +192,7 @@ int main(int argc, char** argv) {
 
   // Precompute the bounding box of each box
   using bounding_box_type = fmmtl::BoundingBox<typename SourceTree::point_type>;
-  auto box_bb = make_box_binding<bounding_box_type>(source_tree);
+  auto box_bb = fmmtl::make_box_binding<bounding_box_type>(source_tree);
   for (source_box_type b : boxes(source_tree))
     box_bb[b] = bounding_box_type(b.center() - b.extents()/2,
                                   b.center() + b.extents()/2);
@@ -218,7 +210,7 @@ int main(int argc, char** argv) {
     result_type& r = results[k];
 
     // Associate each box of the source tree with a distance from target t
-    auto hyper_rect = make_box_binding<double>(source_tree);
+    auto hyper_rect = fmmtl::make_box_binding<double>(source_tree);
     double max_distance_sq = 1e200;
 
     // Define the rules of the traversal
@@ -282,6 +274,8 @@ int main(int argc, char** argv) {
     }
     std::cout << "Wrong counts: " << wrong_results << " of " << M << std::endl;
   }
+
+  std::cout << results[0] << std::endl;
 
   return 0;
 }
