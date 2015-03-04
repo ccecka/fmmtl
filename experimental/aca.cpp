@@ -6,29 +6,29 @@
 #include "fmmtl/numeric/random.hpp"
 
 int main() {
-  using value_type = double;
+  using value_type = double; //std::complex<double>;
 
   const unsigned N = 5;
   const unsigned M = 5;
   const unsigned r = 3;
 
   flens::matrix<value_type> A(N,M);
-#if 0
+#if 1
   A = 2.0;
 #endif
-#if 1
+#if 0
   fillRandom(A);
 #endif
 #if 0
-  A[1][1] = 1;
-  A[1][3] = 2;
-  A[3][1] = 1;
-  A[3][3] = 4;
+  A(1,1) = {1,2};
+  A(1,3) = {2,1};
+  A(3,1) = 1;
+  A(3,3) = 4;
 #endif
 
   std::cout << "A = \n" << A << std::endl;
 
-  flens::matrix<double> U, V;
+  flens::matrix<value_type> U, V;
 
   std::tie(U, V) = adaptive_cross_approx(A, 1e-10, r);
 

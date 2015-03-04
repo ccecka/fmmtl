@@ -15,10 +15,10 @@
 namespace flens {
 
 template <typename T>
-using matrix = GeMatrix<FullStorage<T, RowMajor, IndexOptions<int,0> > >;
+using matrix = GeMatrix<FullStorage<T> >;
 
 template <typename T>
-using vector = DenseVector<Array<T, IndexOptions<int,0> > >;
+using vector = DenseVector<Array<T> >;
 
 }
 
@@ -27,20 +27,19 @@ using vector = DenseVector<Array<T, IndexOptions<int,0> > >;
 //////////////////////////////
 
 template <typename T>
-auto num_rows(T&& t)
+auto num_rows(const T& t)
     -> decltype(t.numRows()) {
   return t.numRows();
 }
 
 template <typename T>
-auto num_cols(T&& t)
+auto num_cols(const T& t)
     -> decltype(t.numCols()) {
   return t.numCols();
 }
 
-
 template <typename T>
-auto frobenius_norm(T&& t)
-    -> decltype(flens::blas::asum1(t)) {
-  return flens::blas::asum1(t);
+auto frobenius_norm(const T& t)
+    -> decltype(flens::blas::asum(t)) {
+  return flens::blas::asum(t);
 }

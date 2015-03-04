@@ -27,17 +27,15 @@
  * @note Only uses matrix-matrix products of A and transpose(A).
  */
 template <class MatrixIn,
-          class MatrixOut = flens::matrix<typename MatrixIn::ElementType> >
+          class MatrixOut = flens::GeMatrix<flens::FullStorage<typename MatrixIn::ElementType> > >
 std::tuple<MatrixOut,MatrixOut>
 probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
   using T = typename MatrixIn::ElementType;
 
-  using size_type  = typename MatrixIn::IndexType;
+  using size_type  = typename MatrixOut::IndexType;
   flens::Underscore<size_type> _;
 
-  using namespace flens;
-  using matrix_type     = GeMatrix<FullStorage<T> >;
-  using vector_type     = DenseVector<Array<double> >;
+  using VectorType = flens::DenseVector<flens::Array<double> >;
 
   // A is an n x m matrix
   unsigned n = num_rows(A);
@@ -45,22 +43,22 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
   unsigned rc = std::min(max_rank + 10, std::min(n,m));
 
   // Construct a random matrix
-  matrix_type R1(n, rc);
+  MatrixOut R1(n, rc);
   fillRandom(R1);
 
   // Factor A^T * R1 (which is m x rc)
   // TODO: Use an over-write?
-  matrix_type U1(m,rc), VT(rc,rc);
-  vector_type D(rc);
+  MatrixOut  U1(m,rc), VT(rc,rc);
+  VectorType D(rc);
   flens::lapack::svd(flens::lapack::SVD::Save, flens::lapack::SVD::None,
-                     matrix_type(transpose(A) * R1),
+                     MatrixOut(conjTrans(A) * R1),
                      D, U1, VT);
 
   // Factor A * U1 (which is n x rc)
   // Reuse VT and D
-  matrix_type U2(n,rc);
+  MatrixOut U2(n,rc);
   flens::lapack::svd(flens::lapack::SVD::Save, flens::lapack::SVD::Save,
-                     matrix_type(A * U1),
+                     MatrixOut(A * U1),
                      D, U2, VT);
 
   // Find the eps-rank
@@ -68,11 +66,11 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
 
   if (rc <= max_rank) {
     auto r = _(1,rc);
-    const DiagMatrix<ConstArrayView<double> > DM = D(r);
+    const flens::DiagMatrix<flens::ConstArrayView<double> > DM = D(r);
 
-    return std::make_tuple(matrix_type(U2(_,r) * DM),
-                           matrix_type(VT(r,r) * conjTrans(U1(_,r))));
+    return std::make_tuple(U2(_,r) * DM,
+                           VT(r,r) * conjTrans(U1(_,r)));
   }
 
-  return std::make_tuple(matrix_type(), matrix_type());
+  return std::make_tuple(MatrixOut(), MatrixOut());
 }
