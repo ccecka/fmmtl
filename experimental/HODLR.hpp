@@ -25,15 +25,13 @@ struct ProbeSVD {
  *
  */
 template <typename MA, typename Tree, typename ID>
-flens::HODLR_Matrix<typename MA::Impl::ElementType,
-                    Tree,
-                    flens::MatrixChar<MA>::value>
+flens::HODLR_Matrix<typename MA::Impl::ElementType, Tree>
 hodlr(const flens::Matrix<MA>& A, Tree&& tree, ID id) {
   return {A.impl(), std::move(tree), id};
 }
 
 template <typename MA, typename Tree>
-flens::HODLR_Matrix<typename MA::Impl::ElementType,Tree>
+flens::HODLR_Matrix<typename MA::Impl::ElementType, Tree>
 hodlr(const flens::Matrix<MA>& A, Tree&& tree) {
   return hodlr(A, std::move(tree), ProbeSVD{20,1e-10});
 }
@@ -44,7 +42,7 @@ hodlr(const flens::Matrix<MA>& A, Tree&& tree) {
 /** Construct an HODLR Matrix from raw data representing a full matrix
  */
 template <typename T>
-flens::HODLR_GeMatrix<T, fmmtl::NDTree<1> >
+flens::HODLR_Matrix<T, fmmtl::NDTree<1> >
 gehodlr(char order, T* data, int n, int lda, int leaf_size) {
   // Generate an integer tree -- TODO: Make implicit tree
   using Tree = fmmtl::NDTree<1>;
@@ -70,7 +68,7 @@ gehodlr(char order, T* data, int n, int lda, int leaf_size) {
 }
 
 template <typename T, typename P>
-flens::HODLR_GeMatrix<T, fmmtl::NDTree<1> >
+flens::HODLR_Matrix<T, fmmtl::NDTree<1> >
 gehodlr(char order, T* data, int n, int lda, const P* point, int leaf_size) {
   // Generate a tree from the spacial hint
   using Tree = fmmtl::NDTree<1>;
@@ -100,7 +98,7 @@ gehodlr(char order, T* data, int n, int lda, const P* point, int leaf_size) {
 /** Construct an HODLR Matrix from raw data representing a symmetric matrix
  */
 template <typename T>
-flens::HODLR_SyMatrix<T, fmmtl::NDTree<1> >
+flens::HODLR_Matrix<T, fmmtl::NDTree<1> >
 syhodlr(char order, char uplo, T* data, int n, int lda, int leaf_size) {
   // Generate an integer tree -- TODO: Make implicit tree
   using Tree = fmmtl::NDTree<1>;

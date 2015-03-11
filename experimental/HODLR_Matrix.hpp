@@ -23,63 +23,17 @@ flens::Range<int> range(const Box& b) {
 
 namespace flens {
 
-template <typename T, typename Tree, char Class>
-class HODLR_Matrix;
-
-
-template <typename M>
-struct MatrixChar;
-
-template <typename S>
-struct MatrixChar<GeneralMatrix<S> > {
-  static constexpr char value = 'G';
-};
-
-template <typename S>
-struct MatrixChar<SymmetricMatrix<S> > {
-  static constexpr char value = 'S';
-};
-
-template <typename S>
-struct MatrixChar<HermitianMatrix<S> > {
-  static constexpr char value = 'H';
-};
-
-
-template <typename H>
-struct HODLRMatrixBase;
-
-template <typename T, typename TR>
-struct HODLRMatrixBase<HODLR_Matrix<T,TR,'G'> > {
-  using type = GeneralMatrix<HODLR_Matrix<T,TR,'G'> >;
-  using matrix = GeMatrix<FullStorage<T> >;
-};
-
-template <typename T, typename TR>
-struct HODLRMatrixBase<HODLR_Matrix<T,TR,'S'> > {
-  using type = SymmetricMatrix<HODLR_Matrix<T,TR,'S'> >;
-  using matrix = SyMatrix<FullStorage<T> >;
-};
-
-template <typename T, typename TR>
-struct HODLRMatrixBase<HODLR_Matrix<T,TR,'H'> > {
-  using type = HermitianMatrix<HODLR_Matrix<T,TR,'H'> >;
-  using matrix = HeMatrix<FullStorage<T> >;
-};
-
 
 // Representation of a 1D Hierarchically Off-Diagonal Low-Rank Matrix
-template <typename T, typename Tree, char Class = 'G'>
+template <typename T, typename Tree>
 class HODLR_Matrix
-    : public HODLRMatrixBase<HODLR_Matrix<T,Tree,Class> >::type {
+    : public GeneralMatrix<HODLR_Matrix<T,Tree> > {
  public:
   typedef T     ElementType;
   typedef int   IndexType;
 
-  using ThisType       = HODLR_Matrix<T,Tree,Class>;
-  using DiagMatrixType = typename HODLRMatrixBase<ThisType>::matrix;
-  using GeMatrixType   = GeMatrix<FullStorage<T> >;
-  using IndexVector    = DenseVector<Array<IndexType> >;
+  using MatrixType  = GeMatrix<FullStorage<T> >;
+  using IndexVector = DenseVector<Array<IndexType> >;
 
   /** Constructor
    */
@@ -104,14 +58,26 @@ class HODLR_Matrix
         return 3;                     // Else, split both and recurse
       }
 
-      // If this is a symmetric HODLR, skip lower tri blocks
-      if ((Class == 'S' || Class == 'H') && (sbox < tbox))
+      // If this is a symmetric/hermitian HODLR, skip lower tri blocks
+      if ((IsSymmetricMatrix<Matrix>::value || IsHermitianMatrix<Matrix>::value)
+          && (sbox < tbox))
         return 0;
 
       // Apply the interpolative decomposition to this off-diag block
       std::tie(U[tbox],VT[sbox]) = interp_decomp(A(range(tbox),range(sbox)));
       //std::cout << "Level " << tbox.level() << ": " << num_rows(tU) << "," << num_cols(tU) << " -- " << num_rows(sVT) << "," << num_cols(sVT) << std::endl;
       assert(num_cols(U[tbox]) != 0 && num_rows(VT[sbox]) != 0);
+
+      // If this is a symmetric/hermitian HODLR, assign lower tri blocks
+      if (IsSymmetricMatrix<Matrix>::value) {
+        U[sbox] = transpose(VT[sbox]);
+        VT[tbox] = transpose(U[tbox]);
+      }
+      if (IsHermitianMatrix<Matrix>::value) {
+        U[sbox] = conjTrans(VT[sbox]);
+        VT[tbox] = conjTrans(U[tbox]);
+      }
+
       return 0;                      // Done with this block
     };
 
@@ -126,37 +92,25 @@ class HODLR_Matrix
   numCols() const { return tree.bodies(); }
 
 
-
   // private:  TODO: friends
 
   Tree tree;  // TODO: Copyable/shared_ptr?
 
-  fmmtl::BoxBind<DiagMatrixType,Tree>  Aii;   // Diagonal blocks (leaves only)
-  fmmtl::BoxBind<GeMatrixType,Tree>    U;     // L2T blocks (idx by target box)
-  fmmtl::BoxBind<GeMatrixType,Tree>    VT;    // S2M blocks (idx by source box)
+  fmmtl::BoxBind<MatrixType,Tree>   Aii;   // Diagonal blocks (leaves only)
+  fmmtl::BoxBind<MatrixType,Tree>   U;     // L2T blocks (idx by target box)
+  fmmtl::BoxBind<MatrixType,Tree>   VT;    // S2M blocks (idx by source box)
 
-  fmmtl::BoxBind<IndexVector,Tree>     ipiv;  // Pivoting info for Aii LU
+  fmmtl::BoxBind<IndexVector,Tree>  ipiv;  // Pivoting info for Aii LU
 };
-
-
-template <typename T, typename Tree>
-using HODLR_GeMatrix = HODLR_Matrix<T,Tree,'G'>;
-
-template <typename T, typename Tree>
-using HODLR_SyMatrix = HODLR_Matrix<T,Tree,'S'>;
-
-template <typename T, typename Tree>
-using HODLR_HeMatrix = HODLR_Matrix<T,Tree,'H'>;
-
 
 
 
 /** HODLR matvec forwards to HODLR matmat */
-template <typename T, typename TR, char HC,
+template <typename T, typename TR,
           typename ALPHA, typename VX, typename BETA, typename VY>
 void
 mv(Transpose trans, const ALPHA &alpha,
-   const HODLR_Matrix<T,TR,HC> &H, const DenseVector<VX> &x,
+   const HODLR_Matrix<T,TR> &H, const DenseVector<VX> &x,
    const BETA &beta, DenseVector<VY> &y)
 {
   typedef typename DenseVector<VX>::ElementType  XElementType;
@@ -174,16 +128,16 @@ mv(Transpose trans, const ALPHA &alpha,
 
 
 // B = beta*B + alpha*H*A
-template <typename T, typename TR, char HC,
+template <typename T, typename TR,
           typename ALPHA, typename MA, typename BETA, typename MB>
 void
 mm(Transpose transH, Transpose transA, const ALPHA &alpha,
-   const HODLR_Matrix<T,TR,HC> &H, const GeMatrix<MA> &A,
+   const HODLR_Matrix<T,TR> &H, const GeMatrix<MA> &A,
    const BETA &beta, GeMatrix<MB> &B)
 {
   using box_type   = typename TR::box_type;
-  using MatrixType = typename HODLR_Matrix<T,TR,HC>::GeMatrixType;
-  using IndexType  = typename HODLR_Matrix<T,TR,HC>::IndexType;
+  using MatrixType = typename HODLR_Matrix<T,TR>::MatrixType;
+  using IndexType  = typename HODLR_Matrix<T,TR>::IndexType;
   const Underscore<IndexType> _;
 
   // Don't handle the transposes for now
@@ -206,21 +160,7 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
       return 3;
     }
 
-    // Compute the off-diag block matvec using the interpolative decomposition.
-
-    // If symmetric and lower tri, use the tranpose of the upper tri decomp
-    if (HC == 'S' && sbox < tbox) {
-      MatrixType temp = alpha * transpose(H.U[sbox]) * A(range(tbox),_);
-      B(range(sbox),_) += transpose(H.VT[tbox]) * temp;
-      return 0;
-    }
-    // If hermetian and lower tri, use the conjtran of the upper tri decomp
-    if (HC == 'H' && sbox < tbox) {
-      MatrixType temp = alpha * conjTrans(H.U[sbox]) * A(range(tbox),_);
-      B(range(sbox),_) += conjTrans(H.VT[tbox]) * temp;
-      return 0;
-    }
-    // Else, use the decomposition of this block
+    // Compute the off-diag block matvec using the low-rank approximation
     MatrixType temp = alpha * H.VT[sbox] * A(range(sbox),_);
     B(range(tbox),_) += H.U[tbox] * temp;
     return 0;                    // Done with this block
@@ -235,12 +175,11 @@ template <typename T, typename TR, typename VPIV, typename MB>
 typename RestrictTo<IsIntegerDenseVector<VPIV>::value
                  && IsGeMatrix<MB>::value,
 typename RemoveRef<MB>::Type::IndexType>::Type
-sv(HODLR_GeMatrix<T,TR>& H, VPIV &&, MB &&B)
+sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
 {
-  using DiagMatrixType = typename HODLR_GeMatrix<T,TR>::DiagMatrixType;
-  using MatrixType  = typename HODLR_GeMatrix<T,TR>::GeMatrixType;
-  using IndexType   = typename HODLR_GeMatrix<T,TR>::IndexType;
-  using IndexVector = typename HODLR_GeMatrix<T,TR>::IndexVector;
+  using MatrixType  = typename HODLR_Matrix<T,TR>::MatrixType;
+  using IndexType   = typename HODLR_Matrix<T,TR>::IndexType;
+  using IndexVector = typename HODLR_Matrix<T,TR>::IndexVector;
   const Underscore<IndexType> _;
 
   // Initialize data structures
@@ -339,10 +278,10 @@ template <typename T, typename TR, typename VPIV, typename MB>
 typename RestrictTo<IsIntegerDenseVector<VPIV>::value
                  && IsGeMatrix<MB>::value,
 typename RemoveRef<MB>::Type::IndexType>::Type
-trs(Transpose trans, HODLR_GeMatrix<T,TR>& H, VPIV &&, MB &&B)
+trs(Transpose trans, HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
 {
-  using MatrixType  = typename HODLR_GeMatrix<T,TR>::GeMatrixType;
-  using IndexType   = typename HODLR_GeMatrix<T,TR>::IndexType;
+  using MatrixType  = typename HODLR_Matrix<T,TR>::MatrixType;
+  using IndexType   = typename HODLR_Matrix<T,TR>::IndexType;
   const Underscore<IndexType> _;
 
   // Don't mess with transpose right now
@@ -390,8 +329,6 @@ trs(Transpose trans, HODLR_GeMatrix<T,TR>& H, VPIV &&, MB &&B)
 
   return 0;
 }
-
-
 
 
 namespace blas {
