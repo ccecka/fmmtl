@@ -14,17 +14,19 @@
 
 namespace flens {
 
+/////////////////////////
+// Convenience Typedef //
+/////////////////////////
+
 template <typename T>
 using matrix = GeMatrix<FullStorage<T> >;
 
 template <typename T>
 using vector = DenseVector<Array<T> >;
 
-}
-
-//////////////////////////////
-// Custom function adaptors //
-//////////////////////////////
+/////////////////////////
+// Convenience Methods //
+/////////////////////////
 
 template <typename T>
 auto num_rows(const T& t)
@@ -39,7 +41,21 @@ auto num_cols(const T& t)
 }
 
 template <typename T>
-auto frobenius_norm(const T& t)
+auto norm_f(const T& t)
     -> decltype(flens::blas::asum(t)) {
   return flens::blas::asum(t);
+}
+
+template <typename IndexType, typename OtherIndexType>
+Range<IndexType>
+operator-(const Range<IndexType>& r, OtherIndexType i) {
+  return Range<IndexType>(r.firstIndex() - i, r.stride(), r.lastIndex() - i);
+};
+
+template <typename IndexType, typename OtherIndexType>
+Range<IndexType>
+operator+(const Range<IndexType>& r, OtherIndexType i) {
+  return Range<IndexType>(r.firstIndex() + i, r.stride(), r.lastIndex() + i);
+};
+
 }

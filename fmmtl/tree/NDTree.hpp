@@ -292,6 +292,9 @@ class NDTree {
     insert(first, last, n_crit);
   }
 
+  /** Move constructor */
+  NDTree(NDTree&&) = default;
+
   /** Return the Bounding Box that this NDTree encompasses */
   BoundingBox<point_type> bounding_box() const {
     return coder_.bounding_box();

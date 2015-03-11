@@ -37,7 +37,7 @@ int main() {
   std::cout << "V(" << V.rows() << ", " << V.cols() << ") = " << V << std::endl;
 
   if (num_rows(U) != 0) {
-    std::cout << "norm_f: " << frobenius_norm(flens::matrix<value_type>(A - U*V)) << std::endl;
+    std::cout << "norm_f: " << norm_f(flens::matrix<value_type>(A - U*V)) << std::endl;
   }
 
   return 0;

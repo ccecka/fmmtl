@@ -16,4 +16,5 @@ plr_implicit: LDLIBS += -L/usr/local/Cellar/openblas/0.2.12/lib -lopenblas -llap
 svd_test: LDLIBS += -llapack
 probe:    LDLIBS += -llapack
 
-hodlr_solver: LDLIBS += -llapack
+hodlr_solver: LDLIBS += -L/usr/local/Cellar/openblas/0.2.12/lib -lopenblas -llapack
+test_hodlr:   LDLIBS += -L/usr/local/Cellar/openblas/0.2.12/lib -lopenblas -llapack

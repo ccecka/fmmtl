@@ -41,7 +41,7 @@ int main() {
   Res = A - U*V;
 
   std::cout << "Residual = \n" << Res << std::endl;
-  std::cout << "norm_F = " << frobenius_norm(Res) << std::endl;
+  std::cout << "norm_F = " << norm_f(Res) << std::endl;
 
   return 0;
 }
