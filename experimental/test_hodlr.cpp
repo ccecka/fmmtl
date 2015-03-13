@@ -4,6 +4,7 @@
 int main(int argc, char** argv) {
 
   unsigned N = 1 << 12;     // rows
+  unsigned K = 1;           // cols of the rhs
   unsigned leaf_size = 64;  // maximum size of the tree leaves
 
   // Parse custom command line args
@@ -11,9 +12,10 @@ int main(int argc, char** argv) {
     if (strcmp(argv[i],"-N") == 0) {
       N = atoi(argv[++i]);
     }
+    if (strcmp(argv[i],"-K") == 0) {
+      K = atoi(argv[++i]);
+    }
   }
-
-  unsigned M = N;
 
   // Define types from FLENS
   using namespace flens;
@@ -25,24 +27,25 @@ int main(int argc, char** argv) {
   const Underscore<IndexType> _;
 
   // Initialize the sources/targets as random values
-  std::vector<double> source = fmmtl::random_n(M);
+  std::vector<double> source = fmmtl::random_n(N);
   for (auto& s : source) s *= s;
   std::sort(source.begin(), source.end());
 
   // Create a test matrix
-  MatrixType A(N,M);
+  MatrixType A(N,N);
   for (unsigned i = 1; i <= N; ++i)
-    for (unsigned j = 1; j <= M; ++j)
+    for (unsigned j = i+1; j <= N; ++j)
       //A(i,j) = 1;
-      //A(i,j) = std::exp(-norm_2_sq(p_targets[i-1] - p_sources[j-1]));
+      //A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
       A(i,j) = std::exp(-norm_2_sq(std::sin(6.28*(source[i-1]-source[j-1]))));
   A.diag(0) = 2;
 
+  A.lower() = transpose(A.upper());
+
   // Initialize a random RHS,   A*X = B
-  unsigned Nb = N;
-  MatrixType B(N,Nb);
+  MatrixType B(N,K);
   for (unsigned i = 1; i <= N; ++i)
-    for (unsigned j = 1; j <= Nb; ++j)
+    for (unsigned j = 1; j <= K; ++j)
       B(i,j) = fmmtl::random<double>::get();
 
 
@@ -92,7 +95,6 @@ int main(int argc, char** argv) {
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
 
-  A.lower() = transpose(A.upper());
 
   // Sy MATRIX
   {
@@ -141,6 +143,7 @@ int main(int argc, char** argv) {
   MatrixType ResX = exactX - testX;
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
+
 
   // He MATRIX
   {
