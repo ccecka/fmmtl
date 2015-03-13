@@ -221,6 +221,9 @@ class BallTree {
     insert(first, last, n_crit);
   }
 
+  /** Move constructor */
+  BallTree(BallTree&&) = default;
+
   /** Return the Bounding Box that this BallTree encompasses */
   BoundingSphere<point_type> bounding_sphere() const {
     return box_data_[0].bounding_sphere_;

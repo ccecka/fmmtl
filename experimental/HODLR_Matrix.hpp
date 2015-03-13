@@ -65,7 +65,7 @@ class HODLR_Matrix
 
       // Apply the interpolative decomposition to this off-diag block
       std::tie(U[tbox],VT[sbox]) = interp_decomp(A(range(tbox),range(sbox)));
-      //std::cout << "Level " << tbox.level() << ": " << num_rows(tU) << "," << num_cols(tU) << " -- " << num_rows(sVT) << "," << num_cols(sVT) << std::endl;
+      //std::cout << "Level " << tbox.level() << ": " << num_rows(U[tbox]) << "," << num_cols(U[tbox]) << " -- " << num_rows(VT[sbox]) << "," << num_cols(VT[sbox]) << std::endl;
       assert(num_cols(U[tbox]) != 0 && num_rows(VT[sbox]) != 0);
 
       // If this is a symmetric/hermitian HODLR, assign lower tri blocks

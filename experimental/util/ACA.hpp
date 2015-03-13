@@ -68,6 +68,7 @@ adaptive_cross_approx(const MatrixIn& A,
   // Repeat until the desired tolerance is obtained
   do {
 
+    // Construct an alias for the current row of V
     auto row = V(current_rank, _);
 
     // Repeat until we find a good row
@@ -75,8 +76,9 @@ adaptive_cross_approx(const MatrixIn& A,
       // Initialize the row to the row of A
       row = A(row_idx.back(), _);
       // Row of the residuum and the pivot column
-      for (size_type k = U.firstRow(); k < current_rank; ++k)
-        row -= U(row_idx.back(),k) * V(k,_);
+      row -= U(row_idx.back(), _(1,current_rank-1)) * V(_(1,current_rank-1),_);
+      //for (size_type k = U.firstRow(); k < current_rank; ++k)
+      //  row -= U(row_idx.back(),k) * V(k,_);
       // Done with this row
       row_idx.pop_back();
 
@@ -100,7 +102,7 @@ adaptive_cross_approx(const MatrixIn& A,
         goto return_statement;
     }
 
-
+    // Construct an alias for the current col of U
     auto col = U(_, current_rank);
 
     // Repeat until we find a good col
@@ -108,8 +110,9 @@ adaptive_cross_approx(const MatrixIn& A,
       // Initialize the col to the col of A
       col = A(_, col_idx.back());
       // Column of the residuum and the pivot row
-      for (size_type k = U.firstRow(); k < current_rank; ++k)
-        col -= U(_,k) * V(k,col_idx.back());
+      col -= U(_,_(1,current_rank-1)) * V(_(1,current_rank-1),col_idx.back());
+      //for (size_type k = U.firstRow(); k < current_rank; ++k)
+      //  col -= U(_,k) * V(k,col_idx.back());
       // Done with this column
       col_idx.pop_back();
 

@@ -39,14 +39,14 @@ int main(int argc, char** argv) {
   A.diag(0) = 2;
 
   // Initialize a random RHS,   A*X = B
-  unsigned Nb = 1;
+  unsigned Nb = N;
   MatrixType B(N,Nb);
   for (unsigned i = 1; i <= N; ++i)
     for (unsigned j = 1; j <= Nb; ++j)
       B(i,j) = fmmtl::random<double>::get();
 
 
-  // RAW MATRIX
+  // Ge MATRIX
   {
   Clock timer;
   auto H = gehodlr('C', A.data(), A.numRows(), A.leadingDimension(), leaf_size);
@@ -92,11 +92,60 @@ int main(int argc, char** argv) {
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
 
-  // RAW MATRIX WITH SPACIAL HINT
+  A.lower() = transpose(A.upper());
+
+  // Sy MATRIX
   {
   Clock timer;
-  auto H = gehodlr('C', A.data(), A.numRows(), A.leadingDimension(),
-                   source.data(), leaf_size);
+  auto H = syhodlr('C', 'U', A.data(), A.numRows(), A.leadingDimension(), leaf_size);
+  std::cout << "HODLR Construction: " << timer.seconds() << std::endl;
+
+
+  // Matmats
+  MatrixType testR, exactR;
+  { ScopeClock timer("HODLR  Matvec: ");
+    testR = H * B;
+  }
+
+  { ScopeClock timer(std::string("Direct Matvec: "));
+    exactR = A * B;
+  }
+  MatrixType ResR = exactR - testR;
+  std::cout << "Matvec rel norm_F = " << norm_f(ResR)/norm_f(exactR) << std::endl;
+
+  // Solves
+  IndexVector ipiv;
+  MatrixType testX = B;
+  { ScopeClock timer("HODLR  Solve: ");
+    flens::lapack::sv(H, ipiv, testX);
+  }
+  testX = B;
+  { ScopeClock timer("HODLR  Solve: ");
+    flens::lapack::trs(NoTrans, H, ipiv, testX);
+  }
+  testX = B;
+  { ScopeClock timer("HODLR  Solve: ");
+    flens::lapack::trs(NoTrans, H, ipiv, testX);
+  }
+
+  MatrixType Acpy = A;
+  MatrixType exactX = B;
+  { ScopeClock timer(std::string("Direct Solve: "));
+    flens::lapack::sv(Acpy, ipiv, exactX);
+  }
+  exactX = B;
+  { ScopeClock timer(std::string("Direct Solve: "));
+    flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
+  }
+
+  MatrixType ResX = exactX - testX;
+  std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
+  }
+
+  // He MATRIX
+  {
+  Clock timer;
+  auto H = hehodlr('C', 'U', A.data(), A.numRows(), A.leadingDimension(), leaf_size);
   std::cout << "HODLR Construction: " << timer.seconds() << std::endl;
 
 

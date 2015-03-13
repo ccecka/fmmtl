@@ -219,6 +219,9 @@ class KDTree {
     insert(first, last, n_crit);
   }
 
+  /** Move constructor */
+  KDTree(KDTree&&) = default;
+
   /** Return the Bounding Box that this KDTree encompasses */
   BoundingBox<point_type> bounding_box() const {
     return box_data_[0].bounding_box_;
