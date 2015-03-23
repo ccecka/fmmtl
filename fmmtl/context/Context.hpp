@@ -10,8 +10,8 @@
 
 #include "fmmtl/meta/kernel_traits.hpp"
 #include "fmmtl/meta/tree_traits.hpp"
+#include "fmmtl/tree/TreeData.hpp"
 
-#include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/FMMOptions.hpp"
 
 #include "fmmtl/dispatch/S2P.hpp"
@@ -21,67 +21,21 @@
 namespace fmmtl {
 using boost::adaptors::transformed;
 
-// General TreeContext declarations
-template <typename TreeType>
-class SingleTreeContext;
-
-template <typename SourceTreeType,
-          typename TargetTreeType>
-class DualTreeContext;
-
 
 /** @struct SingleTreeContext
- * Single tree context specialized for an NDTree
+ * Single tree context which aliases the source and target trees.
  */
-template <unsigned DIM>
-class SingleTreeContext<NDTree<DIM> > {
+template <typename TreeType>
+class SingleTreeContext {
  public:
-  typedef NDTree<DIM> source_tree_type;
-  typedef NDTree<DIM> target_tree_type;
+  typedef TreeType source_tree_type;
+  typedef TreeType target_tree_type;
   FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:
-  template <typename Iter>
-  using stree_permute_iterator =
-      typename source_tree_type::template body_permuted_iterator<Iter>::type;
-  template <typename Iter>
-  using ttree_permute_iterator =
-      typename target_tree_type::template body_permuted_iterator<Iter>::type;
 
   //! The tree of sources and targets
   source_tree_type source_tree_;
-
-  /** Permute iterators */
-  template <typename Iterator>
-  inline stree_permute_iterator<Iterator>
-  source_tree_permute(Iterator it, const source_body_iterator& sbi) const {
-    return source_tree().body_permute(it, sbi);
-  }
-  template <typename Iterator>
-  inline ttree_permute_iterator<Iterator>
-  target_tree_permute(Iterator it, const target_body_iterator& tbi) const {
-    return target_tree().body_permute(it, tbi);
-  }
-  template <typename Iterator>
-  inline stree_permute_iterator<Iterator>
-  source_permute_begin(Iterator it) const {
-    return source_tree_permute(it, source_tree().body_begin());
-  }
-  template <typename Iterator>
-  inline stree_permute_iterator<Iterator>
-  source_permute_end(Iterator it) const {
-    return source_tree_permute(it, source_tree().body_end());
-  }
-  template <typename Iterator>
-  inline ttree_permute_iterator<Iterator>
-  target_permute_begin(Iterator it) const {
-    return target_tree_permute(it, target_tree().body_begin());
-  }
-  template <typename Iterator>
-  inline ttree_permute_iterator<Iterator>
-  target_permute_end(Iterator it) const {
-    return target_tree_permute(it, target_tree().body_end());
-  }
 
  public:
   //! Constructor
@@ -108,61 +62,21 @@ class SingleTreeContext<NDTree<DIM> > {
 
 
 /** @struct DualTreeContext
- * Dual tree context specialized for two NDTree trees
+ * Dual tree context with distinct source and target trees.
  */
-template <unsigned SOURCEDIM, unsigned TARGETDIM>
-class DualTreeContext<NDTree<SOURCEDIM>,
-                      NDTree<TARGETDIM> > {
+template <typename SourceTreeType, typename TargetTreeType>
+class DualTreeContext {
  public:
-  typedef NDTree<SOURCEDIM> source_tree_type;
-  typedef NDTree<TARGETDIM> target_tree_type;
+  typedef SourceTreeType source_tree_type;
+  typedef TargetTreeType target_tree_type;
   FMMTL_IMPORT_TREEPAIR_TRAITS(source_tree_type, target_tree_type);
 
  protected:
-  template <typename Iter>
-  using stree_permute_iterator =
-      typename source_tree_type::template body_permuted_iterator<Iter>::type;
-  template <typename Iter>
-  using ttree_permute_iterator =
-      typename target_tree_type::template body_permuted_iterator<Iter>::type;
 
   //! The tree of sources
   source_tree_type source_tree_;
   //! The tree of targets
   target_tree_type target_tree_;
-
-    /** Permute iterators */
-  template <typename Iterator>
-  inline stree_permute_iterator<Iterator>
-  source_tree_permute(Iterator it, const source_body_iterator& sbi) const {
-    return source_tree().body_permute(it, sbi);
-  }
-  template <typename Iterator>
-  inline ttree_permute_iterator<Iterator>
-  target_tree_permute(Iterator it, const target_body_iterator& tbi) const {
-    return target_tree().body_permute(it, tbi);
-  }
-  template <typename Iterator>
-  inline stree_permute_iterator<Iterator>
-  source_permute_begin(Iterator it) const {
-    return source_tree_permute(it, source_tree().body_begin());
-  }
-  template <typename Iterator>
-  inline stree_permute_iterator<Iterator>
-  source_permute_end(Iterator it) const {
-    return source_tree_permute(it, source_tree().body_end());
-  }
-  template <typename Iterator>
-  inline ttree_permute_iterator<Iterator>
-  target_permute_begin(Iterator it) const {
-    return target_tree_permute(it, target_tree().body_begin());
-  }
-  template <typename Iterator>
-  inline ttree_permute_iterator<Iterator>
-  target_permute_end(Iterator it) const {
-    return target_tree_permute(it, target_tree().body_end());
-  }
-
 
  public:
   //! Constructor
@@ -174,6 +88,7 @@ class DualTreeContext<NDTree<SOURCEDIM>,
                      opts.ncrit) {
   }
 
+  // Tree accessors
   inline source_tree_type& source_tree() {
     return source_tree_;
   }
@@ -230,10 +145,10 @@ class DataContext
       : TreeContext(mat, opts),
         mat_(mat),
         // Pre-permute the sources and targets
-        sources_(this->source_permute_begin(mat_.sources().begin()),
-                 this->source_permute_end(  mat_.sources().begin())),
-        targets_(this->target_permute_begin(mat_.targets().begin()),
-                 this->target_permute_end(  mat_.targets().begin())),
+        sources_(permute_begin(this->source_tree(), mat_.sources().begin()),
+                 permute_end  (this->source_tree(), mat_.sources().begin())),
+        targets_(permute_begin(this->target_tree(), mat_.targets().begin()),
+                 permute_end  (this->target_tree(), mat_.targets().begin())),
         mac_(opts.MAC()),
         // TODO: only allocate if used...
         M_(this->source_tree().boxes()),
@@ -244,14 +159,14 @@ class DataContext
   inline void execute(const std::vector<charge_type>& charges,
                       std::vector<result_type>& results,
                       Executor* exec) {
-    charges_.assign(this->source_permute_begin(charges.begin()),
-                    this->source_permute_end(  charges.begin()));
+    charges_.assign(permute_begin(this->source_tree(), charges.begin()),
+                    permute_end  (this->source_tree(), charges.begin()));
 
-    results_.assign(results.size(), result_type(0));
+    results_.assign(results.size(), result_type{});
     exec->execute(*this);
 
     // Accumulate the permuted result
-    auto pri = this->target_permute_begin(results.begin());
+    auto pri = permute_begin(this->target_tree(), results.begin());
     for (auto ri = results_.begin(); ri != results_.end(); ++ri, ++pri)
       *pri += *ri;
   }

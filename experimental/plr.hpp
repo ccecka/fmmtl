@@ -149,7 +149,7 @@ struct PLR_Matrix {
     }
 
     // Copy back permuted results
-    auto pri = target_tree->body_permute(y_first);
+    auto pri = permute_begin(*target_tree, y_first);
     for (const auto& ri : p_results) {
       *pri += ri;
       ++pri;

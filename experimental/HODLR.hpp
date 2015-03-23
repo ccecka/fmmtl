@@ -65,7 +65,7 @@ gehodlr(char order, T* data, int n, int lda, int leaf_size) {
   for (int i = 0; i < n; ++i) ints[i] = Vec<1,double>(i);
   Tree tree(ints, leaf_size);
   // NDTree is stable, no need to permute data
-  //assert(std::equal(ints.begin(), ints.end(), tree.body_permute(ints.begin())))
+  //assert(std::equal(ints.begin(), ints.end(), permute_begin(tree, ints.begin())));
 
   if (order == 'c' || order == 'C') {
     using Storage = flens::FullStorageView<T, flens::ColMajor>;
@@ -92,7 +92,7 @@ syhodlr(char order, char uplo, T* data, int n, int lda, int leaf_size) {
   for (int i = 0; i < n; ++i) ints[i] = Vec<1,double>(i);
   Tree tree(ints, leaf_size);
   // NDTree is stable, no need to permute data
-  //assert(std::equal(ints.begin(), ints.end(), tree.body_permute(ints.begin())))
+  //assert(std::equal(ints.begin(), ints.end(), permute_begin(tree, ints.begin())));
 
   assert(uplo == 'U' || uplo == 'L');
   flens::StorageUpLo _uplo = (uplo == 'U' ? flens::Upper : flens::Lower);
@@ -123,7 +123,7 @@ hehodlr(char order, char uplo, T* data, int n, int lda, int leaf_size) {
   for (int i = 0; i < n; ++i) ints[i] = Vec<1,double>(i);
   Tree tree(ints, leaf_size);
   // NDTree is stable, no need to permute data
-  //assert(std::equal(ints.begin(), ints.end(), tree.body_permute(ints.begin())))
+  //assert(std::equal(ints.begin(), ints.end(), permute_begin(tree, ints.begin())));
 
   assert(uplo == 'U' || uplo == 'L');
   flens::StorageUpLo _uplo = (uplo == 'U' ? flens::Upper : flens::Lower);

@@ -3,6 +3,8 @@
 #include <iterator>
 #include <vector>
 
+#include <boost/iterator/permutation_iterator.hpp>
+
 
 namespace fmmtl {
 
@@ -47,6 +49,44 @@ BoxBind<T,Tree> make_box_binding(const Tree& tree) {
 }
 
 
+/** Permute iterators into the same order as in a tree
+ */
+template <typename Tree, typename RandomAccessIter>
+using body_permute_iterator = boost::permutation_iterator<RandomAccessIter,
+                                                          typename Tree::permute_iterator>;
+
+/** Tranform (permute) an iterator so its traversal follows the same order as
+ * the bodies contained in a tree
+ */
+template <typename Tree, typename RandomAccessIter>
+body_permute_iterator<Tree, RandomAccessIter>
+permute_begin(const Tree& tree, RandomAccessIter iter) {
+  return boost::make_permutation_iterator(iter, tree.permute_begin());
+}
+
+template <typename Tree, typename RandomAccessIter>
+body_permute_iterator<Tree, RandomAccessIter>
+permute_end(const Tree& tree, RandomAccessIter iter) {
+  return boost::make_permutation_iterator(iter, tree.permute_end());
+}
+
+/** Tranform (permute) an iterator so its traversal follows the same order as
+ * the bodies contained in a tree, starting at a particular body.
+ *
+ * @post
+ *  permute_iter(tree, tree.body_begin(), iter) == permute_begin(tree, iter)
+ *  permute_iter(tree, tree.body_end(),   iter) == permute_end(  tree, iter)
+ */
+template <typename Tree, typename RandomAccessIter>
+body_permute_iterator<Tree, RandomAccessIter>
+permute_iter(const Tree& tree,
+             typename Tree::body_iterator bit,
+             RandomAccessIter iter) {
+  const auto i = std::distance(tree.body_begin(), bit);
+  return boost::make_permutation_iterator(iter, tree.permute_begin() + i);
+}
+
+
 /** Maps bodies and body iterators to data and data iterators
  */
 template <typename T, typename Tree>
@@ -64,7 +104,7 @@ struct BodyBind {
     const_iterator begin() const { return b; }
     iterator       end()         { return e; }
     const_iterator end()   const { return e; }
-    std::size_t    size()  const { return end() - begin(); }
+    std::size_t    size()  const { return e - b; }
   };
 
   // Construct without permuting data or initialization data
@@ -74,8 +114,7 @@ struct BodyBind {
   // Construct by permuting some initialization data based on the tree
   template <typename Iterator>
   BodyBind(const Tree& tree, Iterator data_it)
-      : data(tree.body_permute(data_it, tree.body_begin()),
-             tree.body_permute(data_it, tree.body_end())) {
+      : data(permute_begin(tree, data_it), permute_end(tree, data_it)) {
   }
 
   iterator       begin()       { return std::begin(data); }

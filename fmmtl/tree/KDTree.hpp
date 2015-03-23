@@ -49,6 +49,7 @@ class KDTree {
   typedef Body          body_type;
   using box_iterator  = CountedProxyIterator<Box,  const KDTree, size_type>;
   using body_iterator = CountedProxyIterator<Body, const KDTree, size_type>;
+  using permute_iterator = typename std::vector<size_type>::const_iterator;
 
  private:
   // Tree representation
@@ -310,30 +311,14 @@ class KDTree {
     return box_iterator((1 << (L+1)) - 1, this);
   }
 
-  template <typename RandomAccessIter>
-  struct body_permuted_iterator {
-    typedef typename std::vector<size_type>::const_iterator permute_iter;
-    typedef boost::permutation_iterator<RandomAccessIter, permute_iter> type;
-  };
-
-  /** Tranform (permute) an iterator so its traversal follows the same order as
-   * the bodies contained in this tree
-   */
-  template <typename RandomAccessIter>
-  typename body_permuted_iterator<RandomAccessIter>::type
-  body_permute(RandomAccessIter it, const body_iterator& bi) const {
-    return boost::make_permutation_iterator(it, permute_.cbegin() + bi.index());
+  /** The begin iterator of the permutation index range */
+  permute_iterator permute_begin() const {
+    return permute_.begin();
   }
 
-  /** Tranform (permute) an iterator so its traversal follows the same order as
-   * the bodies contained in this tree
-   *
-   * Specialized for bi = body_begin().
-   */
-  template <typename RandomAccessIter>
-  typename body_permuted_iterator<RandomAccessIter>::type
-  body_permute(RandomAccessIter it) const {
-    return body_permute(it, body_begin());
+  /** The end iterator of the permutation index range */
+  permute_iterator permute_end() const {
+    return permute_.end();
   }
 
   /** Write an KDTree to an output stream */
