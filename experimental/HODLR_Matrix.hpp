@@ -91,6 +91,22 @@ class HODLR_Matrix
   IndexType
   numCols() const { return tree.bodies(); }
 
+  double
+  compression() const {
+    double result = 0;
+
+    for (auto& a : Aii) {
+      result += num_rows(a) * num_cols(a);
+    }
+    for (auto& a : U) {
+      result += num_rows(a) * num_cols(a);
+    }
+    for (auto& a : VT) {
+      result += num_rows(a) * num_cols(a);
+    }
+    return result / (numRows()*numCols());
+  }
+
 
   // private:  TODO: friends
 
@@ -105,7 +121,7 @@ class HODLR_Matrix
 
 
 
-/** HODLR matvec forwards to HODLR matmat */
+// y = beta*y + alpha*H*x
 template <typename T, typename TR,
           typename ALPHA, typename VX, typename BETA, typename VY>
 void
@@ -113,17 +129,41 @@ mv(Transpose trans, const ALPHA &alpha,
    const HODLR_Matrix<T,TR> &H, const DenseVector<VX> &x,
    const BETA &beta, DenseVector<VY> &y)
 {
-  typedef typename DenseVector<VX>::ElementType  XElementType;
-  const auto nx = x.length();
-  const StorageOrder Xorder = DenseVector<VX>::Engine::order;
-  GeMatrix<FullStorageView<XElementType, Xorder> >  X(nx, 1, x, nx);
+  using box_type   = typename TR::box_type;
+  using MatrixType = typename HODLR_Matrix<T,TR>::MatrixType;
+  using IndexType  = typename HODLR_Matrix<T,TR>::IndexType;
+  const Underscore<IndexType> _;
 
-  typedef typename DenseVector<VY>::ElementType  YElementType;
-  const auto ny = y.length();
-  const StorageOrder Yorder = DenseVector<VY>::Engine::order;
-  GeMatrix<FullStorageView<YElementType, Yorder> >  Y(ny, 1, y, ny);
+  // Don't handle the transposes for now
+  (void) trans;
+  ASSERT(trans == NoTrans);
 
-  return mm(trans, NoTrans, alpha, H, X, beta, Y);
+  if (y.numRows() == 0) {
+    y.resize(H.numRows());
+  } else if (beta != BETA(1)) {
+    y *= beta;
+  }
+
+  // Define the dyadic matvec traversal operator -- TODO: custom traversal?
+  auto offdiag = [&](const box_type& sbox, const box_type& tbox) {
+    if (sbox == tbox) {           // This is a diagonal block
+      if (tbox.is_leaf()) {       // If diagonal leaf, direct matvec
+        auto rows = range(tbox);
+        y(rows) += alpha * H.Aii[tbox] * x(rows);
+        return 0;
+      }                          // If diagonal non-leaf, partition both
+      return 3;
+    }
+
+    // Compute the off-diag block matvec using the low-rank approximation
+    // XXX: Revisit temp
+    DenseVector<VY> temp = alpha * H.VT[sbox] * x(range(sbox));
+    y(range(tbox)) += H.U[tbox] * temp;
+    return 0;                    // Done with this block
+  };
+
+  // Traverse the dyadic tree and perform the matvec
+  fmmtl::traverse_if(H.tree.root(), H.tree.root(), offdiag);
 }
 
 
@@ -141,6 +181,7 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
   const Underscore<IndexType> _;
 
   // Don't handle the transposes for now
+  (void) transH; (void) transA;
   ASSERT(transH == NoTrans && transA == NoTrans);
 
   if (B.numRows() == 0 || B.numCols() == 0) {
@@ -161,6 +202,7 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
     }
 
     // Compute the off-diag block matvec using the low-rank approximation
+    // XXX: Revisit temp
     MatrixType temp = alpha * H.VT[sbox] * A(range(sbox),_);
     B(range(tbox),_) += H.U[tbox] * temp;
     return 0;                    // Done with this block
@@ -232,6 +274,7 @@ sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
 
         unsigned r = num_rows(V1T), R = r + num_rows(V0T);
         unsigned c = num_cols(U0),  C = c + num_cols(U1);
+        ASSERT(R == C);
 
         // Construct the matrix K = I + [0,V1T;V0T,0] * [U0,0;0,U1]
         AiiInv = MatrixType(R,C);
@@ -285,6 +328,7 @@ trs(Transpose trans, HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
   const Underscore<IndexType> _;
 
   // Don't mess with transpose right now
+  (void) trans;
   ASSERT(trans == NoTrans);
 
   // Reuse computed inverses

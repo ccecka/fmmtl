@@ -1,3 +1,5 @@
+//#define FLENS_DEBUG_CLOSURES
+
 #include "HODLR.hpp"
 
 
@@ -17,18 +19,22 @@ int main(int argc, char** argv) {
     }
   }
 
+  //flens::verbose::ClosureLog::start("hodlr_log.txt");
+
+
   // Define types from FLENS
   using namespace flens;
   //using ZeroBased      = IndexOptions<int, 0>;
-  using MatrixType     = GeMatrix<FullStorage<double, ColMajor> >;
-  using VectorType     = DenseVector<Array<double> >;
+  using T              = double; // std::complex<double>;
+  using MatrixType     = GeMatrix<FullStorage<T, ColMajor> >;
+  using VectorType     = DenseVector<Array<T> >;
   using IndexType      = typename MatrixType::IndexType;
   using IndexVector    = DenseVector<Array<IndexType> >;
   const Underscore<IndexType> _;
 
   // Initialize the sources/targets as random values
   std::vector<double> source = fmmtl::random_n(N);
-  for (auto& s : source) s *= s;
+  //for (auto& s : source) s *= s;
   std::sort(source.begin(), source.end());
 
   // Create a test matrix
@@ -37,6 +43,7 @@ int main(int argc, char** argv) {
     for (unsigned j = i+1; j <= N; ++j)
       //A(i,j) = 1;
       //A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
+      //A(i,j) = std::exp(std::complex<double>(0,i*j*6.28318530718/N));
       A(i,j) = std::exp(-norm_2_sq(std::sin(6.28*(source[i-1]-source[j-1]))));
   A.diag(0) = 2;
 
@@ -46,14 +53,20 @@ int main(int argc, char** argv) {
   MatrixType B(N,K);
   for (unsigned i = 1; i <= N; ++i)
     for (unsigned j = 1; j <= K; ++j)
-      B(i,j) = fmmtl::random<double>::get();
+      B(i,j) = fmmtl::random<T>::get();
 
 
   // Ge MATRIX
   {
+  std::cout << "N = " << N << std::endl;
+  std::cout << "K = " << K << std::endl;
+
   Clock timer;
   auto H = gehodlr('C', A.data(), A.numRows(), A.leadingDimension(), leaf_size);
   std::cout << "HODLR Construction: " << timer.seconds() << std::endl;
+
+  std::cout << "HODLR Compression: " << H.compression() << std::endl;
+
 
   // Matmats
   MatrixType testR, exactR;
@@ -70,38 +83,41 @@ int main(int argc, char** argv) {
   // Solves
   IndexVector ipiv;
   MatrixType testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve1: ");
     flens::lapack::sv(H, ipiv, testX);
   }
   testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve2: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
   testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve3: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
 
   MatrixType Acpy = A;
   MatrixType exactX = B;
-  { ScopeClock timer(std::string("Direct Solve: "));
+  { ScopeClock timer(std::string("Direct Solve1: "));
     flens::lapack::sv(Acpy, ipiv, exactX);
   }
   exactX = B;
-  { ScopeClock timer(std::string("Direct Solve: "));
+  { ScopeClock timer(std::string("Direct Solve2: "));
     flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
   }
   MatrixType ResX = exactX - testX;
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
 
-
   // Sy MATRIX
   {
+  std::cout << "N = " << N << std::endl;
+  std::cout << "K = " << K << std::endl;
+
   Clock timer;
   auto H = syhodlr('C', 'U', A.data(), A.numRows(), A.leadingDimension(), leaf_size);
   std::cout << "HODLR Construction: " << timer.seconds() << std::endl;
 
+  std::cout << "HODLR Compression: " << H.compression() << std::endl;
 
   // Matmats
   MatrixType testR, exactR;
@@ -147,10 +163,14 @@ int main(int argc, char** argv) {
 
   // He MATRIX
   {
+  std::cout << "N = " << N << std::endl;
+  std::cout << "K = " << K << std::endl;
+
   Clock timer;
   auto H = hehodlr('C', 'U', A.data(), A.numRows(), A.leadingDimension(), leaf_size);
   std::cout << "HODLR Construction: " << timer.seconds() << std::endl;
 
+  std::cout << "HODLR Compression: " << H.compression() << std::endl;
 
   // Matmats
   MatrixType testR, exactR;
@@ -193,4 +213,5 @@ int main(int argc, char** argv) {
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
 
+  //flens::verbose::ClosureLog::stop();
 }
