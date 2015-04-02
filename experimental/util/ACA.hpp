@@ -4,9 +4,9 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
-#include <random>
 
-#include <fmmtl/numeric/flens.hpp>
+#include "fmmtl/numeric/random.hpp"
+#include "fmmtl/numeric/flens.hpp"
 
 
 /** Partial pivoted LU to construct low-rank.
@@ -46,106 +46,74 @@ adaptive_cross_approx(const MatrixIn& A,
   // A stack of row indices to use
   std::vector<size_type> row_idx(num_rows(A));
   std::iota(row_idx.begin(), row_idx.end(), U.firstRow());
-  // A stack of col indices to use
-  std::vector<size_type> col_idx(num_cols(A));
-  std::iota(col_idx.begin(), col_idx.end(), U.firstRow());
-
-  {
-  std::random_device rd;
-  std::mt19937 generator(rd());
-
-  std::shuffle(row_idx.begin(), row_idx.end(), generator);
-  std::shuffle(col_idx.begin(), col_idx.end(), generator);
-  }
 
   size_type current_rank = U.firstRow();
 
   // Initialize the matrix and vector norms
-  double matrix_norm = 0;
+  double matrix_normf_sq = 0;
   double row_norm_sq;
   double col_norm_sq;
 
+  //std::cout << "NEW ACA " << num_rows(A) << "x" << num_cols(A) << std::endl;
+
   // Repeat until the desired tolerance is obtained
-  do {
+  while(true) {
+    // Index range of the previous rows/cols
+    auto prev = _(U.firstRow(), current_rank-1);
 
     // Construct an alias for the current row of V
     auto row = V(current_rank, _);
-
-    // Repeat until we find a good row
-    while (true) {
-      // Initialize the row to the row of A
-      row = A(row_idx.back(), _);
-      // Row of the residuum and the pivot column
-      row -= U(row_idx.back(), _(1,current_rank-1)) * V(_(1,current_rank-1),_);
-      //for (size_type k = U.firstRow(); k < current_rank; ++k)
-      //  row -= U(row_idx.back(),k) * V(k,_);
-      // Done with this row
-      row_idx.pop_back();
-
-      // Find the largest element of the row
-      size_type pivot_idx = iamax(row);
-
-      // Good row
-      if (abs(row(pivot_idx)) > eps_tol) {
-        // Normalization
-        row *= value_type(1) / row(pivot_idx);
-        // Bring the pivot_idx to the back for processing
-        auto cit = std::find(col_idx.begin(), col_idx.end(), pivot_idx);
-        assert(cit != col_idx.end());
-        //if (cit != col_idx.end())
-        std::swap(*cit, col_idx.back());
-        break;
-      }
-
-      // Bad row, try again if there's more
-      if (row_idx.empty())
-        goto return_statement;
-    }
-
     // Construct an alias for the current col of U
     auto col = U(_, current_rank);
 
-    // Repeat until we find a good col
-    while (true) {
-      // Initialize the col to the col of A
-      col = A(_, col_idx.back());
-      // Column of the residuum and the pivot row
-      col -= U(_,_(1,current_rank-1)) * V(_(1,current_rank-1),col_idx.back());
-      //for (size_type k = U.firstRow(); k < current_rank; ++k)
-      //  col -= U(_,k) * V(k,col_idx.back());
-      // Done with this column
-      col_idx.pop_back();
+    // The pivot row and col
+    size_type i, j;
 
-      // Find the largest element of the col
-      size_type pivot_idx = iamax(col);
-
-      // Good col, bring the pivot to the front
-      if (abs(col(pivot_idx)) > eps_tol) {
-        // Bring the pivot to the back for processing if not already considered
-        auto rit = std::find(row_idx.begin(), row_idx.end(), pivot_idx);
-        if (rit != row_idx.end())
-          std::swap(*rit, row_idx.back());
-        break;
-      }
-
-      // Bad col, try again if there's more
-      if (col_idx.empty())
+    // Repeat until we find a good row
+    do {
+      if (row_idx.empty())
         goto return_statement;
-    }
 
-    // New approximation of matrix norm
+      // Choose a random row from the remaining rows
+      size_type k = fmmtl::random<unsigned>::get(0,row_idx.size()-1);
+      i = row_idx[k];
+      // Remove this row from consideration in the future
+      row_idx[k] = row_idx.back();
+      row_idx.pop_back();
+
+      // Set the row to the residiuum of the row of A
+      row = A(i,_) - U(i,prev) * V(prev,_);
+
+      // Find the largest element of the row
+      j = iamax(row);
+
+      // If this row is effectively zero, try again
+    } while (abs(row(j)) < 1e-13);
+
+    // Normalization
+    row *= value_type(1) / row(j);
+
+    // Set the col to the residiuum of the col of A
+    col = A(_,j) - U(_,prev) * V(prev,j);
+
+    // Increment and break if we can't continue
+    ++current_rank;
+    if (current_rank > U.lastCol())
+      break;
+
+    // Compute the vector norms
     row_norm_sq = real(dot(row,row));
     col_norm_sq = real(dot(col,col));
 
-    matrix_norm += row_norm_sq * col_norm_sq;
-    for (size_type k = U.firstRow(); k < current_rank; ++k)
-      matrix_norm += 2.0 * abs(dot(U(_,k),col)) * abs(dot(V(k,_),row));
+    // If this update will make a small contribution to the matrix, stop.
+    if (row_norm_sq * col_norm_sq < eps_tol_sq * matrix_normf_sq)
+      break;
 
-    ++current_rank;
-
-  } while (row_norm_sq * col_norm_sq > eps_tol_sq * matrix_norm * matrix_norm &&
-           current_rank <= U.lastCol() &&
-           !row_idx.empty() && !col_idx.empty());
+    // Update the frobenius norm of U * V
+    matrix_normf_sq += row_norm_sq * col_norm_sq;
+    for (size_type k = U.firstRow(); k < current_rank-1; ++k)
+      matrix_normf_sq += 2 * abs(dot(U(_,k),col)) * abs(dot(V(k,_),row));
+  } // end while
 
 return_statement:
 

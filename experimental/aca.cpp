@@ -17,6 +17,13 @@ int main() {
   A = 2.0;
 #endif
 #if 0
+  flens::matrix<value_type> a(N,2);
+  flens::matrix<value_type> b(2,M);
+  fillRandom(a);
+  fillRandom(b);
+  A = a*b;
+#endif
+#if 0
   fillRandom(A);
 #endif
 #if 0
