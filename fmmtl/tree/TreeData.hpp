@@ -41,6 +41,11 @@ struct BoxBind {
   const_iterator operator[](const typename Tree::box_iterator& bi) const {
     return std::begin(data) + (*bi).index();
   }
+
+  iterator       begin()       { return std::begin(data); }
+  iterator       end()         { return std::end(data); }
+  const_iterator begin() const { return std::begin(data); }
+  const_iterator end()   const { return std::end(data); }
 };
 
 template <typename T, typename Tree>
