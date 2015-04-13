@@ -41,10 +41,12 @@ int main(int argc, char** argv) {
   MatrixType A(N,N);
   for (unsigned i = 1; i <= N; ++i)
     for (unsigned j = i+1; j <= N; ++j)
+      //A(i,j) = 0;
       //A(i,j) = 1;
-      //A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
+      A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
+      //A(i,j) = std::abs(source[i-1] - source[j-1]);
       //A(i,j) = std::exp(std::complex<double>(0,i*j*6.28318530718/N));
-      A(i,j) = std::exp(-norm_2_sq(std::sin(6.28*(source[i-1]-source[j-1]))));
+      //A(i,j) = std::exp(-norm_2_sq(std::sin(6.28*(source[i-1]-source[j-1]))));
   A.diag(0) = 2;
 
   A.lower() = transpose(A.upper());
@@ -95,6 +97,12 @@ int main(int argc, char** argv) {
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
 
+  std::pair<T,int> det;
+  { ScopeClock timer("HODLR Det: ");
+    det = flens::lapack::det(H);
+  }
+  std::cout << "|H| = " << det.first << "e" << det.second << std::endl;
+
   MatrixType Acpy = A;
   MatrixType exactX = B;
   { ScopeClock timer(std::string("Direct Solve1: "));
@@ -104,6 +112,7 @@ int main(int argc, char** argv) {
   { ScopeClock timer(std::string("Direct Solve2: "));
     flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
   }
+
   MatrixType ResX = exactX - testX;
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
@@ -145,6 +154,12 @@ int main(int argc, char** argv) {
   { ScopeClock timer("HODLR  Solve: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
+
+  std::pair<T,int> det;
+  { ScopeClock timer("HODLR Det: ");
+    det = flens::lapack::det(H);
+  }
+  std::cout << "|H| = " << det.first << "e" << det.second << std::endl;
 
   MatrixType Acpy = A;
   MatrixType exactX = B;
@@ -198,6 +213,13 @@ int main(int argc, char** argv) {
   { ScopeClock timer("HODLR  Solve: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
+
+  std::pair<T,int> det;
+  { ScopeClock timer("HODLR Det: ");
+    det = flens::lapack::det(H);
+  }
+  std::cout << "|H| = " << det.first << "e" << det.second << std::endl;
+
 
   MatrixType Acpy = A;
   MatrixType exactX = B;

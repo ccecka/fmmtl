@@ -1,6 +1,8 @@
 #pragma once
 
 #include <type_traits>
+#include <cmath>
+#include <limits>
 
 #include "fmmtl/numeric/flens.hpp"
 
@@ -66,7 +68,7 @@ class HODLR_Matrix
       // Apply the interpolative decomposition to this off-diag block
       std::tie(U[tbox],VT[sbox]) = interp_decomp(A(range(tbox),range(sbox)));
       //std::cout << "Level " << tbox.level() << ": " << num_rows(U[tbox]) << "," << num_cols(U[tbox]) << " -- " << num_rows(VT[sbox]) << "," << num_cols(VT[sbox]) << std::endl;
-      assert(num_cols(U[tbox]) != 0 && num_rows(VT[sbox]) != 0);
+      //assert(num_cols(U[tbox]) != 0 && num_rows(VT[sbox]) != 0);
 
       // If this is a symmetric/hermitian HODLR, assign lower tri blocks
       if (IsSymmetricMatrix<Matrix>::value) {
@@ -210,6 +212,101 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
 
   // Traverse the dyadic tree and perform the matvec
   fmmtl::traverse_if(H.tree.root(), H.tree.root(), offdiag);
+}
+
+//== (gehodlr)trf =======
+template <typename T, typename TR, typename VPIV>
+typename RestrictTo<IsIntegerDenseVector<VPIV>::value,
+typename HODLR_Matrix<T,TR>::IndexType>::Type
+trf(HODLR_Matrix<T,TR>& H, VPIV &&)
+{
+  using MatrixType  = typename HODLR_Matrix<T,TR>::MatrixType;
+  using IndexType   = typename HODLR_Matrix<T,TR>::IndexType;
+  using IndexVector = typename HODLR_Matrix<T,TR>::IndexVector;
+  const Underscore<IndexType> _;
+
+  // Initialize data structures
+  H.ipiv    = fmmtl::make_box_binding<IndexVector>(H.tree);
+
+  // For the diagonal boxes of the tree, from leaves to root
+  for (int L = H.tree.levels() - 1; L >= 0; --L) {
+
+    for (auto box : boxes(L, H.tree)) {
+      // Get the index range of this block
+      auto rows = range(box);
+      auto& AiiInv = H.Aii[box];
+      auto& ipiv = H.ipiv[box];
+
+      if (box.is_leaf()) {
+        // This block is a diagonal leaf
+        // -- Perform a dense solve: A(I,I) * X = B
+        // -- Apply A(I,I)^{-1} to all U_L(I,_) up the tree
+
+        // Compute LU factors into Aii
+        flens::lapack::trf(AiiInv, ipiv, B(rows,_));
+
+        // Apply A^{-1} to the appropriate rows of all of the parent U's
+        for ( ; !(box == H.tree.root()); box = box.parent()) {
+          auto& pU = H.U[box];
+          auto urows = rows - box.body_begin().index();
+          // Solve AX = U and store into U -- Uses previously computed LU
+          flens::lapack::trs(NoTrans, AiiInv, ipiv, pU(urows,_));
+        }
+      } else {
+        // This block is a diagonal non-leaf.
+        // All descendent diagonal blocks have been processed.
+        // This block is now of the form:
+        // |     I      U_0 V_1^T |
+        // | U_1 V_0^T       I    |
+        // Which can be inverted via the Sherman-Morrison-Woodbury formula:
+        // (I + U V^T)^{-1} = I - U (I + V^T U)^{-1} V^T
+        // where U = [U_0, 0; 0, U_1] and V^T = [0, V_1^T; V_0^T, 0].
+        // Thus, we invert an R x R matrix rather than the full N x N block.
+
+        // Get the child boxes and factorizations
+        auto cbox0 = *(box.child_begin()+0);
+        auto cbox1 = *(box.child_begin()+1);
+        auto rows0 = range(cbox0);
+        auto rows1 = range(cbox1);
+        auto& U0  = H.U[cbox0];      // box_u_inv[target child 0]
+        auto& U1  = H.U[cbox1];      // box_u_inv[target child 1]
+        auto& V0T = H.VT[cbox0];     // box_v_inv[source child 0]
+        auto& V1T = H.VT[cbox1];     // box_v_inv[source child 1]
+
+        unsigned r = num_rows(V1T), R = r + num_rows(V0T);
+        unsigned c = num_cols(U0),  C = c + num_cols(U1);
+        ASSERT(R == C);
+
+        // Construct the matrix K = I + [0,V1T;V0T,0] * [U0,0;0,U1]
+        AiiInv = MatrixType(R,C);
+        AiiInv.diag(0) = 1;
+        AiiInv(_(r+1,R), _(  1,c)) = V0T * U0;   // Upper right block
+        AiiInv(_(  1,r), _(c+1,C)) = V1T * U1;   // Lower left block
+
+        // Compute LU factors into Aii
+        flens::lapack::trf(AiiInv, ipiv);
+
+        // Apply A^{-1} to the appropriate rows of all of the parent U's
+        for ( ; !(box == H.tree.root()); box = box.parent()) {
+          auto& pU = H.U[box];
+          auto urows0 = rows0 - box.body_begin().index();
+          auto urows1 = rows1 - box.body_begin().index();
+
+          // Apply the SMW to pU: (I + U*VT)^{-1} = I - U * (I+VT*U)^{-1} * VT
+          MatrixType Tmp(R,num_cols(pU));
+          Tmp(_(  1,r),_) = V1T * pU(urows1,_);
+          Tmp(_(r+1,R),_) = V0T * pU(urows0,_);
+          // Solve KX = T and store into T -- Uses previously computed LU
+          flens::lapack::trs(NoTrans, AiiInv, ipiv, Tmp);
+          // Apply U to complete the SMW
+          pU(urows0,_) -= U0 * Tmp(_(  1,r),_);
+          pU(urows1,_) -= U1 * Tmp(_(r+1,R),_);
+        }
+      }
+    }
+  }
+
+  return 0;
 }
 
 //== (gehodlr)sv =======
@@ -374,14 +471,48 @@ trs(Transpose trans, HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
   return 0;
 }
 
+//== (gehodlr)det =======
+template <typename T, typename TR>
+std::pair<T, int>
+det(HODLR_Matrix<T,TR>& H)
+{
+  using std::abs;
+  using std::log10;
+
+  // Compute the determinant in the form a*10^b to prevent over/underflow
+  // and avoid computing log10 each time.
+  T a = T(1);
+  int b = 0;
+
+  // For each factored diagonal block
+  for (auto box : boxes(H.tree)) {
+    const auto& Aii = H.Aii[box];
+    const auto& ipiv = H.ipiv[box];
+
+    for (auto i = ipiv.firstIndex(); i <= ipiv.lastIndex(); ++i) {
+      a *= Aii(i,i);
+
+      if (ipiv(i) != i)
+        a = -a;
+
+      // TODO: Optimize, consider case a == 0
+      while (abs(a) <   1) { a *= 10; b -= 1; }
+      while (abs(a) >= 10) { a /= 10; b += 1; }
+    }
+  }
+
+  return {a,b};
+}
 
 namespace blas {
 using flens::mv;
 using flens::mm;
 }
 namespace lapack {
-using flens::sv;
+using flens::trf;
 using flens::trs;
+using flens::sv;
+using flens::det;
 }
 
 } // end namespace flens
