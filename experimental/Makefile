@@ -16,7 +16,7 @@ probe:    LDLIBS += -llapack
 plr:      LDLIBS += -llapack
 plr_test: LDLIBS += -llapack
 plr_implicit: CXXFLAGS += -DWITH_OPENBLAS
-plr_implicit: LDLIBS += -L/usr/local/opt/openblas/lib -lopenblas -llapack
+plr_implicit: LDLIBS += -L/opt/OpenBLAS/lib -lopenblas -llapack
 
 test_hodlr: CXXFLAGS += -DWITH_OPENBLAS
-test_hodlr: LDLIBS += -L/usr/local/opt/openblas/lib -lopenblas -llapack
+test_hodlr: LDLIBS += -L/opt/OpenBLAS/lib -lopenblas -llapack

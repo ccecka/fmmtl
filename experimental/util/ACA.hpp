@@ -75,7 +75,7 @@ adaptive_cross_approx(const MatrixIn& A,
         goto return_statement;
 
       // Choose a random row from the remaining rows
-      size_type k = fmmtl::random<unsigned>::get(0,row_idx.size()-1);
+      size_type k = fmmtl::random<size_type>::get(0,row_idx.size()-1);
       i = row_idx[k];
       // Remove this row from consideration in the future
       row_idx[k] = row_idx.back();

@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
   std::vector<double> source = fmmtl::random_n(N);
   //for (auto& s : source) s *= s;
   std::sort(source.begin(), source.end());
+  auto polynomial = [](double x) { return 1 / std::sqrt(1e-2 + x*x); };
 
   // Create a test matrix
   MatrixType A(N,N);
@@ -44,6 +45,7 @@ int main(int argc, char** argv) {
       //A(i,j) = 0;
       //A(i,j) = 1;
       A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
+      //A(i,j) = polynomial(norm_2(source[i-1] - source[j-1]));
       //A(i,j) = std::abs(source[i-1] - source[j-1]);
       //A(i,j) = std::exp(std::complex<double>(0,i*j*6.28318530718/N));
       //A(i,j) = std::exp(-norm_2_sq(std::sin(6.28*(source[i-1]-source[j-1]))));
@@ -57,7 +59,7 @@ int main(int argc, char** argv) {
     for (unsigned j = 1; j <= K; ++j)
       B(i,j) = fmmtl::random<T>::get();
 
-
+#if 1
   // Ge MATRIX
   {
   std::cout << "N = " << N << std::endl;
@@ -116,7 +118,10 @@ int main(int argc, char** argv) {
   MatrixType ResX = exactX - testX;
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
+#endif
 
+
+#if 1
   // Sy MATRIX
   {
   std::cout << "N = " << N << std::endl;
@@ -143,15 +148,15 @@ int main(int argc, char** argv) {
   // Solves
   IndexVector ipiv;
   MatrixType testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve1: ");
     flens::lapack::sv(H, ipiv, testX);
   }
   testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve2: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
   testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve3: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
 
@@ -163,19 +168,20 @@ int main(int argc, char** argv) {
 
   MatrixType Acpy = A;
   MatrixType exactX = B;
-  { ScopeClock timer(std::string("Direct Solve: "));
+  { ScopeClock timer(std::string("Direct Solve1: "));
     flens::lapack::sv(Acpy, ipiv, exactX);
   }
   exactX = B;
-  { ScopeClock timer(std::string("Direct Solve: "));
+  { ScopeClock timer(std::string("Direct Solve2: "));
     flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
   }
 
   MatrixType ResX = exactX - testX;
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
+#endif
 
-
+#if 1
   // He MATRIX
   {
   std::cout << "N = " << N << std::endl;
@@ -202,15 +208,15 @@ int main(int argc, char** argv) {
   // Solves
   IndexVector ipiv;
   MatrixType testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve1: ");
     flens::lapack::sv(H, ipiv, testX);
   }
   testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve2: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
   testX = B;
-  { ScopeClock timer("HODLR  Solve: ");
+  { ScopeClock timer("HODLR  Solve3: ");
     flens::lapack::trs(NoTrans, H, ipiv, testX);
   }
 
@@ -223,17 +229,18 @@ int main(int argc, char** argv) {
 
   MatrixType Acpy = A;
   MatrixType exactX = B;
-  { ScopeClock timer(std::string("Direct Solve: "));
+  { ScopeClock timer(std::string("Direct Solve1: "));
     flens::lapack::sv(Acpy, ipiv, exactX);
   }
   exactX = B;
-  { ScopeClock timer(std::string("Direct Solve: "));
+  { ScopeClock timer(std::string("Direct Solve2: "));
     flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
   }
 
   MatrixType ResX = exactX - testX;
   std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
   }
+#endif
 
   //flens::verbose::ClosureLog::stop();
 }
