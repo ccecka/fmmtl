@@ -477,29 +477,32 @@ std::pair<T, int>
 det(HODLR_Matrix<T,TR>& H)
 {
   using std::abs;
-  using std::log10;
 
   // Compute the determinant in the form a*10^b to prevent over/underflow
-  // and avoid computing log10 each time.
+  // and avoid computing log10() each iteration.
   T a = T(1);
   int b = 0;
 
   // For each factored diagonal block
   for (auto box : boxes(H.tree)) {
-    const auto& Aii = H.Aii[box];
     const auto& ipiv = H.ipiv[box];
+    const auto Aii = H.Aii[box].diag(0);
 
-    for (auto i = ipiv.firstIndex(); i <= ipiv.lastIndex(); ++i) {
-      a *= Aii(i,i);
+    for (auto i = Aii.firstIndex(); i <= Aii.lastIndex(); ++i) {
+      a *= Aii(i);
 
       if (ipiv(i) != i)
         a = -a;
 
-      // TODO: Optimize, consider case a == 0
-      while (abs(a) <   1) { a *= 10; b -= 1; }
-      while (abs(a) >= 10) { a /= 10; b += 1; }
+      // TODO: Consider case a == 0
+      while (abs(a) <  1e-15) { a *= 1e+16; b -= 16; }
+      while (abs(a) >= 1e+16) { a *= 1e-16; b += 16; }
     }
   }
+
+  // Force 1 < abs(a) < 10
+  while (abs(a) <  1e0) { a *= 1e+1; b -= 1; }
+  while (abs(a) >= 1e1) { a *= 1e-1; b += 1; }
 
   return {a,b};
 }
