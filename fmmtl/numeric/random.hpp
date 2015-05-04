@@ -1,39 +1,31 @@
 #pragma once
 
 #include <limits>
-
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int_distribution.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/type_traits/is_integral.hpp>
-#include <boost/type_traits/is_floating_point.hpp>
-#include <boost/type_traits/is_same.hpp>
-
-#include <boost/iterator/counting_iterator.hpp>
-#include <boost/iterator/transform_iterator.hpp>
+#include <type_traits>
+#include <random>
 
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/numeric/Complex.hpp"
 
 namespace fmmtl {
 
-static boost::random::mt19937 default_generator;
+static std::mt19937 default_generator;
 
-using boost::enable_if;
-using boost::is_integral;
-using boost::is_floating_point;
+using std::enable_if;
+using std::is_integral;
+using std::is_floating_point;
 
 template <typename T, class Enable = void>
 struct random;
 
 template <typename T>
-struct random<T, typename enable_if<is_integral<T> >::type> {
+struct random<T, typename enable_if<is_integral<T>::value>::type> {
   typedef T result_type;
   result_type operator()(T a, T b) const { return get(a,b); }
   result_type operator()()         const { return get();    }
 
   static result_type get(T a, T b) {
-    boost::random::uniform_int_distribution<T> dist(a, b);
+    std::uniform_int_distribution<T> dist(a, b);
     return dist(default_generator);
   }
   static result_type get() {
@@ -42,13 +34,13 @@ struct random<T, typename enable_if<is_integral<T> >::type> {
 };
 
 template <typename T>
-struct random<T, typename enable_if<is_floating_point<T> >::type> {
+struct random<T, typename enable_if<is_floating_point<T>::value>::type> {
   typedef T result_type;
   result_type operator()(T a, T b) const { return get(a,b); }
   result_type operator()()         const { return get();    }
 
   static result_type get(T a, T b) {
-    boost::random::uniform_real_distribution<T> dist(a, b);
+    std::uniform_real_distribution<T> dist(a, b);
     return dist(default_generator);
   }
   static result_type get() {
@@ -104,9 +96,25 @@ struct random<Vec<N,T> > {
 
 class random_n {
   template <typename T>
-  struct generator {
-    T operator()(const std::size_t&) const { return random<T>::get(); }
+  struct random_iterator {
+    typedef std::input_iterator_tag iterator_category;
+    typedef T value_type;
+    typedef int difference_type;
+    typedef T* pointer;
+    typedef T& reference;
+
+    random_iterator(int n = 0) : i_(n) {}
+
+    T operator*() const { return random<T>::get(); }
+    random_iterator& operator++() { ++i_; return *this; }
+    int operator-(const random_iterator& o) const { return o.i_ - i_; }
+    bool operator==(const random_iterator& o) const { return i_ == o.i_; }
+    bool operator!=(const random_iterator& o) const { return i_ != o.i_; }
+
+   private:
+    std::size_t i_;
   };
+
   std::size_t N;
 
  public:
@@ -115,13 +123,8 @@ class random_n {
   template <typename Container>
   operator Container() const {
     typedef typename Container::value_type value_type;
-    return Container(
-        boost::make_transform_iterator(
-            boost::make_counting_iterator(std::size_t(0)),
-            generator<value_type>()),
-        boost::make_transform_iterator(
-            boost::make_counting_iterator(std::size_t(N)),
-            generator<value_type>()));
+    return Container(random_iterator<value_type>(0),
+                     random_iterator<value_type>(N));
   }
 };
 

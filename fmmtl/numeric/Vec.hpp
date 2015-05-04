@@ -225,7 +225,7 @@ FMMTL_INLINE const Vec<N,T>& operator+(const Vec<N,T>& a) {
 
 // ARITHEMTIC BINARY OPERATORS
 
-#if !defined(__CUDACC__)
+#if 1 //!defined(__CUDACC__)
 /** This is not being compiled with CUDA, but with C++11 compatible compiler.
  * Type promotion with SFINAE selection can be accomplished with
  *   template <typename T, typename U>

@@ -31,13 +31,15 @@ struct CountedProxyIterator
   size_type index() const {
     return *(this->base());
   }
- private:
-  Friend* p_;
-  friend Friend;
+
+  // private:
+  //friend Friend;
   CountedProxyIterator(I idx, Friend* p)
       : CountedProxyIterator::iterator_adaptor(boost::counting_iterator<I>(idx)),
         p_(p) {
   }
+ private:
+  Friend* p_;
   friend class boost::iterator_core_access;
   T dereference() const {
     return T(index(), p_);
