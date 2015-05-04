@@ -51,6 +51,18 @@ hodlr(const flens::Matrix<MA>& A, Tree&& tree) {
   return hodlr(A, std::move(tree), ACA{20,1e-10});
 }
 
+template <typename MA>
+flens::HODLR_Matrix<typename MA::Impl::ElementType, fmmtl::NDTree<1> >
+hodlr(const flens::Matrix<MA>& A) {
+  // Generate an integer tree -- TODO: Make implicit integer tree
+  using Tree = fmmtl::NDTree<1>;
+  std::vector<Vec<1,double> > ints(A.impl().numRows());
+  for (int i = 0; i < ints.size(); ++i) ints[i] = Vec<1,double>(i);
+  Tree tree(ints, 64);
+
+  return hodlr(A, std::move(tree));
+}
+
 
 // Simple API
 
