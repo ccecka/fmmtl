@@ -60,7 +60,7 @@ INCLUDES += -I$(BOOST_DIR) -I$(FLENS_DIR)
 CXXFLAGS  = -fopenmp -funroll-loops -O3 -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors
 
 # Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
-NVCCFLAGS := -arch=sm_20 -O3 --compiler-options "$(CXXFLAGS)" -Xcompiler -Wno-unused-parameter #-Xptxas="-v"
+NVCCFLAGS := -arch=sm_35 -O3 --compiler-options "$(CXXFLAGS)" -Xcompiler -Wno-unused-parameter #-Xptxas="-v"
 
 # Define any directories containing libraries
 #   To include directories use -Lpath/to/files
@@ -76,6 +76,7 @@ LDLIBS  +=
 
 ifeq ($(NDEBUG),1)
 	CXXFLAGS += -DNDEBUG
+	NVCCFLAGS += -DNDEBUG
 endif
 ifeq ($(FMMTL_NDEBUG),1)
 	CXXFLAGS += -DFMMTL_NDEBUG
@@ -132,7 +133,6 @@ $(EXEC): % : %.o
 %.o: %.cu
 	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c -o $@ $<
 	@$(NVCC) $(NVCCFLAGS) $(INCLUDES) -M -o $(DEPSFILE) $<
-	@sed -i -e "1s,.*.o,$@," $(DEPSFILE)       # Fix dep file file.o -> /path/file.o
 
 # Default rule for creating a .o file from a .kern.cpp file
 %.o: %.kern.cpp

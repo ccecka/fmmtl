@@ -19,4 +19,10 @@ plr_implicit: CXXFLAGS += -DWITH_OPENBLAS
 plr_implicit: LDLIBS += -L/opt/OpenBLAS/lib -lopenblas -llapack
 
 test_hodlr: CXXFLAGS += -DWITH_OPENBLAS
-test_hodlr: LDLIBS += -L/opt/OpenBLAS/lib -lopenblas -llapack
+test_hodlr: LDLIBS += -L/opt/OpenBLAS/lib -lopenblas -llapack -lcublas -lcusolver
+
+test_hodlr_gpu: CXXFLAGS += -DWITH_OPENBLAS -DWITH_CUBLAS -DWITH_CUSOLVER
+test_hodlr_gpu: LDLIBS += -L/opt/OpenBLAS/lib -lopenblas -llapack -lcublas -lcusolver
+
+profile_hodlr_gpu: CXXFLAGS += -DWITH_OPENBLAS -DWITH_CUBLAS -DWITH_CUSOLVER
+profile_hodlr_gpu: LDLIBS += -L/opt/OpenBLAS/lib -lopenblas -llapack -lcublas -lcusolver
