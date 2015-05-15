@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 
+//#include <thrust/device_malloc_allocator.h>
+
 #include "fmmtl/numeric/flens.hpp"
 
 #include "fmmtl/tree/TreeRange.hpp"
@@ -34,14 +36,19 @@ class HODLR_Matrix
   typedef T     ElementType;
   typedef int   IndexType;
 
+  // CPU
   using MatrixType  = GeMatrix<FullStorage<T> >;
   using IndexVector = DenseVector<Array<IndexType> >;
+  // GPU
+  //using MatrixType  = GeMatrix<FullStorage<T,ColMajor,IndexOptions<>,thrust::device_malloc_allocator<T> > >;
+  //using IndexVector = DenseVector<Array<IndexType, IndexOptions<>,thrust::device_malloc_allocator<IndexType> > >;
+
 
   /** Constructor
    */
   template <typename Matrix, typename ID>
   HODLR_Matrix(const Matrix& A, Tree&& t, ID&& interp_decomp)
-      : tree(std::move(t)), Aii(tree), U(tree), VT(tree)
+      : tree(std::move(t)), Aii(tree), U(tree), V(tree)
   {
     using box_type = typename Tree::box_type;
 
@@ -51,8 +58,8 @@ class HODLR_Matrix
 
     // Define the dyadic decomp traversal operator -- TODO: Use custom traversal?
     auto decomp_offdiag = [&](const box_type& sbox, const box_type& tbox) {
-      if (sbox == tbox) {  // This is a diagonal block
-        if (tbox.is_leaf()) {         // If diagonal leaf, store diagonal block and done
+      if (sbox == tbox) {             // This is a diagonal block
+        if (tbox.is_leaf()) {         // If diagonal leaf, store diagonal block
           auto rows = range(tbox);
           Aii[tbox] = A(rows,rows);
           return 0;
@@ -66,18 +73,18 @@ class HODLR_Matrix
         return 0;
 
       // Apply the interpolative decomposition to this off-diag block
-      std::tie(U[tbox],VT[sbox]) = interp_decomp(A(range(tbox),range(sbox)));
+      std::tie(U[tbox],V[sbox]) = interp_decomp(A(range(tbox),range(sbox)));
       //std::cout << "Level " << tbox.level() << ": " << num_rows(U[tbox]) << "," << num_cols(U[tbox]) << " -- " << num_rows(VT[sbox]) << "," << num_cols(VT[sbox]) << std::endl;
       //assert(num_cols(U[tbox]) != 0 && num_rows(VT[sbox]) != 0);
 
       // If this is a symmetric/hermitian HODLR, assign lower tri blocks
       if (IsSymmetricMatrix<Matrix>::value) {
-        U[sbox] = transpose(VT[sbox]);
-        VT[tbox] = transpose(U[tbox]);
+        U[sbox] = transpose(V[sbox]);
+        V[tbox] = transpose(U[tbox]);
       }
       if (IsHermitianMatrix<Matrix>::value) {
-        U[sbox] = conjTrans(VT[sbox]);
-        VT[tbox] = conjTrans(U[tbox]);
+        U[sbox] = conjTrans(V[sbox]);
+        V[tbox] = conjTrans(U[tbox]);
       }
 
       return 0;                      // Done with this block
@@ -103,7 +110,7 @@ class HODLR_Matrix
     for (auto& a : U) {
       result += num_rows(a) * num_cols(a);
     }
-    for (auto& a : VT) {
+    for (auto& a : V) {
       result += num_rows(a) * num_cols(a);
     }
     return result / (numRows()*numCols());
@@ -116,7 +123,7 @@ class HODLR_Matrix
 
   fmmtl::BoxBind<MatrixType,Tree>   Aii;   // Diagonal blocks (leaves only)
   fmmtl::BoxBind<MatrixType,Tree>   U;     // L2T blocks (idx by target box)
-  fmmtl::BoxBind<MatrixType,Tree>   VT;    // S2M blocks (idx by source box)
+  fmmtl::BoxBind<MatrixType,Tree>   V;     // S2M blocks (idx by source box)
 
   fmmtl::BoxBind<IndexVector,Tree>  ipiv;  // Pivoting info for Aii LU
 };
@@ -133,6 +140,7 @@ mv(Transpose trans, const ALPHA &alpha,
 {
   using box_type   = typename TR::box_type;
   using MatrixType = typename HODLR_Matrix<T,TR>::MatrixType;
+  using VectorType = typename MatrixType::Vector;
   using IndexType  = typename HODLR_Matrix<T,TR>::IndexType;
   const Underscore<IndexType> _;
 
@@ -153,13 +161,13 @@ mv(Transpose trans, const ALPHA &alpha,
         auto rows = range(tbox);
         y(rows) += alpha * H.Aii[tbox] * x(rows);
         return 0;
-      }                          // If diagonal non-leaf, partition both
+      }                           // If diagonal non-leaf, partition both
       return 3;
     }
 
     // Compute the off-diag block matvec using the low-rank approximation
     // XXX: Revisit temp
-    DenseVector<VY> temp = alpha * H.VT[sbox] * x(range(sbox));
+    VectorType temp = alpha * transpose(H.V[sbox]) * x(range(sbox));
     y(range(tbox)) += H.U[tbox] * temp;
     return 0;                    // Done with this block
   };
@@ -205,7 +213,7 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
 
     // Compute the off-diag block matvec using the low-rank approximation
     // XXX: Revisit temp
-    MatrixType temp = alpha * H.VT[sbox] * A(range(sbox),_);
+    MatrixType temp = alpha * transpose(H.V[sbox]) * A(range(sbox),_);
     B(range(tbox),_) += H.U[tbox] * temp;
     return 0;                    // Done with this block
   };
@@ -268,20 +276,20 @@ trf(HODLR_Matrix<T,TR>& H, VPIV &&)
         auto cbox1 = *(box.child_begin()+1);
         auto rows0 = range(cbox0);
         auto rows1 = range(cbox1);
-        auto& U0  = H.U[cbox0];      // box_u_inv[target child 0]
-        auto& U1  = H.U[cbox1];      // box_u_inv[target child 1]
-        auto& V0T = H.VT[cbox0];     // box_v_inv[source child 0]
-        auto& V1T = H.VT[cbox1];     // box_v_inv[source child 1]
+        auto& U0 = H.U[cbox0];
+        auto& U1 = H.U[cbox1];
+        auto& V0 = H.V[cbox0];
+        auto& V1 = H.V[cbox1];
 
-        unsigned r = num_rows(V1T), R = r + num_rows(V0T);
-        unsigned c = num_cols(U0),  C = c + num_cols(U1);
+        unsigned r = num_cols(V1), R = r + num_cols(V0);
+        unsigned c = num_cols(U0), C = c + num_cols(U1);
         ASSERT(R == C);
 
         // Construct the matrix K = I + [0,V1T;V0T,0] * [U0,0;0,U1]
         AiiInv = MatrixType(R,C);
         AiiInv.diag(0) = 1;
-        AiiInv(_(r+1,R), _(  1,c)) = V0T * U0;   // Upper right block
-        AiiInv(_(  1,r), _(c+1,C)) = V1T * U1;   // Lower left block
+        AiiInv(_(r+1,R), _(  1,c)) = transpose(V0) * U0;   // Upper right block
+        AiiInv(_(  1,r), _(c+1,C)) = transpose(V1) * U1;   // Lower left block
 
         // Compute LU factors into Aii
         flens::lapack::trf(AiiInv, ipiv);
@@ -294,8 +302,8 @@ trf(HODLR_Matrix<T,TR>& H, VPIV &&)
 
           // Apply the SMW to pU: (I + U*VT)^{-1} = I - U * (I+VT*U)^{-1} * VT
           MatrixType Tmp(R,num_cols(pU));
-          Tmp(_(  1,r),_) = V1T * pU(urows1,_);
-          Tmp(_(r+1,R),_) = V0T * pU(urows0,_);
+          Tmp(_(  1,r),_) = transpose(V1) * pU(urows1,_);
+          Tmp(_(r+1,R),_) = transpose(V0) * pU(urows0,_);
           // Solve KX = T and store into T -- Uses previously computed LU
           flens::lapack::trs(NoTrans, AiiInv, ipiv, Tmp);
           // Apply U to complete the SMW
@@ -364,25 +372,25 @@ sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
         auto cbox1 = *(box.child_begin()+1);
         auto rows0 = range(cbox0);
         auto rows1 = range(cbox1);
-        auto& U0  = H.U[cbox0];      // box_u_inv[target child 0]
-        auto& U1  = H.U[cbox1];      // box_u_inv[target child 1]
-        auto& V0T = H.VT[cbox0];     // box_v_inv[source child 0]
-        auto& V1T = H.VT[cbox1];     // box_v_inv[source child 1]
+        auto& U0 = H.U[cbox0];
+        auto& U1 = H.U[cbox1];
+        auto& V0 = H.V[cbox0];
+        auto& V1 = H.V[cbox1];
 
-        unsigned r = num_rows(V1T), R = r + num_rows(V0T);
-        unsigned c = num_cols(U0),  C = c + num_cols(U1);
+        unsigned r = num_cols(V1), R = r + num_cols(V0);
+        unsigned c = num_cols(U0), C = c + num_cols(U1);
         ASSERT(R == C);
 
         // Construct the matrix K = I + [0,V1T;V0T,0] * [U0,0;0,U1]
         AiiInv = MatrixType(R,C);
         AiiInv.diag(0) = 1;
-        AiiInv(_(r+1,R), _(  1,c)) = V0T * U0;   // Upper right block
-        AiiInv(_(  1,r), _(c+1,C)) = V1T * U1;   // Lower left block
+        AiiInv(_(r+1,R), _(  1,c)) = transpose(V0) * U0;   // Upper right block
+        AiiInv(_(  1,r), _(c+1,C)) = transpose(V1) * U1;   // Lower left block
 
         // Apply the SMW to X: (I + U*VT)^{-1} = I - U * (I+VT*U)^{-1} * VT
         MatrixType Tmp(R,num_cols(B));
-        Tmp(_(  1,r),_) = V1T * B(rows1,_);
-        Tmp(_(r+1,R),_) = V0T * B(rows0,_);
+        Tmp(_(  1,r),_) = transpose(V1) * B(rows1,_);
+        Tmp(_(r+1,R),_) = transpose(V0) * B(rows0,_);
         // Solve AiiInv X = Tmp and store into Tmp -- Also stores LU factors
         flens::lapack::sv(AiiInv, ipiv, Tmp);
         // Apply U to complete the SMW
@@ -397,8 +405,8 @@ sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
 
           // Apply the SMW to pU: (I + U*VT)^{-1} = I - U * (I+VT*U)^{-1} * VT
           MatrixType Tmp(R,num_cols(pU));
-          Tmp(_(  1,r),_) = V1T * pU(urows1,_);
-          Tmp(_(r+1,R),_) = V0T * pU(urows0,_);
+          Tmp(_(  1,r),_) = transpose(V1) * pU(urows1,_);
+          Tmp(_(r+1,R),_) = transpose(V0) * pU(urows0,_);
           // Solve KX = T and store into T -- Uses previously computed LU
           flens::lapack::trs(NoTrans, AiiInv, ipiv, Tmp);
           // Apply U to complete the SMW
@@ -448,17 +456,17 @@ trs(Transpose trans, HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
         auto cbox1 = *(box.child_begin()+1);
         auto rows0 = range(cbox0);
         auto rows1 = range(cbox1);
-        auto& U0  = H.U[cbox0];      // box_u_inv[target child 0]
-        auto& U1  = H.U[cbox1];      // box_u_inv[target child 1]
-        auto& V0T = H.VT[cbox0];     // box_v_inv[source child 0]
-        auto& V1T = H.VT[cbox1];     // box_v_inv[source child 1]
+        auto& U0 = H.U[cbox0];
+        auto& U1 = H.U[cbox1];
+        auto& V0 = H.V[cbox0];
+        auto& V1 = H.V[cbox1];
 
-        unsigned r = num_rows(V1T), R = r + num_rows(V0T);
+        unsigned r = num_cols(V1), R = r + num_cols(V0);
 
         // Apply the SMW to X: (I + U*VT)^{-1} = I - U * (I+VT*U)^{-1} * VT
         MatrixType Tmp(R,num_cols(B));
-        Tmp(_(  1,r),_) = V1T * B(rows1,_);
-        Tmp(_(r+1,R),_) = V0T * B(rows0,_);
+        Tmp(_(  1,r),_) = transpose(V1) * B(rows1,_);
+        Tmp(_(r+1,R),_) = transpose(V0) * B(rows0,_);
         // Solve KX = T and store into T -- Use previously computed LU
         flens::lapack::trs(NoTrans, AiiInv, ipiv, Tmp);
         // Apply U to complete the SMW

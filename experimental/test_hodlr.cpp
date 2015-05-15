@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
 
   unsigned N = 1 << 12;     // rows
   unsigned K = 1;           // cols of the rhs
-  unsigned leaf_size = 64;  // maximum size of the tree leaves
+  unsigned leaf_size = 32;  // maximum size of the tree leaves
 
   // Parse custom command line args
   for (int i = 1; i < argc; ++i) {
@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
   std::vector<double> source = fmmtl::random_n(N);
   //for (auto& s : source) s *= s;
   std::sort(source.begin(), source.end());
+
   auto polynomial = [](double x) { return 1 / std::sqrt(1e-2 + x*x); };
 
   // Create a test matrix
@@ -44,8 +45,8 @@ int main(int argc, char** argv) {
     for (unsigned j = i+1; j <= N; ++j)
       //A(i,j) = 0;
       //A(i,j) = 1;
-      A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
-      //A(i,j) = polynomial(norm_2(source[i-1] - source[j-1]));
+      //A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
+      A(i,j) = polynomial(norm_2(source[i-1] - source[j-1]));
       //A(i,j) = std::abs(source[i-1] - source[j-1]);
       //A(i,j) = std::exp(std::complex<double>(0,i*j*6.28318530718/N));
       //A(i,j) = std::exp(-norm_2_sq(std::sin(6.28*(source[i-1]-source[j-1]))));
@@ -107,11 +108,11 @@ int main(int argc, char** argv) {
 
   MatrixType Acpy = A;
   MatrixType exactX = B;
-  { ScopeClock timer(std::string("Direct Solve1: "));
+  { ScopeClock timer("Direct Solve1: ");
     flens::lapack::sv(Acpy, ipiv, exactX);
   }
   exactX = B;
-  { ScopeClock timer(std::string("Direct Solve2: "));
+  { ScopeClock timer("Direct Solve2: ");
     flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
   }
 
@@ -121,7 +122,7 @@ int main(int argc, char** argv) {
 #endif
 
 
-#if 1
+#if 0
   // Sy MATRIX
   {
   std::cout << "N = " << N << std::endl;
@@ -168,11 +169,11 @@ int main(int argc, char** argv) {
 
   MatrixType Acpy = A;
   MatrixType exactX = B;
-  { ScopeClock timer(std::string("Direct Solve1: "));
+  { ScopeClock timer("Direct Solve1: ");
     flens::lapack::sv(Acpy, ipiv, exactX);
   }
   exactX = B;
-  { ScopeClock timer(std::string("Direct Solve2: "));
+  { ScopeClock timer("Direct Solve2: ");
     flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
   }
 
@@ -181,7 +182,7 @@ int main(int argc, char** argv) {
   }
 #endif
 
-#if 1
+#if 0
   // He MATRIX
   {
   std::cout << "N = " << N << std::endl;
@@ -229,11 +230,11 @@ int main(int argc, char** argv) {
 
   MatrixType Acpy = A;
   MatrixType exactX = B;
-  { ScopeClock timer(std::string("Direct Solve1: "));
+  { ScopeClock timer("Direct Solve1: ");
     flens::lapack::sv(Acpy, ipiv, exactX);
   }
   exactX = B;
-  { ScopeClock timer(std::string("Direct Solve2: "));
+  { ScopeClock timer("Direct Solve2: ");
     flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
   }
 

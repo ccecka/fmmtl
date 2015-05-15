@@ -27,7 +27,7 @@
  * @note Only uses matrix-matrix products of A and transpose(A).
  */
 template <class MatrixIn,
-          class MatrixOut = flens::GeMatrix<flens::FullStorage<typename MatrixIn::ElementType> > >
+          class MatrixOut = typename MatrixIn::NoView>
 std::tuple<MatrixOut,MatrixOut>
 probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
   using T = typename MatrixIn::ElementType;
@@ -35,7 +35,9 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
   using size_type  = typename MatrixOut::IndexType;
   flens::Underscore<size_type> _;
 
-  using VectorType = flens::DenseVector<flens::Array<double> >;
+  using namespace flens;
+  // XXX: Fix with Allocator
+  using VectorType = DenseVector<Array<double> >;
 
   // A is an n x m matrix
   unsigned n = num_rows(A);
@@ -66,7 +68,7 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
 
   if (rc <= max_rank) {
     auto r = _(1,rc);
-    const flens::DiagMatrix<flens::ConstArrayView<double> > DM = D(r);
+    const DiagMatrix<ConstArrayView<double> > DM = D(r);
 
     return std::make_tuple(U2(_,r) * DM,
                            VT(r,r) * conjTrans(U1(_,r)));
