@@ -18,7 +18,7 @@
  */
 template <std::size_t N, typename T>
 struct Vec {
-  FMMTL_STATIC_ASSERT(N > 0, "Vec<N,T> needs N >= 1");
+  static_assert(N > 0, "Vec<N,T> needs N >= 1");
 
   T elem[N];
 
@@ -45,7 +45,7 @@ struct Vec {
   }
   FMMTL_INLINE Vec(const value_type& b0,
                    const value_type& b1) {
-    FMMTL_STATIC_ASSERT(N >= 2, "Too many arguments to Vec constructor");
+    static_assert(N >= 2, "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1;
     for_I(2) elem[i] = T(0);
     //std::fill(this->begin() + 2, this->end(), value_type());
@@ -53,7 +53,7 @@ struct Vec {
   FMMTL_INLINE Vec(const value_type& b0,
                    const value_type& b1,
                    const value_type& b2) {
-    FMMTL_STATIC_ASSERT(N >= 3,  "Too many arguments to Vec constructor");
+    static_assert(N >= 3,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2;
     for_I(3) elem[i] = T(0);
     //std::fill(this->begin() + 3, this->end(), value_type());
@@ -62,7 +62,7 @@ struct Vec {
                    const value_type& b1,
                    const value_type& b2,
                    const value_type& b3) {
-    FMMTL_STATIC_ASSERT(N >= 4,  "Too many arguments to Vec constructor");
+    static_assert(N >= 4,  "Too many arguments to Vec constructor");
     elem[0] = b0; elem[1] = b1; elem[2] = b2; elem[3] = b3;
     for_I(4) elem[i] = T(0);
     //std::fill(this->begin() + 4, this->end(), value_type());
@@ -398,14 +398,14 @@ namespace std {
 template <std::size_t I, std::size_t N, typename T>
 typename Vec<N,T>::reference
 get(Vec<N,T>& a) {
-  FMMTL_STATIC_ASSERT(I < N, "I must be less than N.");
+  static_assert(I < N, "I must be less than N.");
   return a.elem[I];
 }
 
 template <std::size_t I, std::size_t N, typename T>
 typename Vec<N,T>::const_reference
 get(const Vec<N,T>& a) {
-  FMMTL_STATIC_ASSERT(I < N, "I must be less than N.");
+  static_assert(I < N, "I must be less than N.");
   return a.elem[I];
 }
 

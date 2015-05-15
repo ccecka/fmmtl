@@ -46,9 +46,6 @@
 #  include <cassert>
 #  define FMMTL_ASSERT(expr) assert(expr)
 #endif
-// FMMTL_STATIC_ASSERT (for C++03 regions)
-#include <boost/static_assert.hpp>
-#define FMMTL_STATIC_ASSERT BOOST_STATIC_ASSERT_MSG
 
 // FMMTL_CUDA_CHECK
 #undef FMMTL_CUDA_CHECK

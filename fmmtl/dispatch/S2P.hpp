@@ -20,7 +20,7 @@ struct S2P_Functor<E, false> {
   inline const typename ExpansionTraits<E>::source_type&
   operator()(const typename ExpansionTraits<E>::source_type& source) const {
     // No S2P operator, make sure the types are convertible
-    FMMTL_STATIC_ASSERT(
+    static_assert(
         std::is_convertible<typename ExpansionTraits<E>::source_type,
                             typename ExpansionTraits<E>::point_type>::value,
         "source_type is not convertible to point_type and no S2P provided!");

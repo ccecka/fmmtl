@@ -20,7 +20,7 @@ struct T2P_Functor<E, false> {
   inline const typename ExpansionTraits<E>::target_type&
   operator()(const typename ExpansionTraits<E>::target_type& target) const {
     // No T2P operator, make sure the types are convertible
-    FMMTL_STATIC_ASSERT(
+    static_assert(
         std::is_convertible<typename ExpansionTraits<E>::target_type,
                             typename ExpansionTraits<E>::point_type>::value,
         "target_type is not convertible to point_type and no T2P provided!");
