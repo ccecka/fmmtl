@@ -15,15 +15,20 @@ class TickerNotifier {
   typedef typename duration_type::rep        tick_type;
 
   // Default constructor
-  TickerNotifier()
-      : starttime_(clock::now()) {}
+  TickerNotifier() {
+    start();
+  }
   // Listener object constructor
   explicit TickerNotifier(const Listener& owner)
-      : owner_(owner), starttime_(clock::now()) {}
+      : owner_(owner) {
+    start();
+  }
   // Forwarding listener object constructor
   template <typename... Args>
   explicit TickerNotifier(Args&&... args)
-      : owner_(args...), starttime_(clock::now()) {}
+      : owner_(std::forward<Args>(args)...) {
+    start();
+  }
   // Disable copying
   //TickerNotifier(const TickerNotifier&) = delete;
   //TickerNotifier& operator=(const TickerNotifier&) = delete;
@@ -65,7 +70,7 @@ std::ostream& operator<<(std::ostream& os, const TickerNotifier<T>& t) {
  */
 struct noop {
   template <typename T>
-  void operator()(const T&) const {}
+  inline void operator()(const T&) const {}
 };
 typedef TickerNotifier<noop> Clock;
 
@@ -81,8 +86,9 @@ typedef TickerNotifier<noop> Clock;
 struct TickerPrinter {
   TickerPrinter(const std::string& _msg = "", std::ostream& _os = std::cout)
       : msg(_msg), os(_os) {}
-  void operator()(const TickerNotifier<TickerPrinter>& t) {
-    os << msg << t << " secs" << std::endl;
+  inline void operator()(const TickerNotifier<TickerPrinter>& t) {
+    double secs = t.seconds();
+    os << msg << secs << " secs" << std::endl;
   }
   std::string msg;
   std::ostream& os;
