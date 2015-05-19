@@ -9,8 +9,7 @@
 #include <iostream>
 #include <iomanip>
 
-#include <boost/range.hpp>
-
+#include "fmmtl/meta/range.hpp"
 #include "fmmtl/tree/util/CountedProxyIterator.hpp"
 
 #include "fmmtl/util/Logger.hpp"
@@ -19,8 +18,6 @@
 #include "fmmtl/tree/MortonCoder.hpp"
 
 namespace fmmtl {
-using boost::has_range_iterator;
-
 
 /** In-place bucket sort using counting sort
  *
@@ -251,7 +248,7 @@ class NDTree {
     friend std::ostream& operator<<(std::ostream& s,
                                     const box_type& b) {
       size_type num_bodies = b.num_bodies();
-      size_type first_body = b.body_begin()->index();
+      size_type first_body = (*b.body_begin()).index();
       size_type last_body = first_body + num_bodies - 1;
 
       return s << "Box " << b.index()
@@ -278,9 +275,9 @@ class NDTree {
 
   /** Construct a tree encompassing a bounding box
    * and insert a range of points */
-  template <typename Range>
-  NDTree(const Range& rng, size_type n_crit = 256,
-         typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
+  template <typename Range,
+            class = typename std::enable_if<is_range<Range>::value>::type>
+  NDTree(const Range& rng, size_type n_crit = 256)
       : NDTree(rng.begin(), rng.end(), n_crit) {
   }
 

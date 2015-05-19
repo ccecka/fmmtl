@@ -1,7 +1,7 @@
 #pragma once
 
-#include <boost/iterator/iterator_adaptor.hpp>
-#include <boost/iterator/counting_iterator.hpp>
+#include <thrust/iterator/iterator_adaptor.h>
+#include <thrust/iterator/counting_iterator.h>
 
 namespace fmmtl {
 
@@ -14,14 +14,15 @@ namespace fmmtl {
  *
  * Note: Since this dereferences to a value rather than a reference,
  *       it does not fully satisfy the random-access-iterator concept. Thus,
- *       this should not be implemented with boost::transform_iterator.
+ *       this should not be implemented with thrust::transform_iterator.
  */
 template <typename T, typename Friend, typename I = std::size_t>
 struct CountedProxyIterator
-    : boost::iterator_adaptor<CountedProxyIterator<T,Friend,I>,  // Derived
-                              boost::counting_iterator<I>,       // BaseType
+    : thrust::iterator_adaptor<CountedProxyIterator<T,Friend,I>, // Derived
+                              thrust::counting_iterator<I>,      // BaseType
                               T,                                 // Value
-                              std::random_access_iterator_tag,   // Category
+                              thrust::use_default,               // System(thrust)
+                              std::random_access_iterator_tag,   // Traversal
                               T>                                 // Reference
 {
   typedef I size_type;
@@ -35,12 +36,12 @@ struct CountedProxyIterator
   // private:
   //friend Friend;
   CountedProxyIterator(I idx, Friend* p)
-      : CountedProxyIterator::iterator_adaptor(boost::counting_iterator<I>(idx)),
+      : CountedProxyIterator::iterator_adaptor(thrust::counting_iterator<I>(idx)),
         p_(p) {
   }
  private:
   Friend* p_;
-  friend class boost::iterator_core_access;
+  friend class thrust::iterator_core_access;
   T dereference() const {
     return T(index(), p_);
   }

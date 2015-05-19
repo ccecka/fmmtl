@@ -5,6 +5,7 @@
 
 #include "fmmtl/KernelMatrix.hpp"
 #include "fmmtl/Direct.hpp"
+#include "fmmtl/numeric/random.hpp"
 
 #include "UnitKernel.kern"
 #include "ExpKernel.kern"

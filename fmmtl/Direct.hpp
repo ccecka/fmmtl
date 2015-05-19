@@ -5,8 +5,7 @@
 
 #include <type_traits>
 
-#include <boost/range/has_range_iterator.hpp>
-
+#include "fmmtl/meta/range.hpp"
 #include "fmmtl/dispatch/S2T.hpp"
 
 namespace fmmtl {
@@ -49,7 +48,7 @@ direct(const Kernel& K,
 template <typename Kernel,
           typename SourceIter, typename ChargeIter, typename ResultIter>
 inline
-typename std::enable_if<!boost::has_range_iterator<SourceIter>::value>::type
+typename std::enable_if<!is_range<SourceIter>::value>::type
 direct(const Kernel& K,
        SourceIter p_first, SourceIter p_last,
        ChargeIter c_first, ResultIter r_first)
@@ -64,7 +63,7 @@ template <typename Kernel,
           typename SourceRange, typename ChargeRange,
           typename TargetRange, typename ResultRange>
 inline
-typename std::enable_if<boost::has_range_iterator<SourceRange>::value>::type
+typename std::enable_if<is_range<SourceRange>::value>::type
 direct(const Kernel& K,
        const SourceRange& s, const ChargeRange& c,
        const TargetRange& t, ResultRange& r)

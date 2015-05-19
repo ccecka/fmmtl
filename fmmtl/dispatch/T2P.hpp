@@ -16,6 +16,8 @@ struct T2P_Functor;
 /** No T2P operator, default to no-op */
 template <typename E>
 struct T2P_Functor<E, false> {
+  typedef const typename ExpansionTraits<E>::target_type& result_type;
+
   T2P_Functor(const E&) {}
   inline const typename ExpansionTraits<E>::target_type&
   operator()(const typename ExpansionTraits<E>::target_type& target) const {
@@ -31,8 +33,10 @@ struct T2P_Functor<E, false> {
 
 template <typename E>
 struct T2P_Functor<E, true> {
+  typedef typename ExpansionTraits<E>::point_type result_type;
+
   T2P_Functor(const E& e) : e_(e) {}
-  inline typename ExpansionTraits<E>::point_type
+  inline result_type
   operator()(const typename ExpansionTraits<E>::target_type& target) const {
     return e_.T2P(target);
   }

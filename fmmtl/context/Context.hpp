@@ -16,11 +16,11 @@
 
 #include "fmmtl/dispatch/S2P.hpp"
 #include "fmmtl/dispatch/T2P.hpp"
-#include <boost/range/adaptor/transformed.hpp>
+
+//#include <boost/range/adaptor/transformed.hpp>
 
 namespace fmmtl {
-using boost::adaptors::transformed;
-
+//using boost::adaptors::transformed;
 
 /** @struct SingleTreeContext
  * Single tree context which aliases the source and target trees.

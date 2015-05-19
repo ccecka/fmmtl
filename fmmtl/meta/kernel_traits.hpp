@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/iterator/iterator_adaptor.hpp>
+#include <thrust/iterator/iterator_adaptor.h>
 
 #include <iostream>
 
@@ -33,7 +33,7 @@ struct KernelTraits {
  protected:
     // A dummy iterator adaptor to check for templated vectorized methods
   template <typename T>
-  struct dumb_iterator : public boost::iterator_adaptor<dumb_iterator<T>,T*> {};
+  struct dumb_iterator : public thrust::iterator_adaptor<dumb_iterator<T>,T*> {};
 
   typedef dumb_iterator<source_type> source_iterator;
   typedef dumb_iterator<charge_type> charge_iterator;

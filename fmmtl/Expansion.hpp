@@ -15,7 +15,7 @@
 // Protect against C++11 when compiling with nvcc
 #if !defined(FMMTL_KERNEL)
 # include <type_traits>
-# include <boost/range/has_range_iterator.hpp>
+# include "fmmtl/meta/range.hpp"
 # include "fmmtl/KernelMatrix.hpp"
 #endif
 
@@ -71,8 +71,8 @@ struct Expansion
   typename std::enable_if<
     !std::is_same<TR, target_type>::value &&
     !std::is_same<SR, source_type>::value &&
-    boost::has_range_iterator<TR>::value &&
-    boost::has_range_iterator<SR>::value,
+    is_range<TR>::value &&
+    is_range<SR>::value,
   kernel_matrix<expansion_type, TR, SR> >::type
   operator()(const TR& t,
              const SR& s) const {

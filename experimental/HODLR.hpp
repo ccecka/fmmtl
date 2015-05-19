@@ -53,14 +53,22 @@ hodlr(const flens::Matrix<MA>& A, Tree&& tree) {
 
 template <typename MA>
 flens::HODLR_Matrix<typename MA::Impl::ElementType, fmmtl::NDTree<1> >
-hodlr(const flens::Matrix<MA>& A) {
+hodlr(const flens::Matrix<MA>& A, int leaf_size) {
   // Generate an integer tree -- TODO: Make implicit integer tree
   using Tree = fmmtl::NDTree<1>;
   std::vector<Vec<1,double> > ints(A.impl().numRows());
   for (int i = 0; i < ints.size(); ++i) ints[i] = Vec<1,double>(i);
-  Tree tree(ints, 64);
+  Tree tree(ints, leaf_size);
+  // NDTree is stable, no need to permute data
+  //assert(std::equal(ints.begin(), ints.end(), permute_begin(tree, ints.begin())));
 
   return hodlr(A, std::move(tree));
+}
+
+template <typename MA>
+flens::HODLR_Matrix<typename MA::Impl::ElementType, fmmtl::NDTree<1> >
+hodlr(const flens::Matrix<MA>& A) {
+  return hodlr(A, 64);
 }
 
 
@@ -70,23 +78,16 @@ hodlr(const flens::Matrix<MA>& A) {
  */
 template <typename T>
 flens::HODLR_Matrix<T, fmmtl::NDTree<1> >
-gehodlr(char order, T* data, int n, int lda, int leaf_size) {
-  // Generate an integer tree -- TODO: Make implicit integer tree
-  using Tree = fmmtl::NDTree<1>;
-  std::vector<Vec<1,double> > ints(n);
-  for (int i = 0; i < n; ++i) ints[i] = Vec<1,double>(i);
-  Tree tree(ints, leaf_size);
-  // NDTree is stable, no need to permute data
-  //assert(std::equal(ints.begin(), ints.end(), permute_begin(tree, ints.begin())));
-
+gehodlr(char order, T* data, int n, int lda, int leaf_size)
+{
   if (order == 'c' || order == 'C') {
     using Storage = flens::FullStorageView<T, flens::ColMajor>;
     const flens::GeMatrix<Storage> A = Storage(n, n, data, lda);
-    return hodlr(A, std::move(tree));
+    return hodlr(A, leaf_size);
   } else if (order == 'r' || order == 'R') {
     using Storage = flens::FullStorageView<T, flens::RowMajor>;
     const flens::GeMatrix<Storage> A = Storage(n, n, data, lda);
-    return hodlr(A, std::move(tree));
+    return hodlr(A, leaf_size);
   }
   fprintf(stderr, "Assertion failed: %s, %s(), %d at \'%s\'\n",
           __FILE__, __func__, __LINE__, "Invalid parameter: order");
@@ -97,27 +98,19 @@ gehodlr(char order, T* data, int n, int lda, int leaf_size) {
  */
 template <typename T>
 flens::HODLR_Matrix<T, fmmtl::NDTree<1> >
-syhodlr(char order, char uplo, T* data, int n, int lda, int leaf_size) {
-  // Generate an integer tree -- TODO: Make implicit integer tree
-  using Tree = fmmtl::NDTree<1>;
-  std::vector<Vec<1,double> > ints(n);
-  for (int i = 0; i < n; ++i) ints[i] = Vec<1,double>(i);
-  Tree tree(ints, leaf_size);
-  // NDTree is stable, no need to permute data
-  //assert(std::equal(ints.begin(), ints.end(), permute_begin(tree, ints.begin())));
-
+syhodlr(char order, char uplo, T* data, int n, int lda, int leaf_size)
+{
   assert(uplo == 'U' || uplo == 'L');
   flens::StorageUpLo _uplo = (uplo == 'U' ? flens::Upper : flens::Lower);
 
   if (order == 'c' || order == 'C') {
     using Storage = flens::FullStorageView<T, flens::ColMajor>;
     const flens::SyMatrix<Storage> A(Storage(n, n, data, lda), _uplo);
-    return hodlr(A, std::move(tree));
-  } else {
-    assert(order == 'r' || order == 'R');
+    return hodlr(A, leaf_size);
+  } else if (order == 'r' || order == 'R') {
     using Storage = flens::FullStorageView<T, flens::RowMajor>;
     const flens::SyMatrix<Storage> A(Storage(n, n, data, lda), _uplo);
-    return hodlr(A, std::move(tree));
+    return hodlr(A, leaf_size);
   }
   fprintf(stderr, "Assertion failed: %s, %s(), %d at \'%s\'\n",
           __FILE__, __func__, __LINE__, "Invalid parameter: order");
@@ -128,27 +121,19 @@ syhodlr(char order, char uplo, T* data, int n, int lda, int leaf_size) {
  */
 template <typename T>
 flens::HODLR_Matrix<T, fmmtl::NDTree<1> >
-hehodlr(char order, char uplo, T* data, int n, int lda, int leaf_size) {
-  // Generate an integer tree -- TODO: Make implicit integer tree
-  using Tree = fmmtl::NDTree<1>;
-  std::vector<Vec<1,double> > ints(n);
-  for (int i = 0; i < n; ++i) ints[i] = Vec<1,double>(i);
-  Tree tree(ints, leaf_size);
-  // NDTree is stable, no need to permute data
-  //assert(std::equal(ints.begin(), ints.end(), permute_begin(tree, ints.begin())));
-
+hehodlr(char order, char uplo, T* data, int n, int lda, int leaf_size)
+{
   assert(uplo == 'U' || uplo == 'L');
   flens::StorageUpLo _uplo = (uplo == 'U' ? flens::Upper : flens::Lower);
 
   if (order == 'c' || order == 'C') {
     using Storage = flens::FullStorageView<T, flens::ColMajor>;
-    const flens::SyMatrix<Storage> A(Storage(n, n, data, lda), _uplo);
-    return hodlr(A, std::move(tree));
-  } else {
-    assert(order == 'r' || order == 'R');
+    const flens::HeMatrix<Storage> A(Storage(n, n, data, lda), _uplo);
+    return hodlr(A, leaf_size);
+  } else if (order == 'r' || order == 'R') {
     using Storage = flens::FullStorageView<T, flens::RowMajor>;
-    const flens::SyMatrix<Storage> A(Storage(n, n, data, lda), _uplo);
-    return hodlr(A, std::move(tree));
+    const flens::HeMatrix<Storage> A(Storage(n, n, data, lda), _uplo);
+    return hodlr(A, leaf_size);
   }
   fprintf(stderr, "Assertion failed: %s, %s(), %d at \'%s\'\n",
           __FILE__, __func__, __LINE__, "Invalid parameter: order");

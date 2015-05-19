@@ -11,8 +11,10 @@
 #include <iostream>
 #include <iomanip>
 
-#include <boost/range.hpp>
 #include <boost/iterator/permutation_iterator.hpp>
+#include <boost/iterator/transform_iterator.hpp>
+
+#include "fmmtl/meta/range.hpp"
 
 #include "fmmtl/tree/util/CountedProxyIterator.hpp"
 
@@ -23,7 +25,6 @@
 #include "fmmtl/numeric/bits.hpp"
 
 namespace fmmtl {
-using boost::has_range_iterator;
 
 
 //! Class for tree structure
@@ -179,7 +180,7 @@ class BallTree {
     //! Write a Box to an output stream
     friend std::ostream& operator<<(std::ostream& s, const box_type& b) {
       size_type num_bodies = b.num_bodies();
-      size_type first_body = b.body_begin()->index();
+      size_type first_body = (*b.body_begin()).index();
       size_type last_body = first_body + num_bodies - 1;
       size_type parent_idx = b.index()==0 ? 0 : b.parent().index();
 
@@ -209,9 +210,9 @@ class BallTree {
 
   /** Construct a tree encompassing a bounding box
    * and insert a range of points */
-  template <typename Range>
-  BallTree(const Range& rng, size_type n_crit = 256,
-           typename std::enable_if<has_range_iterator<Range>::value>::type* = 0)
+  template <typename Range,
+            class = typename std::enable_if<is_range<Range>::value>::type>
+  BallTree(const Range& rng, size_type n_crit = 256)
       : BallTree(rng.begin(), rng.end(), n_crit) {
   }
 
