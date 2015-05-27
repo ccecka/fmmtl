@@ -34,8 +34,11 @@ struct ProbeSVDOrIdentity {
  */
 template <typename MA, typename STree, typename TTree, typename ID>
 flens::PLR_Matrix<typename MA::Impl::ElementType, STree, TTree>
-plr(const flens::Matrix<MA>& A, STree&& stree, TTree&& ttree, ID id) {
-  return {A.impl(), std::move(stree), std::move(ttree), id};
+plr(const flens::Matrix<MA>& A,
+    STree&& stree, TTree&& ttree,
+    ID id,
+    int init_depth = 0) {
+  return {A.impl(), std::move(stree), std::move(ttree), id, init_depth};
 }
 
 template <typename MA, typename STree, typename TTree>
@@ -142,7 +145,7 @@ template <unsigned DT, unsigned DS,
 flens::PLR_Matrix<T, fmmtl::NDTree<DT>, fmmtl::NDTree<DS> >
 geplr(char order, T* data, int n, int m, int lda,
       const TT* trgs, const TS* srcs,
-      unsigned max_rank, double eps_tol, unsigned init_depth = 0)
+      int max_rank, double eps_tol, unsigned init_depth = 0)
 {
   ScopeClock plr_construction_timer("PLR Matrix Construction: ");
 
@@ -182,7 +185,7 @@ geplr(char order, T* data, int n, int m, int lda,
     }
 
     return plr(A, std::move(stree), std::move(ttree),
-               ProbeSVDOrIdentity{max_rank,eps_tol});
+               ProbeSVDOrIdentity{max_rank,eps_tol}, init_depth);
   } else if (order == 'r' || order == 'R') {
     using Storage = flens::FullStorageView<T, flens::RowMajor>;
     flens::GeMatrix<Storage> A = Storage(n, m, data, lda);
@@ -208,8 +211,11 @@ geplr(char order, T* data, int n, int m, int lda,
     }
 
     return plr(A, std::move(stree), std::move(ttree),
-               ProbeSVDOrIdentity{max_rank,eps_tol});
+               ProbeSVDOrIdentity{max_rank,eps_tol}, init_depth);
   }
+  fprintf(stderr, "Assertion failed: %s, %s(), %d at \'%s\'\n",
+          __FILE__, __func__, __LINE__, "Invalid parameter: order");
+  abort();
 }
 
 

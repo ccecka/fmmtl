@@ -40,8 +40,7 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
   using VectorType = DenseVector<Array<double> >;
 
   // A is an n x m matrix
-  unsigned n = num_rows(A);
-  unsigned m = num_cols(A);
+  unsigned n = num_rows(A), m = num_cols(A);
   unsigned rc = std::min(max_rank + 10, std::min(n,m));
 
   // Construct a random matrix
@@ -49,18 +48,20 @@ probe_svd(const MatrixIn& A, const unsigned max_rank, const double eps_tol) {
   fillRandom(R1);
 
   // Factor A^T * R1 (which is m x rc)
-  // TODO: Use an over-write?
-  MatrixOut  U1(m,rc), VT(rc,rc);
+  MatrixOut U1 = conjTrans(A) * R1;
+  MatrixOut VT(rc,rc);
   VectorType D(rc);
-  flens::lapack::svd(flens::lapack::SVD::Save, flens::lapack::SVD::None,
-                     MatrixOut(conjTrans(A) * R1),
+  flens::lapack::svd(flens::lapack::SVD::Overwrite, flens::lapack::SVD::None,
+                     U1,
                      D, U1, VT);
+
+  // TODO: Early exit?
 
   // Factor A * U1 (which is n x rc)
   // Reuse VT and D
-  MatrixOut U2(n,rc);
-  flens::lapack::svd(flens::lapack::SVD::Save, flens::lapack::SVD::Save,
-                     MatrixOut(A * U1),
+  MatrixOut U2 = A * U1;
+  flens::lapack::svd(flens::lapack::SVD::Overwrite, flens::lapack::SVD::Save,
+                     U2,
                      D, U2, VT);
 
   // Find the eps-rank

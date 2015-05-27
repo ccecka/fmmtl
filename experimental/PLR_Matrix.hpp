@@ -43,10 +43,12 @@ class PLR_Matrix
 
   // CPU
   using MatrixType  = GeMatrix<FullStorage<T> >;
+  using VectorType  = DenseVector<Array<T> >;
   using IndexVector = DenseVector<Array<IndexType> >;
   // GPU
-  //using MatrixType  = GeMatrix<FullStorage<T,ColMajor,IndexOptions<>,thrust::device_malloc_allocator<T> > >;
-  //using IndexVector = DenseVector<Array<IndexType, IndexOptions<>,thrust::device_malloc_allocator<IndexType> > >;
+  //using MatrixType  = GeMatrix<FullStorage<T, ColMajor, IndexOptions<>, thrust::device_malloc_allocator<T> > >;
+  //using VectorType  = DenseVector<Array<T, IndexOptions<>, thrust::device_malloc_allocator<T> > >;
+  //using IndexVector = DenseVector<Array<IndexType, IndexOptions<>, thrust::device_malloc_allocator<IndexType> > >;
 
   // The trees defining the partitioning of the matrix
   TargetTreeType ttree;
@@ -69,7 +71,7 @@ class PLR_Matrix
    */
   template <typename Matrix, typename ID>
   PLR_Matrix(const Matrix& A, TTree&& tt, STree&& st, ID&& interp_decomp,
-             int init_depth = 2)
+             int init_depth = 0)
       : ttree(std::move(tt)), stree(std::move(st)),
         leaf_nodes(ttree.size()), leaf_count(ttree.size())
   {
@@ -145,12 +147,23 @@ mv(Transpose trans, const ALPHA &alpha,
   ASSERT(trans==NoTrans);
 
   if (y.numRows() == 0) {
+    ASSERT(beta == BETA(0));
     y.resize(H.numRows());
   } else if (beta != BETA(1)) {
     y *= beta;
   }
 
-  // TODO: In-permutation
+  using VectorType = typename PLR_Matrix<T,ST,TT>::VectorType;
+
+  // Instead of transposing y in and out, create a temporary to accumulate into
+  VectorType py(y.length());
+  VectorType px(x.length());
+
+  // In-permutation
+  auto sperm = H.stree.permute_begin();
+  for (int i = 0; i < H.numCols(); ++i)
+    px(i+px.firstIndex()) = x(sperm[i]+x.firstIndex());
+
 
 #pragma omp parallel default(shared)
   for (unsigned level = 0; level < H.ttree.levels(); ++level) {
@@ -172,17 +185,20 @@ mv(Transpose trans, const ALPHA &alpha,
 
         // Apply the (t,s) block
         if (num_rows(leaf.U) == 0) {
-          y(cols) += alpha * leaf.V * x(rows);
+          py(cols) += alpha * leaf.V * px(rows);
         } else {
           // XXX revisit temp
-          DenseVector<VY> temp = alpha * leaf.V * x(rows);
-          y(cols) += leaf.U * temp;
+          VectorType temp = alpha * leaf.V * px(rows);
+          py(cols) += leaf.U * temp;
         }
       }
     }
   }
 
-  // TODO: Out-permutation
+  // Out-permutation
+  auto tperm = H.ttree.permute_begin();
+  for (int i = 0; i < H.numRows(); ++i)
+    y(tperm[i]+y.firstIndex()) += py(i+py.firstIndex());
 }
 
 
@@ -203,12 +219,19 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
   ASSERT(transH == NoTrans && transA == NoTrans);
 
   if (B.numRows() == 0 || B.numCols() == 0) {
-    B.resize(A.numRows(), A.numCols(), A.firstRow(), A.firstCol());
+    B.resize(A.numRows(), A.numCols());
   } else if (beta != BETA(1)) {
     B *= beta;
   }
 
-  // TODO: In-permutation
+  // Instead of transposing y in and out, create a temporary to accumulate into
+  MatrixType pB(B.numRows(), B.numCols());
+  MatrixType pA(A.numRows(), A.numCols());
+
+  // In-permutation
+  auto sperm = H.stree.permute_begin();
+  for (int i = 0; i < H.numCols(); ++i)
+    pA(i+pA.firstRow(),_) = A(sperm[i]+A.firstRow(),_);
 
 #pragma omp parallel default(shared)
   for (unsigned level = 0; level < H.ttree.levels(); ++level) {
@@ -230,17 +253,20 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
 
         // Apply the (t,s) block
         if (num_rows(leaf.U) == 0) {
-          B(cols,_) += alpha * leaf.V * A(rows,_);
+          pB(cols,_) += alpha * leaf.V * pA(rows,_);
         } else {
           // XXX revisit temp
-          MatrixType temp = alpha * leaf.V * A(rows,_);
-          B(cols,_) += leaf.U * temp;
+          MatrixType temp = alpha * leaf.V * pA(rows,_);
+          pB(cols,_) += leaf.U * temp;
         }
       }
     }
   }
 
-  // TODO: Out-permutation
+  // Out-permutation
+  auto tperm = H.ttree.permute_begin();
+  for (int i = 0; i < H.numRows(); ++i)
+    B(tperm[i]+B.firstRow(),_) += pB(i+pB.firstRow(),_);
 }
 
 namespace blas {
