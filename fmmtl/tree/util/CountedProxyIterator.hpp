@@ -33,8 +33,8 @@ struct CountedProxyIterator
     return *(this->base());
   }
 
-  // private:
-  //friend Friend;
+ private:
+  friend Friend;
   CountedProxyIterator(I idx, Friend* p)
       : CountedProxyIterator::iterator_adaptor(thrust::counting_iterator<I>(idx)),
         p_(p) {

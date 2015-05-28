@@ -3,7 +3,7 @@
 #include <iterator>
 #include <vector>
 
-#include <boost/iterator/permutation_iterator.hpp>
+#include <thrust/iterator/permutation_iterator.h>
 
 
 namespace fmmtl {
@@ -57,8 +57,8 @@ BoxBind<T,Tree> make_box_binding(const Tree& tree) {
 /** Permute iterators into the same order as in a tree
  */
 template <typename Tree, typename RandomAccessIter>
-using body_permute_iterator = boost::permutation_iterator<RandomAccessIter,
-                                                          typename Tree::permute_iterator>;
+using body_permute_iterator = thrust::permutation_iterator<RandomAccessIter,
+                                                           typename Tree::permute_iterator>;
 
 /** Tranform (permute) an iterator so its traversal follows the same order as
  * the bodies contained in a tree
@@ -66,13 +66,13 @@ using body_permute_iterator = boost::permutation_iterator<RandomAccessIter,
 template <typename Tree, typename RandomAccessIter>
 body_permute_iterator<Tree, RandomAccessIter>
 permute_begin(const Tree& tree, RandomAccessIter iter) {
-  return boost::make_permutation_iterator(iter, tree.permute_begin());
+  return thrust::make_permutation_iterator(iter, tree.permute_begin());
 }
 
 template <typename Tree, typename RandomAccessIter>
 body_permute_iterator<Tree, RandomAccessIter>
 permute_end(const Tree& tree, RandomAccessIter iter) {
-  return boost::make_permutation_iterator(iter, tree.permute_end());
+  return thrust::make_permutation_iterator(iter, tree.permute_end());
 }
 
 /** Tranform (permute) an iterator so its traversal follows the same order as
@@ -88,7 +88,7 @@ permute_iter(const Tree& tree,
              typename Tree::body_iterator bit,
              RandomAccessIter iter) {
   const auto i = std::distance(tree.body_begin(), bit);
-  return boost::make_permutation_iterator(iter, tree.permute_begin() + i);
+  return thrust::make_permutation_iterator(iter, tree.permute_begin() + i);
 }
 
 

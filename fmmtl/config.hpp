@@ -11,11 +11,9 @@
 #  define FMMTL_INLINE inline
 #endif
 
-#if defined(FMMTL_WITH_CUDA)   // Enable CUDA/Thrust accleration
-#  include <thrust/version.h>
-#  if (THRUST_VERSION < 100700)
-#    error Need Thrust v1.7. Please upgrade to CUDA 5.5.
-#  endif
+#include <thrust/version.h>
+#if (THRUST_VERSION < 100700)
+#  error Need Thrust v1.7. Please upgrade to CUDA 5.5.
 #endif
 
 // Enable performance options in NDEBUG mode

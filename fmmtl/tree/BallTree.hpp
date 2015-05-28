@@ -11,11 +11,7 @@
 #include <iostream>
 #include <iomanip>
 
-#include <boost/iterator/permutation_iterator.hpp>
-#include <boost/iterator/transform_iterator.hpp>
-
 #include "fmmtl/meta/range.hpp"
-
 #include "fmmtl/tree/util/CountedProxyIterator.hpp"
 
 #include "fmmtl/util/Logger.hpp"
@@ -373,7 +369,7 @@ class BallTree {
     struct pair2point {
       point_type& operator()(point_t& p) const { return p.first; }
     };
-    using proj = boost::transform_iterator<pair2point, decltype(point.begin())>;
+    using proj = thrust::v2::transform_iterator<pair2point, decltype(point.begin())>;
 
     // The number of leaf boxes that will be created
     // (Smallest power of two greater than or equal to ceil(N/NCRIT))

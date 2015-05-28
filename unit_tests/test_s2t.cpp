@@ -9,6 +9,8 @@
 
 #include "fmmtl/dispatch/S2T.hpp"
 
+#include "fmmtl/numeric/random.hpp"
+
 #include <vector>
 #include <set>
 

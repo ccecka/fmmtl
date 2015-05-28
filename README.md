@@ -25,11 +25,12 @@ Contributors:
 * Esmail Fadae, Brian Bresnahan
 
 Dependencies:
-* [g++ 4.8](http://gcc.gnu.org/) or higher.
-* [Boost library](http://www.boost.org/) headers. (Tested with version 1.53)
+* [g++ 4.7](http://gcc.gnu.org/) or higher.
+* [Thrust Header Library](https://github.com/thrust/thrust). (Tested with version 1.8)
+* Experimental: [FLENS Header Library](https://github.com/ccecka/FLENS). (Extended with CUBLAS/CUSOLVER support)
 
 Optional:
-* [CUDA 5.5 and Thrust](https://developer.nvidia.com/cuda-downloads) for GPU acceleration.
+* [CUDA 5.5+](https://developer.nvidia.com/cuda-downloads) for GPU acceleration.
 
 
 Building:

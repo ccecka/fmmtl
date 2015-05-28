@@ -3,6 +3,7 @@
 
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/tree/KDTree.hpp"
+#include "fmmtl/numeric/random.hpp"
 
 #include "fmmtl/util/Clock.hpp"
 

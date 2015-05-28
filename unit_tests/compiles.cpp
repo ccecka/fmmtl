@@ -1,4 +1,5 @@
 #include "fmmtl/KernelMatrix.hpp"
+#include "fmmtl/numeric/random.hpp"
 
 #include "KernelSkeleton.kern"
 

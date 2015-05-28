@@ -6,6 +6,7 @@
 #include "fmmtl/KernelMatrix.hpp"
 #include "fmmtl/Direct.hpp"
 #include "fmmtl/util/Clock.hpp"
+#include "fmmtl/numeric/random.hpp"
 
 #include "BarycentricTaylor.hpp"
 

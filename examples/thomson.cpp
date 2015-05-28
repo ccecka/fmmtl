@@ -9,6 +9,7 @@
 #include "fmmtl/KernelMatrix.hpp"
 #include "fmmtl/Direct.hpp"
 #include "fmmtl/util/Clock.hpp"
+#include "fmmtl/numeric/random.hpp"
 
 // FMM operator for the laplace potential/force (1/|x-y|)
 #include "LaplaceSpherical.hpp"

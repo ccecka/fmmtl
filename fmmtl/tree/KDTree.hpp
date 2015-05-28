@@ -11,8 +11,6 @@
 #include <iostream>
 #include <iomanip>
 
-#include <boost/iterator/permutation_iterator.hpp>
-
 #include "fmmtl/meta/range.hpp"
 #include "fmmtl/tree/util/CountedProxyIterator.hpp"
 

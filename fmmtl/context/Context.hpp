@@ -10,6 +10,7 @@
 
 #include "fmmtl/meta/kernel_traits.hpp"
 #include "fmmtl/meta/tree_traits.hpp"
+#include "fmmtl/meta/range.hpp"
 #include "fmmtl/tree/TreeData.hpp"
 
 #include "fmmtl/FMMOptions.hpp"
@@ -17,10 +18,7 @@
 #include "fmmtl/dispatch/S2P.hpp"
 #include "fmmtl/dispatch/T2P.hpp"
 
-//#include <boost/range/adaptor/transformed.hpp>
-
 namespace fmmtl {
-//using boost::adaptors::transformed;
 
 /** @struct SingleTreeContext
  * Single tree context which aliases the source and target trees.
