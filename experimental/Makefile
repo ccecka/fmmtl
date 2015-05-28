@@ -36,3 +36,7 @@ profile_hodlr_gpu: LDLIBS += $(OPENBLAS_LIB) -lopenblas -lcublas -lcusolver
 
 test_plr: CXXFLAGS += -DWITH_OPENBLAS
 test_plr: LDLIBS += $(OPENBLAS_LIB) -lopenblas
+
+test_plr_c: PLR.o
+test_plr_c: CXXFLAGS += -DWITH_OPENBLAS
+test_plr_c: LDLIBS += $(OPENBLAS_LIB) -lopenblas

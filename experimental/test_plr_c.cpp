@@ -1,7 +1,11 @@
 
 #include "PLR.hpp"
 
+extern "C" {
+#include "PLR.h"
+}
 
+#include "fmmtl/numeric/Vec.hpp"
 
 
 
@@ -35,7 +39,7 @@ int main(int argc, char** argv) {
   const Underscore<IndexType> _;
 
   // Initialize the sources/targets as random values
-  std::vector<double> source = fmmtl::random_n(N);
+  std::vector<Vec<2,double> > source = fmmtl::random_n(N);
   //for (auto& s : source) s *= s;
   //std::sort(source.begin(), source.end());
 
@@ -62,22 +66,27 @@ int main(int argc, char** argv) {
     for (unsigned j = 1; j <= K; ++j)
       B(i,j) = fmmtl::random<T>::get();
 
-  MatrixType testR, exactR;
+
+  MatrixType testR(N,K), exactR(N,K);
   { ScopeClock timer("Direct Matvec: ");
     exactR = A * B;
   }
 
 
-  //auto H = plr(A);
+  double* raw_p = reinterpret_cast<double*>(source.data());
+  double _Complex* raw_a = reinterpret_cast<double _Complex*>(A.data());
+  ZPLR2D_Handle* plr = zplr2d('C',
+                              raw_a, A.numRows(), A.numCols(), A.leadingDimension(),
+                              raw_p, raw_p,
+                              20, 1e-10);
 
-  auto H = geplr<1,1>('C',
-                      A.data(), A.numRows(), A.numCols(), A.leadingDimension(),
-                      source.data(), source.data(),
-                      10, 1e-10, 2);
-
-  { ScopeClock timer("PLR Matvec:    ");
-    testR = H * B;
+  { ScopeClock timer("PLR Matvec: ");
+  zplr2dmv('N', plr, A.numRows(), A.numCols(),
+           1, reinterpret_cast<double _Complex*>(B.data()), 1,
+           0, reinterpret_cast<double _Complex*>(testR.data()), 1);
   }
+
+  free_zplr2d(plr);
 
 
   MatrixType ResR = exactR - testR;

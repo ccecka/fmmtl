@@ -67,8 +67,10 @@ class PLR_Matrix
   // Count of blocks by level
   std::vector<char> leaf_count;
 
-  /** Constructor
-   */
+  // Move Constructor
+  PLR_Matrix(PLR_Matrix&&) = default;
+
+  /** Constructor */
   template <typename Matrix, typename ID>
   PLR_Matrix(const Matrix& A, TTree&& tt, STree&& st, ID&& interp_decomp,
              int init_depth = 0)
@@ -146,7 +148,7 @@ mv(Transpose trans, const ALPHA &alpha,
   (void) trans;
   ASSERT(trans==NoTrans);
 
-  if (y.numRows() == 0) {
+  if (y.length() == 0) {
     ASSERT(beta == BETA(0));
     y.resize(H.numRows());
   } else if (beta != BETA(1)) {
