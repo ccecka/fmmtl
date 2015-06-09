@@ -48,7 +48,7 @@ class HODLR_Matrix
    */
   template <typename Matrix, typename ID>
   HODLR_Matrix(const Matrix& A, Tree&& t, ID&& interp_decomp)
-      : tree(std::move(t)), Aii(tree), U(tree), V(tree)
+      : tree(std::move(t)), Aii(tree), U(tree), V(tree), max_r(0)
   {
     using box_type = typename Tree::box_type;
 
@@ -56,42 +56,39 @@ class HODLR_Matrix
     // Interpolative Decomposition of off-diagonal blocks
     //
 
-    // Define the dyadic decomp traversal operator -- TODO: Use custom traversal?
-    auto decomp_offdiag = [&](const box_type& sbox, const box_type& tbox) {
-      if (sbox == tbox) {             // This is a diagonal block
-        if (tbox.is_leaf()) {         // If diagonal leaf, store diagonal block
-          auto rows = range(tbox);
-          Aii[tbox] = A(rows,rows);
-          return 0;
-        }
-        return 3;                     // Else, split both and recurse
+    auto box_end = tree.box_end();
+#pragma omp parallel for default(shared)
+    for (auto it = tree.box_begin(); it < box_end; ++it) {
+      auto box = *it;
+      if (box.is_leaf()) {
+        // Store the diagonal block
+        auto rows = range(box);
+        Aii[box] = A(rows,rows);
+        continue;
       }
 
-      // If this is a symmetric/hermitian HODLR, skip lower tri blocks
-      if ((IsSymmetricMatrix<Matrix>::value || IsHermitianMatrix<Matrix>::value)
-          && (sbox < tbox))
-        return 0;
+      // Binary trees only for now
+      // TODO: Change data structure and logic for all non-diag pairs of boxes
+      auto sbox = box.child_begin()[0];
+      auto tbox = box.child_begin()[1];
 
-      // Apply the interpolative decomposition to this off-diag block
       std::tie(U[tbox],V[sbox]) = interp_decomp(A(range(tbox),range(sbox)));
-      //std::cout << "Level " << tbox.level() << ": " << num_rows(U[tbox]) << "," << num_cols(U[tbox]) << " -- " << num_rows(VT[sbox]) << "," << num_cols(VT[sbox]) << std::endl;
-      //assert(num_cols(U[tbox]) != 0 && num_rows(VT[sbox]) != 0);
+      ASSERT(num_cols(U[tbox]) == num_cols(V[sbox]));
+      max_r = std::max(max_r, num_cols(U[tbox]));
 
-      // If this is a symmetric/hermitian HODLR, assign lower tri blocks
+      // Compile-time optimizations
       if (IsSymmetricMatrix<Matrix>::value) {
         U[sbox] = transpose(V[sbox]);
         V[tbox] = transpose(U[tbox]);
-      }
-      if (IsHermitianMatrix<Matrix>::value) {
+      } else if (IsHermitianMatrix<Matrix>::value) {
         U[sbox] = conjTrans(V[sbox]);
         V[tbox] = conjTrans(U[tbox]);
+      } else {
+        std::tie(U[sbox],V[tbox]) = interp_decomp(A(range(sbox),range(tbox)));
+        ASSERT(num_cols(U[sbox]) == num_cols(V[tbox]));
+        max_r = std::max(max_r, num_cols(U[sbox]));
       }
-
-      return 0;                      // Done with this block
-    };
-
-    // Traverse the dyadic tree and decompose the off-diagonal blocks
-    fmmtl::traverse_if(tree.root(), tree.root(), decomp_offdiag);
+    }
   } // end constructor
 
   IndexType
@@ -124,6 +121,7 @@ class HODLR_Matrix
   fmmtl::BoxBind<MatrixType,Tree>   Aii;   // Diagonal blocks (leaves only)
   fmmtl::BoxBind<MatrixType,Tree>   U;     // L2T blocks (idx by target box)
   fmmtl::BoxBind<MatrixType,Tree>   V;     // S2M blocks (idx by source box)
+  int max_r;                               // Max rank of decompositions
 
   fmmtl::BoxBind<IndexVector,Tree>  ipiv;  // Pivoting info for Aii LU
 };
@@ -200,26 +198,35 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
     B *= beta;
   }
 
-  // Define the dyadic matvec traversal operator -- TODO: custom traversal?
-  auto offdiag = [&](const box_type& sbox, const box_type& tbox) {
-    if (sbox == tbox) {           // This is a diagonal block
-      if (tbox.is_leaf()) {       // If diagonal leaf, direct matvec
-        auto rows = range(tbox);
-        B(rows,_) += alpha * H.Aii[tbox] * A(rows,_);
-        return 0;
-      }                          // If diagonal non-leaf, partition both
-      return 3;
+  // By level insures independent updates
+  //#pragma omp parallel default(shared)
+  for (int L = 0; L < H.tree.levels(); ++L) {
+
+    auto box_end = H.tree.box_end(L);
+    //#pragma omp for
+    for (auto bit = H.tree.box_begin(L); bit < box_end; ++bit) {
+      auto box = *bit;
+
+      if (box.is_leaf()) {
+        auto rows = range(box);
+        B(rows,_) += alpha * H.Aii[box] * A(rows,_);
+        continue;
+      }
+
+      auto sbox = box.child_begin()[0];
+      auto tbox = box.child_begin()[1];
+      auto rs = range(sbox);
+      auto rt = range(tbox);
+
+      MatrixType Tmp = alpha * transpose(H.V[sbox]) * A(rs,_);
+      B(rt,_) += H.U[tbox] * Tmp;
+
+      // Can avoid re-allocation in the common case
+      Tmp.reserve(num_cols(H.V[tbox]), num_cols(Tmp));
+      Tmp = alpha * transpose(H.V[tbox]) * A(rt,_);
+      B(rs,_) += H.U[sbox] * Tmp;
     }
-
-    // Compute the off-diag block matvec using the low-rank approximation
-    // XXX: Revisit temp
-    MatrixType temp = alpha * transpose(H.V[sbox]) * A(range(sbox),_);
-    B(range(tbox),_) += H.U[tbox] * temp;
-    return 0;                    // Done with this block
-  };
-
-  // Traverse the dyadic tree and perform the matvec
-  fmmtl::traverse_if(H.tree.root(), H.tree.root(), offdiag);
+  }
 }
 
 //== (gehodlr)trf =======
@@ -237,9 +244,13 @@ trf(HODLR_Matrix<T,TR>& H, VPIV &&)
   H.ipiv    = fmmtl::make_box_binding<IndexVector>(H.tree);
 
   // For the diagonal boxes of the tree, from leaves to root
+#pragma omp parallel default(shared)
   for (int L = H.tree.levels() - 1; L >= 0; --L) {
 
-    for (auto box : boxes(L, H.tree)) {
+    auto box_end = H.tree.box_end(L);
+#pragma omp for
+    for (auto bit = H.tree.box_begin(L); bit < box_end; ++bit) {
+      auto box = *bit;
       // Get the index range of this block
       auto rows = range(box);
       auto& AiiInv = H.Aii[box];
@@ -333,9 +344,13 @@ sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
   H.ipiv    = fmmtl::make_box_binding<IndexVector>(H.tree);
 
   // For the diagonal boxes of the tree, from leaves to root
+#pragma omp parallel default(shared)
   for (int L = H.tree.levels() - 1; L >= 0; --L) {
 
-    for (auto box : boxes(L, H.tree)) {
+    auto box_end = H.tree.box_end(L);
+#pragma omp for
+    for (auto bit = H.tree.box_begin(L); bit < box_end; ++bit) {
+      auto box = *bit;
       // Get the index range of this block
       auto rows = range(box);
       auto& AiiInv = H.Aii[box];
@@ -370,13 +385,13 @@ sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
         // Get the child boxes and factorizations
         auto cbox0 = *(box.child_begin()+0);
         auto cbox1 = *(box.child_begin()+1);
-        auto rows0 = range(cbox0);
-        auto rows1 = range(cbox1);
         auto& U0 = H.U[cbox0];
         auto& U1 = H.U[cbox1];
         auto& V0 = H.V[cbox0];
         auto& V1 = H.V[cbox1];
 
+        auto rows0 = range(cbox0);
+        auto rows1 = range(cbox1);
         unsigned r = num_cols(V1), R = r + num_cols(V0);
         unsigned c = num_cols(U0), C = c + num_cols(U1);
         ASSERT(R == C);
@@ -454,13 +469,13 @@ trs(Transpose trans, HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
         // Get the child boxes and factorizations
         auto cbox0 = *(box.child_begin()+0);
         auto cbox1 = *(box.child_begin()+1);
-        auto rows0 = range(cbox0);
-        auto rows1 = range(cbox1);
         auto& U0 = H.U[cbox0];
         auto& U1 = H.U[cbox1];
         auto& V0 = H.V[cbox0];
         auto& V1 = H.V[cbox1];
 
+        auto rows0 = range(cbox0);
+        auto rows1 = range(cbox1);
         unsigned r = num_cols(V1), R = r + num_cols(V0);
 
         // Apply the SMW to X: (I + U*VT)^{-1} = I - U * (I+VT*U)^{-1} * VT

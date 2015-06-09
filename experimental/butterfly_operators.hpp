@@ -72,7 +72,7 @@ auto M2M = [&](int L, const source_box_type& sbox) {
 
       target_box_type pbox = tbox.parent();
       const point_type& p_center = pbox.center();
-      int p_idx = pbox.index() - target_tree.box_begin(pbox.level())->index();
+      int p_idx = pbox.index() - target_tree.box_begin(pbox.level()).index();
 
       // Precompute phase * M_ApBc   TODO: can reuse M_AB?
       rhs = multipole[cbox][p_idx];
@@ -186,7 +186,7 @@ auto L2L = [&](int L, const target_box_type& tbox) {
 
       target_box_type pbox = sbox.parent();
       const point_type& p_center = pbox.center();
-      int p_idx = pbox.index() - source_tree.box_begin(pbox.level())->index();
+      int p_idx = pbox.index() - source_tree.box_begin(pbox.level()).index();
 
       // Multiply  lhs_j += LgM_ij L_AB_i
       lhs.fill(0);

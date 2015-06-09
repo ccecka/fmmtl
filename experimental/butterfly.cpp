@@ -2,6 +2,7 @@
 
 #include "fmmtl/numeric/Vec.hpp"
 #include "fmmtl/numeric/Complex.hpp"
+#include "fmmtl/numeric/random.hpp"
 
 #include "fmmtl/tree/NDTree.hpp"
 #include "fmmtl/tree/TreeRange.hpp"

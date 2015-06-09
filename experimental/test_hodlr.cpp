@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
     for (unsigned j = i+1; j <= N; ++j)
       //A(i,j) = 0;
       //A(i,j) = 1;
-      //A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
-      A(i,j) = polynomial(norm_2(source[i-1] - source[j-1]));
+      A(i,j) = std::exp(-norm_2_sq(source[i-1] - source[j-1]));
+      //A(i,j) = polynomial(norm_2(source[i-1] - source[j-1]));
       //A(i,j) = std::abs(source[i-1] - source[j-1]);
       //A(i,j) = std::exp(std::complex<double>(0,i*j*6.28318530718/N));
       //A(i,j) = std::exp(-norm_2_sq(std::sin(6.28*(source[i-1]-source[j-1]))));
