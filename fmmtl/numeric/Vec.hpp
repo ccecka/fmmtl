@@ -412,8 +412,23 @@ get(const Vec<N,T>& a) {
 template <std::size_t N, typename T>
 void
 swap(Vec<N,T>& a, Vec<N,T>& b) {
-  std::swap_ranges(a.begin(), a.end(), b.begin());
+  std::swap(a.elem, b.elem);
 }
+
+template <class T>
+struct tuple_size;
+
+template <std::size_t N, typename T>
+struct tuple_size<Vec<N,T>> : std::integral_constant<std::size_t, N> {};
+
+template <std::size_t I, class T>
+struct tuple_element;
+
+template <std::size_t I, std::size_t N, typename T>
+struct tuple_element<I,Vec<N,T>> {
+  static_assert(I < N, "Index out of range!");
+  typedef T type;
+};
 
 } // end namespace std
 

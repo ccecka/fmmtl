@@ -203,7 +203,7 @@ struct ExpansionTraits
     s << "has_M2T: "            << traits.has_M2T            << std::endl;
     s << "  has_scalar_M2T: "   << traits.has_scalar_M2T     << std::endl;
     s << "  has_vector_M2T: "   << traits.has_vector_M2T     << std::endl;
-    s << "has_L2T: "            << traits.has_M2T            << std::endl;
+    s << "has_L2T: "            << traits.has_L2T            << std::endl;
     s << "  has_scalar_L2T: "   << traits.has_scalar_L2T     << std::endl;
     s << "  has_vector_L2T: "   << traits.has_vector_L2T     << std::endl;
     s << "has_dynamic_MAC: "    << traits.has_dynamic_MAC;
