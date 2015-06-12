@@ -33,7 +33,7 @@ struct Gaussian
   FMMTL_INLINE
   kernel_value_type operator()(const target_type& t,
                                const source_type& s) const {
-    return exp(-inv_h_sq_ * norm_2_sq(t-s));
+    return std::exp(-inv_h_sq_ * norm_2_sq(t-s));
   }
   /** Fast transpose */
   FMMTL_INLINE

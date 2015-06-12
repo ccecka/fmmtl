@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <type_traits>
+#include <iterator>
 #include <random>
 
 #include "fmmtl/numeric/Vec.hpp"
@@ -25,11 +26,10 @@ struct random<T, typename enable_if<is_integral<T>::value>::type> {
   result_type operator()()         const { return get();    }
 
   static result_type get(T a, T b) {
-    std::uniform_int_distribution<T> dist(a, b);
-    return dist(default_generator);
+    return std::uniform_int_distribution<T>(a,b)(default_generator);
   }
   static result_type get() {
-    return get(T(0), std::numeric_limits<T>::max());
+    return std::uniform_int_distribution<T>()(default_generator);
   }
 };
 
@@ -40,25 +40,24 @@ struct random<T, typename enable_if<is_floating_point<T>::value>::type> {
   result_type operator()()         const { return get();    }
 
   static result_type get(T a, T b) {
-    std::uniform_real_distribution<T> dist(a, b);
-    return dist(default_generator);
+    return std::uniform_real_distribution<T>(a,b)(default_generator);
   }
   static result_type get() {
-    return get(T(0), T(1));
+    return std::uniform_real_distribution<T>()(default_generator);
   }
 };
 
 template <typename T>
-struct random<complex<T> > {
-  typedef complex<T> result_type;
+struct random<fmmtl::complex<T> > {
+  typedef fmmtl::complex<T> result_type;
   result_type operator()(T a, T b) const { return get(a,b); }
   result_type operator()()         const { return get();    }
 
   static result_type get(T a, T b) {
-    return complex<T>(random<T>::get(a,b), random<T>::get(a,b));
+    return fmmtl::complex<T>(random<T>::get(a,b), random<T>::get(a,b));
   }
   static result_type get() {
-    return get(T(0), T(1));
+    return fmmtl::complex<T>(random<T>::get(), random<T>::get());
   }
 };
 
@@ -72,7 +71,7 @@ struct random<std::complex<T> > {
     return std::complex<T>(random<T>::get(a,b), random<T>::get(a,b));
   }
   static result_type get() {
-    return get(T(0), T(1));
+    return std::complex<T>(random<T>::get(), random<T>::get());
   }
 };
 
@@ -89,42 +88,36 @@ struct random<Vec<N,T> > {
     return v;
   }
   static result_type get() {
-    return get(T(0), T(1));
+    Vec<N,T> v;
+    for (std::size_t i = 0; i != N; ++i)
+      v[i] = fmmtl::random<T>::get();
+    return v;
   }
 };
 
 
 class random_n {
   template <typename T>
-  struct random_iterator {
-    typedef std::input_iterator_tag iterator_category;
-    typedef T value_type;
-    typedef int difference_type;
-    typedef T* pointer;
-    typedef T& reference;
-
-    random_iterator(int n = 0) : i_(n) {}
-
+  struct random_iterator : std::iterator_traits<T*> {
+    random_iterator(std::size_t i) : i_(i) {}
     T operator*() const { return random<T>::get(); }
     random_iterator& operator++() { ++i_; return *this; }
-    int operator-(const random_iterator& o) const { return o.i_ - i_; }
+    int  operator- (const random_iterator& o) const { return i_ - o.i_;  }
     bool operator==(const random_iterator& o) const { return i_ == o.i_; }
     bool operator!=(const random_iterator& o) const { return i_ != o.i_; }
-
-   private:
     std::size_t i_;
   };
 
-  std::size_t N;
+  std::size_t N_;
 
  public:
-  random_n(const std::size_t& _N) : N(_N) {}
+  random_n(const std::size_t& N) : N_(N) {}
 
   template <typename Container>
   operator Container() const {
     typedef typename Container::value_type value_type;
     return Container(random_iterator<value_type>(0),
-                     random_iterator<value_type>(N));
+                     random_iterator<value_type>(N_));
   }
 };
 
