@@ -1,0 +1,34 @@
+#ifndef FMMTL_COT_KERN
+#define FMMTL_COT_KERN
+
+#include "fmmtl/Kernel.hpp"
+
+// Use a library-defined Vector class that supports multiple architectures
+#include "fmmtl/numeric/Vec.hpp"
+
+struct Cot : fmmtl::Kernel<Cot>
+{
+  typedef Vec<1,double>  source_type;
+  typedef double         charge_type;
+  typedef Vec<1,double>  target_type;
+  typedef double         result_type;
+  typedef double         kernel_value_type;
+
+  double alpha;
+  double beta;
+
+  FMMTL_INLINE
+  Cot(double a = 1, double b = 1)
+      : alpha(a), beta(b) {
+  }
+
+  /** Kernel evaluation */
+  FMMTL_INLINE
+  kernel_value_type operator()(const target_type& t,
+                               const source_type& s) const {
+    return 1.0 / std::tan(alpha * (s[0] - t[0] + beta));
+  }
+};
+FMMTL_KERNEL_EXTRAS(Cot);
+
+#endif

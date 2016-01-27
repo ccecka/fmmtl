@@ -16,3 +16,5 @@ correctness:      $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
 dual_correctness: $(KERNEL_DIR)/UnitKernel.o $(KERNEL_DIR)/ExpKernel.o
 
 test_s2t:         $(KERNEL_DIR)/Laplace.o #$(patsubst %.kern,%.o,$(wildcard $(KERNEL_DIR)/*.kern))
+
+test_bbfmm:       $(KERNEL_DIR)/Barycentric.o
