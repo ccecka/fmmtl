@@ -6,7 +6,7 @@
 
 //#include <thrust/device_malloc_allocator.h>
 
-#include "fmmtl/numeric/flens.hpp"
+#include "flens.hpp"
 
 #include "fmmtl/tree/TreeRange.hpp"
 #include "fmmtl/tree/TreeData.hpp"

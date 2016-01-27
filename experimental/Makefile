@@ -17,6 +17,10 @@ ifeq ($(host-name),crisco-nix)
 	OPENBLAS_LIB = -L/opt/OpenBLAS/lib/
 endif
 
+
+$(EXEC): INCLUDES += -I./FLENS
+
+
 svd_test: LDLIBS += -llapack
 probe:    LDLIBS += -llapack
 
@@ -30,6 +34,9 @@ test_hodlr: LDLIBS += $(OPENBLAS_LIB) -lopenblas
 
 test_hodlr_gpu: CXXFLAGS += -DWITH_OPENBLAS -DWITH_CUBLAS -DWITH_CUSOLVER
 test_hodlr_gpu: LDLIBS += $(OPENBLAS_LIB) -lopenblas -lcublas -lcusolver
+
+test_hodlr_c2g: CXXFLAGS += -DWITH_OPENBLAS -DWITH_CUBLAS -DWITH_CUSOLVER
+test_hodlr_c2g: LDLIBS += $(OPENBLAS_LIB) -lopenblas -lcublas -lcusolver
 
 profile_hodlr_gpu: CXXFLAGS += -DWITH_OPENBLAS -DWITH_CUBLAS -DWITH_CUSOLVER
 profile_hodlr_gpu: LDLIBS += $(OPENBLAS_LIB) -lopenblas -lcublas -lcusolver

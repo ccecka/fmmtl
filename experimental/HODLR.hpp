@@ -68,7 +68,7 @@ hodlr(const flens::Matrix<MA>& A, int leaf_size) {
 template <typename MA>
 flens::HODLR_Matrix<typename MA::Impl::ElementType, fmmtl::NDTree<1> >
 hodlr(const flens::Matrix<MA>& A) {
-  return hodlr(A, 64);
+  return hodlr(A, 256);
 }
 
 

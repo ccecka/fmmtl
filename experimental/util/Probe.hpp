@@ -3,7 +3,7 @@
 #include <utility>
 #include <cmath>
 
-#include "fmmtl/numeric/flens.hpp"
+#include "flens.hpp"
 
 /** Construct a low-rank approximation A ~= U * V^T
  * for maximum rank @a max_rank and error tolerance @a eps_tol at the rank.

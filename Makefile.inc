@@ -7,8 +7,6 @@ FMMTL_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 KERNEL_DIR = $(FMMTL_DIR)kernel
 
 # External libraries
-#BOOST_DIR = /usr/include
-FLENS_DIR  = $(FMMTL_DIR)fmmtl/numeric/FLENS
 THRUST_DIR = /usr/local/cuda/include
 
 # Optional libraries
@@ -54,8 +52,7 @@ DEPSFLAGS = -MD -MF $(DEPSFILE) #-MP
 
 # Define any directories containing header files
 #   To include directories use -Ipath/to/files
-INCLUDES += -I. -I$(FMMTL_DIR) -I$(KERNEL_DIR)
-INCLUDES += -I$(THRUST_DIR) -I$(FLENS_DIR)
+INCLUDES += -I. -I$(THRUST_DIR) -I$(FMMTL_DIR) -I$(KERNEL_DIR)
 
 # Define cxx compile flags
 CXXFLAGS  = -fopenmp -funroll-loops -O3 -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors

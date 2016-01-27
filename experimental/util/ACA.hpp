@@ -6,7 +6,7 @@
 #include <algorithm>
 
 #include "fmmtl/numeric/random.hpp"
-#include "fmmtl/numeric/flens.hpp"
+#include "flens.hpp"
 
 
 /** Partial pivoted LU to construct low-rank.

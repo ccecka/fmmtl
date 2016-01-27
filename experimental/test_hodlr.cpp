@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     for (unsigned j = 1; j <= K; ++j)
       B(i,j) = fmmtl::random<T>::get();
 
-#if 1
+#if 0
   // Ge MATRIX
   {
   std::cout << "N = " << N << std::endl;
@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
 #endif
 
 
-#if 0
+#if 1
   // Sy MATRIX
   {
   std::cout << "N = " << N << std::endl;
@@ -135,6 +135,8 @@ int main(int argc, char** argv) {
   std::cout << "HODLR Compression: " << H.compression() << std::endl;
 
   // Matmats
+  {
+
   MatrixType testR, exactR;
   { ScopeClock timer("HODLR  Matvec: ");
     testR = H * B;
@@ -143,8 +145,10 @@ int main(int argc, char** argv) {
   { ScopeClock timer(std::string("Direct Matvec: "));
     exactR = A * B;
   }
-  MatrixType ResR = exactR - testR;
-  std::cout << "Matvec rel norm_F = " << norm_f(ResR)/norm_f(exactR) << std::endl;
+  testR -= exactR;
+  std::cout << "Matvec rel norm_F = " << norm_f(testR)/norm_f(exactR) << std::endl;
+
+  }
 
   // Solves
   IndexVector ipiv;
@@ -167,18 +171,18 @@ int main(int argc, char** argv) {
   }
   std::cout << "|H| = " << det.first << "e" << det.second << std::endl;
 
-  MatrixType Acpy = A;
+  //MatrixType Acpy = A;
   MatrixType exactX = B;
   { ScopeClock timer("Direct Solve1: ");
-    flens::lapack::sv(Acpy, ipiv, exactX);
+    flens::lapack::sv(A, ipiv, exactX);
   }
   exactX = B;
   { ScopeClock timer("Direct Solve2: ");
-    flens::lapack::trs(NoTrans, Acpy, ipiv, exactX);
+    flens::lapack::trs(NoTrans, A, ipiv, exactX);
   }
 
-  MatrixType ResX = exactX - testX;
-  std::cout << "Solve  rel norm_F = " << norm_f(ResX)/norm_f(exactX) << std::endl;
+  testX -= exactX;
+  std::cout << "Solve  rel norm_F = " << norm_f(testX)/norm_f(exactX) << std::endl;
   }
 #endif
 

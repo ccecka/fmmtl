@@ -4,9 +4,9 @@
 #include <cmath>
 #include <limits>
 
-//#include <thrust/device_malloc_allocator.h>
+#include <omp.h>
 
-#include "fmmtl/numeric/flens.hpp"
+#include "flens.hpp"
 
 #include "fmmtl/tree/TreeRange.hpp"
 #include "fmmtl/tree/TreeData.hpp"
@@ -37,11 +37,11 @@ class HODLR_Matrix
   typedef int   IndexType;
 
   // CPU
-  using MatrixType  = GeMatrix<FullStorage<T> >;
-  using IndexVector = DenseVector<Array<IndexType> >;
+  //using MatrixType  = GeMatrix<FullStorage<T> >;
+  //using IndexVector = DenseVector<Array<IndexType> >;
   // GPU
-  //using MatrixType  = GeMatrix<FullStorage<T,ColMajor,IndexOptions<>,thrust::device_malloc_allocator<T> > >;
-  //using IndexVector = DenseVector<Array<IndexType, IndexOptions<>,thrust::device_malloc_allocator<IndexType> > >;
+  using MatrixType  = GeMatrix<FullStorage<T,ColMajor,IndexOptions<>,thrust::device_malloc_allocator<T> > >;
+  using IndexVector = DenseVector<Array<IndexType, IndexOptions<>,thrust::device_malloc_allocator<IndexType> > >;
 
 
   /** Constructor
@@ -50,16 +50,20 @@ class HODLR_Matrix
   HODLR_Matrix(const Matrix& A, Tree&& t, ID&& interp_decomp)
       : tree(std::move(t)), Aii(tree), U(tree), V(tree), max_r(0)
   {
-    using box_type = typename Tree::box_type;
-
     //
     // Interpolative Decomposition of off-diagonal blocks
     //
 
     auto box_end = tree.box_end();
-#pragma omp parallel for default(shared)
+    //#pragma omp parallel for default(shared) schedule(static,1)
     for (auto it = tree.box_begin(); it < box_end; ++it) {
       auto box = *it;
+      //cxxblas::CublasEnv::setStream(omp_get_thread_num());
+      //printf("Thread %d Box %d Stream %d Handle %p\n", omp_get_thread_num(), box.index(),
+      //       cxxblas::CudaEnv::getStreamID(), cxxblas::CublasEnv::handle());
+      //printf("Thread %d Box %d\n", omp_get_thread_num(), box.index());
+      //cxxblas::CublasEnv::setStream(omp_get_thread_num());
+
       if (box.is_leaf()) {
         // Store the diagonal block
         auto rows = range(box);
@@ -71,22 +75,24 @@ class HODLR_Matrix
       // TODO: Change data structure and logic for all non-diag pairs of boxes
       auto sbox = box.child_begin()[0];
       auto tbox = box.child_begin()[1];
+      auto cols = range(sbox);
+      auto rows = range(tbox);
 
-      std::tie(U[tbox],V[sbox]) = interp_decomp(A(range(tbox),range(sbox)));
+      std::tie(U[tbox],V[sbox]) = interp_decomp(A(rows,cols));
       ASSERT(num_cols(U[tbox]) == num_cols(V[sbox]));
-      max_r = std::max(max_r, num_cols(U[tbox]));
+      //max_r = std::max(max_r, num_cols(U[tbox]));
 
       // Compile-time optimizations
       if (IsSymmetricMatrix<Matrix>::value) {
-        U[sbox] = transpose(V[sbox]);
-        V[tbox] = transpose(U[tbox]);
+        U[sbox] = V[sbox];
+        V[tbox] = U[tbox];
       } else if (IsHermitianMatrix<Matrix>::value) {
-        U[sbox] = conjTrans(V[sbox]);
-        V[tbox] = conjTrans(U[tbox]);
+        U[sbox] = conjugate(V[sbox]);
+        V[tbox] = conjugate(U[tbox]);
       } else {
-        std::tie(U[sbox],V[tbox]) = interp_decomp(A(range(sbox),range(tbox)));
+        std::tie(U[sbox],V[tbox]) = interp_decomp(A(cols,rows));
         ASSERT(num_cols(U[sbox]) == num_cols(V[tbox]));
-        max_r = std::max(max_r, num_cols(U[sbox]));
+        //max_r = std::max(max_r, num_cols(U[sbox]));
       }
     }
   } // end constructor
@@ -125,6 +131,21 @@ class HODLR_Matrix
 
   fmmtl::BoxBind<IndexVector,Tree>  ipiv;  // Pivoting info for Aii LU
 };
+
+
+
+namespace detail
+{
+
+void SMW_trf();
+
+void SMW_trs();
+
+void SMW_sv();
+
+}
+
+
 
 
 
@@ -203,9 +224,14 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
   for (int L = 0; L < H.tree.levels(); ++L) {
 
     auto box_end = H.tree.box_end(L);
-    //#pragma omp for
+    //#pragma omp for schedule(static,1)
     for (auto bit = H.tree.box_begin(L); bit < box_end; ++bit) {
       auto box = *bit;
+
+      //cxxblas::CublasEnv::setStream(2);
+      //printf("Thread %d Box %d Stream %d Handle %p\n", omp_get_thread_num(), box.index(),
+      //       cxxblas::CudaEnv::getStreamID(), cxxblas::CublasEnv::handle());
+      //cxxblas::CublasEnv::setStream(omp_get_thread_num());
 
       if (box.is_leaf()) {
         auto rows = range(box);
@@ -220,6 +246,8 @@ mm(Transpose transH, Transpose transA, const ALPHA &alpha,
 
       MatrixType Tmp = alpha * transpose(H.V[sbox]) * A(rs,_);
       B(rt,_) += H.U[tbox] * Tmp;
+
+      //cxxblas::CublasEnv::setStream(1);
 
       // Can avoid re-allocation in the common case
       Tmp.reserve(num_cols(H.V[tbox]), num_cols(Tmp));
@@ -244,11 +272,11 @@ trf(HODLR_Matrix<T,TR>& H, VPIV &&)
   H.ipiv    = fmmtl::make_box_binding<IndexVector>(H.tree);
 
   // For the diagonal boxes of the tree, from leaves to root
-#pragma omp parallel default(shared)
+  //#pragma omp parallel default(shared)
   for (int L = H.tree.levels() - 1; L >= 0; --L) {
 
     auto box_end = H.tree.box_end(L);
-#pragma omp for
+    //#pragma omp for
     for (auto bit = H.tree.box_begin(L); bit < box_end; ++bit) {
       auto box = *bit;
       // Get the index range of this block
@@ -283,8 +311,8 @@ trf(HODLR_Matrix<T,TR>& H, VPIV &&)
         // Thus, we invert an R x R matrix rather than the full N x N block.
 
         // Get the child boxes and factorizations
-        auto cbox0 = *(box.child_begin()+0);
-        auto cbox1 = *(box.child_begin()+1);
+        auto cbox0 = box.child_begin()[0];
+        auto cbox1 = box.child_begin()[1];
         auto rows0 = range(cbox0);
         auto rows1 = range(cbox1);
         auto& U0 = H.U[cbox0];
@@ -344,13 +372,15 @@ sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
   H.ipiv    = fmmtl::make_box_binding<IndexVector>(H.tree);
 
   // For the diagonal boxes of the tree, from leaves to root
-#pragma omp parallel default(shared)
+  //#pragma omp parallel default(shared)
   for (int L = H.tree.levels() - 1; L >= 0; --L) {
 
     auto box_end = H.tree.box_end(L);
-#pragma omp for
+    //#pragma omp for
     for (auto bit = H.tree.box_begin(L); bit < box_end; ++bit) {
       auto box = *bit;
+      //cxxblas::CublasEnv::setStream(omp_get_thread_num());
+
       // Get the index range of this block
       auto rows = range(box);
       auto& AiiInv = H.Aii[box];
@@ -383,15 +413,15 @@ sv(HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
         // Thus, we invert an R x R matrix rather than the full N x N block.
 
         // Get the child boxes and factorizations
-        auto cbox0 = *(box.child_begin()+0);
-        auto cbox1 = *(box.child_begin()+1);
+        auto cbox0 = box.child_begin()[0];
+        auto cbox1 = box.child_begin()[1];
+        auto rows0 = range(cbox0);
+        auto rows1 = range(cbox1);
         auto& U0 = H.U[cbox0];
         auto& U1 = H.U[cbox1];
         auto& V0 = H.V[cbox0];
         auto& V1 = H.V[cbox1];
 
-        auto rows0 = range(cbox0);
-        auto rows1 = range(cbox1);
         unsigned r = num_cols(V1), R = r + num_cols(V0);
         unsigned c = num_cols(U0), C = c + num_cols(U1);
         ASSERT(R == C);
@@ -467,15 +497,15 @@ trs(Transpose trans, HODLR_Matrix<T,TR>& H, VPIV &&, MB &&B)
         flens::lapack::trs(NoTrans, AiiInv, ipiv, B(rows, _));
       } else {
         // Get the child boxes and factorizations
-        auto cbox0 = *(box.child_begin()+0);
-        auto cbox1 = *(box.child_begin()+1);
+        auto cbox0 = box.child_begin()[0];
+        auto cbox1 = box.child_begin()[1];
+        auto rows0 = range(cbox0);
+        auto rows1 = range(cbox1);
         auto& U0 = H.U[cbox0];
         auto& U1 = H.U[cbox1];
         auto& V0 = H.V[cbox0];
         auto& V1 = H.V[cbox1];
 
-        auto rows0 = range(cbox0);
-        auto rows1 = range(cbox1);
         unsigned r = num_cols(V1), R = r + num_cols(V0);
 
         // Apply the SMW to X: (I + U*VT)^{-1} = I - U * (I+VT*U)^{-1} * VT
@@ -523,7 +553,7 @@ det(HODLR_Matrix<T,TR>& H)
     }
   }
 
-  // Force 1 < abs(a) < 10
+  // Force 1 <= abs(a) < 10
   while (abs(a) <  1e0) { a *= 1e+1; b -= 1; }
   while (abs(a) >= 1e1) { a *= 1e-1; b += 1; }
 
