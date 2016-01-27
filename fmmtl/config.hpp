@@ -12,8 +12,8 @@
 #endif
 
 #include <thrust/version.h>
-#if (THRUST_VERSION < 100700)
-#  error Need Thrust v1.7. Please upgrade to CUDA 5.5.
+#if (THRUST_VERSION < 100800)
+#  error Need Thrust v1.8. Please upgrade.
 #endif
 
 // Enable performance options in NDEBUG mode

@@ -148,7 +148,7 @@ class transform_iterator
     return *this;
   }
 
-  __thrust_hd_warning_disable__
+  //__thrust_hd_warning_disable__
   __host__ __device__
   typename super_t::reference dereference() const
   {
