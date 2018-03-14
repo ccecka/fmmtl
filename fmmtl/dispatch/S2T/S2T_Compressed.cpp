@@ -10,9 +10,9 @@ S2T_Compressed<Kernel>::S2T_Compressed() {
 
 template <typename Kernel>
 S2T_Compressed<Kernel>::S2T_Compressed(
-    std::vector<std::pair<unsigned,unsigned> >&,
+    std::vector<thrust::pair<unsigned,unsigned> >&,
     std::vector<unsigned>&,
-    std::vector<std::pair<unsigned,unsigned> >&,
+    std::vector<thrust::pair<unsigned,unsigned> >&,
     const std::vector<source_type>&,
     const std::vector<target_type>&) {
 }

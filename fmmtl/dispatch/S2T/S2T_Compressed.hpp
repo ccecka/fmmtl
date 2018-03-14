@@ -7,6 +7,8 @@
 #include <iostream>
 #include <vector>
 
+#include <thrust/pair.h>
+
 #include "fmmtl/config.hpp"
 #include "fmmtl/meta/kernel_traits.hpp"
 
@@ -19,9 +21,9 @@ class S2T_Compressed {
   void* data_;
 
   // Device data for S2T computation
-  std::pair<unsigned,unsigned>* target_ranges_;
+  thrust::pair<unsigned,unsigned>* target_ranges_;
   unsigned* source_range_ptrs_;
-  std::pair<unsigned,unsigned>* source_ranges_;
+  thrust::pair<unsigned,unsigned>* source_ranges_;
 
   // Device source and target arrays
   source_type* sources_;
@@ -29,9 +31,9 @@ class S2T_Compressed {
 
   S2T_Compressed();
 
-	S2T_Compressed(std::vector<std::pair<unsigned,unsigned> >& target_ranges,
+	S2T_Compressed(std::vector<thrust::pair<unsigned,unsigned> >& target_ranges,
                  std::vector<unsigned>& target_ptrs,
-                 std::vector<std::pair<unsigned,unsigned> >& source_ranges,
+                 std::vector<thrust::pair<unsigned,unsigned> >& source_ranges,
                  const std::vector<source_type>& sources,
                  const std::vector<target_type>& targets);
 
@@ -98,7 +100,7 @@ class S2T_Compressed {
     // Interaction list for each target box
     // (target_first,target_last) -> {(source_first, source_last), ...}
     // TODO: faster?
-    typedef std::pair<unsigned, unsigned> upair;
+    typedef thrust::pair<unsigned, unsigned> upair;
     std::vector<std::vector<upair> > target2sources(num_targets);
     // A list of target ranges we've seen: {(target_first, target_last), ...}
     std::vector<upair> target_ranges;
@@ -163,7 +165,7 @@ class S2T_Compressed {
     typedef typename Context::target_box_type target_box_type;
     typedef typename Context::source_box_type source_box_type;
 
-    typedef std::pair<unsigned, unsigned> upair;
+    typedef thrust::pair<unsigned, unsigned> upair;
 
     // Interaction list for each target box
     // (target_first,target_last) -> {(source_first, source_last), ...}
@@ -226,7 +228,7 @@ class S2T_Compressed {
     // Interaction list for each target box
     // (target_first,target_last) -> {(source_first, source_last), ...}
     // TODO: faster?
-    typedef std::pair<unsigned, unsigned> upair;
+    typedef thrust::pair<unsigned, unsigned> upair;
     std::vector<std::vector<upair> > target2sources(num_targets);
     // A list of target ranges we've seen: {(target_first, target_last), ...}
     std::vector<upair> target_ranges;

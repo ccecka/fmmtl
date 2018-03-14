@@ -51,9 +51,9 @@ S2T_Compressed<Kernel>::S2T_Compressed()
 
 template <typename Kernel>
 S2T_Compressed<Kernel>::S2T_Compressed(
-    std::vector<std::pair<unsigned,unsigned> >& target_ranges,
+    std::vector<thrust::pair<unsigned,unsigned> >& target_ranges,
     std::vector<unsigned>& source_range_ptrs,
-    std::vector<std::pair<unsigned,unsigned> >& source_ranges,
+    std::vector<thrust::pair<unsigned,unsigned> >& source_ranges,
     const std::vector<source_type>& sources,
     const std::vector<target_type>& targets)
     : data_(new Data(sources.size(), targets.size(), target_ranges.size())),

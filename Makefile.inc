@@ -55,10 +55,10 @@ DEPSFLAGS = -MD -MF $(DEPSFILE) #-MP
 INCLUDES += -I. -I$(THRUST_DIR) -I$(FMMTL_DIR) -I$(KERNEL_DIR)
 
 # Define cxx compile flags
-CXXFLAGS  = -fopenmp -funroll-loops -O3 -Wall -Wextra -Wno-unused-local-typedefs #-Wfatal-errors
+CXXFLAGS  = -fopenmp -funroll-loops -O3 -Wall -Wextra -Wno-unused-local-typedefs
 
 # Define nvcc compile flags   TODO: Detect and generate appropriate sm_XX
-NVCCFLAGS := -arch=sm_35 -O3 --compiler-options "$(CXXFLAGS)" -Xcompiler -Wno-unused-parameter #-Xptxas="-v"
+NVCCFLAGS := -arch=sm_70 -O3 --compiler-options "$(CXXFLAGS)" -Xcompiler -Wno-unused-parameter #-Xptxas="-v"
 
 # Define any directories containing libraries
 #   To include directories use -Lpath/to/files

@@ -3,7 +3,6 @@
 #include <type_traits>
 #include <iterator>
 
-#include <thrust/detail/type_traits/result_of.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/detail/raw_reference_cast.h>
 

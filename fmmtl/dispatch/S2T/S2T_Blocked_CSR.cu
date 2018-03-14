@@ -1,7 +1,28 @@
 #pragma once
 
-#include <thrust/system/cuda/detail/detail/uninitialized.h>
-using thrust::system::cuda::detail::detail::uninitialized_array;
+// uninitialized_array
+// --------------
+// allocates uninitialized data on stack
+template<class T, size_t N>
+struct uninitialized_array
+{
+  typedef T value_type;
+  typedef T ref[N];
+  enum {SIZE = N};
+ private:
+  char data_[N * sizeof(T)];
+
+ public:
+  __host__ __device__       T* data()       { return data_; }
+  __host__ __device__ const T* data() const { return data_; }
+  __host__ __device__       T& operator[](unsigned idx)       { return ((T*)data_)[idx]; }
+  __host__ __device__ const T& operator[](unsigned idx) const { return ((T*)data_)[idx]; }
+  __host__ __device__       T& operator[](     int idx)       { return ((T*)data_)[idx]; }
+  __host__ __device__ const T& operator[](     int idx) const { return ((T*)data_)[idx]; }
+  __host__ __device__ unsigned size() const { return N; }
+  __host__ __device__ operator ref&() { return *reinterpret_cast<ref*>(data_); }
+  __host__ __device__ ref& get_ref() { return (ref&)*this; }
+};
 
 #include "fmmtl/meta/kernel_traits.hpp"
 
